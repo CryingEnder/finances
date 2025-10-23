@@ -36,7 +36,7 @@ import {
   configs as TSESLintConfigs,
 } from "typescript-eslint";
 
-// import css from '@eslint/css'; <- Disabled for now, StyleLint is used instead for the CSS/SCSS files.
+// import css from "@eslint/css"; // Disabled - Tailwind v4 syntax not fully supported yet
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -656,13 +656,22 @@ export default defineConfig([
       "no-restricted-syntax": "off", // https://github.com/eslint/eslint/issues/15896
     },
   },
+  // CSS linting disabled for now - Tailwind CSS v4 syntax not fully supported by ESLint CSS plugin yet
   // {
-  //     files: ['**/*.css'],
-  //     plugins: {
-  //         css,
-  //     },
-  //     language: 'css/css',
-  //     extends: ['css/recommended'],
+  //   files: ['**/*.css'],
+  //   plugins: {
+  //     css,
+  //   },
+  //   language: 'css/css',
+  //   extends: ['css/recommended'],
+  //   rules: {
+  //     // Disable rules that conflict with Tailwind CSS v4
+  //     'css/unknown-at-rule': 'off', // Allow @tailwind, @apply, @theme, @custom-variant, etc.
+  //     'css/color-no-hex': 'off', // Allow hex colors
+  //     'css/declaration-block-no-redundant-longhand-properties': 'off', // Allow Tailwind's shorthand
+  //     'css/at-rule-no-unknown': 'off', // Allow unknown at-rules (Tailwind directives)
+  //     'css/no-duplicate-at-import-rules': 'off', // Allow duplicate imports
+  //   },
   // },
   {
     files: ["**/*.json"],
