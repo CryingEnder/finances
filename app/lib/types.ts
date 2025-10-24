@@ -43,3 +43,35 @@ export type PortfolioSummary = {
   totalProfit: number;
   totalProfitPercent: number;
 };
+
+export type Deposit = {
+  _id?: string;
+  bank: string; // e.g. "BCR", "BRD", "ING"
+  depositName: string; // e.g. "6-month term deposit", "Savings account"
+  principal: number; // Initial amount deposited
+  interestRate: number; // Annual interest rate as percentage (e.g., 5.5 for 5.5%)
+  startDate: string; // ISO date string when deposit was made
+  maturityDate?: string; // ISO date string when it matures (optional for term deposits)
+  currentBalance: number; // Current amount including earned interest
+  earnedInterest: number; // Total interest earned so far
+  isActive: boolean; // Whether it's still active or matured
+  autoRenew: boolean; // Whether it auto-renews at maturity
+};
+
+// Client-side calculated fields for deposits
+export type DepositWithCalculations = Deposit & {
+  daysActive: number; // Days since start date
+  totalReturn: number; // currentBalance - principal
+  totalReturnPercent: number; // (totalReturn / principal) * 100
+  daysToMaturity?: number; // Days until maturity (if applicable)
+};
+
+export type DepositSummary = {
+  totalPrincipal: number;
+  totalCurrentBalance: number;
+  totalEarnedInterest: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  activeDeposits: number;
+  maturedDeposits: number;
+};

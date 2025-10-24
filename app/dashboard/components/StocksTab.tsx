@@ -36,7 +36,6 @@ export default function StocksTab() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [showCompanies, setShowCompanies] = useState<boolean>(false);
 
-  // Company management states
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [companyForm, setCompanyForm] = useState({
@@ -44,8 +43,8 @@ export default function StocksTab() {
     isin: "",
     issuer: "",
   });
+  const [companyError, setCompanyError] = useState<string>("");
 
-  // Portfolio management states
   const [isPortfolioDialogOpen, setIsPortfolioDialogOpen] = useState(false);
   const [editingPortfolio, setEditingPortfolio] =
     useState<PortfolioEntry | null>(null);
@@ -59,14 +58,13 @@ export default function StocksTab() {
     averagePrice: "",
     referencePrice: "",
   });
+  const [portfolioError, setPortfolioError] = useState<string>("");
 
-  // Load data on component mount
   useEffect(() => {
     loadCompanies();
     loadPortfolioEntries();
   }, []);
 
-  // Update available dates when portfolio entries change
   useEffect(() => {
     const dates = [...new Set(portfolioEntries.map((entry) => entry.date))]
       .sort()
@@ -104,6 +102,8 @@ export default function StocksTab() {
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCompanyError("");
+
     try {
       const url = editingCompany
         ? `/api/companies/${editingCompany._id}`
@@ -122,16 +122,22 @@ export default function StocksTab() {
         setIsCompanyDialogOpen(false);
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to save company");
+        if (error.details && error.details.length > 0) {
+          setCompanyError(error.details[0].message);
+        } else {
+          setCompanyError(error.error || "Failed to save company");
+        }
       }
     } catch (error) {
       console.error("Error saving company:", error);
-      alert("Failed to save company");
+      setCompanyError("Failed to save company");
     }
   };
 
   const handlePortfolioSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPortfolioError("");
+
     try {
       const url = editingPortfolio
         ? `/api/portfolio/${editingPortfolio._id}`
@@ -155,11 +161,15 @@ export default function StocksTab() {
         setIsPortfolioDialogOpen(false);
       } else {
         const error = await response.json();
-        alert(error.error || "Failed to save portfolio entry");
+        if (error.details && error.details.length > 0) {
+          setPortfolioError(error.details[0].message);
+        } else {
+          setPortfolioError(error.error || "Failed to save portfolio entry");
+        }
       }
     } catch (error) {
       console.error("Error saving portfolio entry:", error);
-      alert("Failed to save portfolio entry");
+      setPortfolioError("Failed to save portfolio entry");
     }
   };
 
@@ -207,6 +217,7 @@ export default function StocksTab() {
   const resetCompanyForm = () => {
     setCompanyForm({ instrument: "", isin: "", issuer: "" });
     setEditingCompany(null);
+    setCompanyError("");
   };
 
   const resetPortfolioForm = () => {
@@ -221,6 +232,7 @@ export default function StocksTab() {
       referencePrice: "",
     });
     setEditingPortfolio(null);
+    setPortfolioError("");
   };
 
   const openEditCompany = (company: Company) => {
@@ -260,7 +272,6 @@ export default function StocksTab() {
     }
   };
 
-  // Calculate portfolio data for selected date
   const currentDateEntries = portfolioEntries.filter(
     (entry) => entry.date === selectedDate
   );
@@ -302,7 +313,6 @@ export default function StocksTab() {
       ? (summary.totalProfit / summary.totalPurchaseValue) * 100
       : 0;
 
-  // Function to render portfolio table for a specific date
   const renderPortfolioTable = (date: string) => {
     const dateEntries = portfolioEntries.filter((entry) => entry.date === date);
     const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
@@ -337,7 +347,6 @@ export default function StocksTab() {
       }
     );
 
-    // Calculate total profit percentage
     dateSummary.totalProfitPercent =
       dateSummary.totalPurchaseValue > 0
         ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
@@ -613,6 +622,13 @@ export default function StocksTab() {
                   required
                 />
               </div>
+
+              {companyError && (
+                <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg p-3">
+                  {companyError}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button
                   type="submit"
@@ -798,6 +814,12 @@ export default function StocksTab() {
                   />
                 </div>
               </div>
+
+              {portfolioError && (
+                <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg p-3">
+                  {portfolioError}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button

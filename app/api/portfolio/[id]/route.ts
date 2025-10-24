@@ -61,7 +61,6 @@ export async function PUT(
     }
 
     const validatedData = validationResult.data;
-
     const portfolioCollection = await getPortfolioCollection(user.id);
     const { id } = await params;
 

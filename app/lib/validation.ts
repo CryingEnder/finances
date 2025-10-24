@@ -74,5 +74,70 @@ export function formatZodErrors(error: z.ZodError) {
   }));
 }
 
+export const depositSchema = z
+  .object({
+    bank: z
+      .string()
+      .min(1, "Bank name is required")
+      .max(100, "Bank name must be 100 characters or less")
+      .trim(),
+    depositName: z
+      .string()
+      .min(1, "Deposit name is required")
+      .max(200, "Deposit name must be 200 characters or less")
+      .trim(),
+    principal: z
+      .number()
+      .min(0.01, "Principal must be at least 0.01 RON")
+      .max(10000000, "Principal cannot exceed 10,000,000 RON"),
+    interestRate: z
+      .number()
+      .min(0, "Interest rate must be 0 or greater")
+      .max(100, "Interest rate cannot exceed 100%"),
+    startDate: z
+      .string()
+      .min(1, "Start date is required")
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date must be in YYYY-MM-DD format"),
+    maturityDate: z
+      .string()
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Maturity date must be in YYYY-MM-DD format"
+      )
+      .optional()
+      .or(z.literal("")),
+    currentBalance: z
+      .number()
+      .min(0, "Current balance must be 0 or greater")
+      .max(10000000, "Current balance cannot exceed 10,000,000 RON"),
+    earnedInterest: z
+      .number()
+      .min(0, "Earned interest must be 0 or greater")
+      .max(10000000, "Earned interest cannot exceed 10,000,000 RON"),
+    isActive: z.boolean(),
+    autoRenew: z.boolean(),
+  })
+  .refine(
+    (data) => {
+      if (data.maturityDate && data.maturityDate !== "") {
+        return new Date(data.maturityDate) > new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "Maturity date must be after start date",
+      path: ["maturityDate"],
+    }
+  )
+  .refine((data) => data.currentBalance >= data.principal, {
+    message: "Current balance should not be less than principal amount",
+    path: ["currentBalance"],
+  })
+  .transform((data) => ({
+    ...data,
+    maturityDate: data.maturityDate === "" ? undefined : data.maturityDate,
+  }));
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type PortfolioEntryInput = z.infer<typeof portfolioEntrySchema>;
+export type DepositInput = z.infer<typeof depositSchema>;

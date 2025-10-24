@@ -50,7 +50,6 @@ export async function PUT(
 
     const objectId = new ObjectId(id);
 
-    // Check if company with same instrument already exists (excluding current one)
     const existingCompany = await companiesCollection.findOne({
       instrument: validatedData.instrument,
       _id: { $ne: objectId },

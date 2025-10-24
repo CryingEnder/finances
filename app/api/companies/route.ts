@@ -13,7 +13,6 @@ export async function GET() {
       .sort({ instrument: 1 })
       .toArray();
 
-    // Convert ObjectId to string for JSON serialization
     const serializedCompanies = companies.map((company) => ({
       ...company,
       _id: company._id.toString(),

@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
       .sort({ date: -1, instrument: 1 })
       .toArray();
 
-    // Convert ObjectId to string for JSON serialization
     const serializedEntries = entries.map((entry) => ({
       ...entry,
       _id: entry._id.toString(),

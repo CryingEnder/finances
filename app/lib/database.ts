@@ -1,11 +1,12 @@
 import { MongoClient, Db, Collection, ObjectId } from "mongodb";
-import type { User, Company, PortfolioEntry } from "./types";
+import type { User, Company, PortfolioEntry, Deposit } from "./types";
 import { DATABASE_CONFIG } from "./config";
 
 type DatabaseCompany = Omit<Company, "_id" | "userId"> & { _id?: ObjectId };
 type DatabasePortfolioEntry = Omit<PortfolioEntry, "_id" | "userId"> & {
   _id?: ObjectId;
 };
+type DatabaseDeposit = Omit<Deposit, "_id" | "userId"> & { _id?: ObjectId };
 
 let client: MongoClient;
 let globalDb: Db;
@@ -73,4 +74,11 @@ export async function getPortfolioCollection(
 ): Promise<Collection<DatabasePortfolioEntry>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabasePortfolioEntry>("portfolio");
+}
+
+export async function getDepositsCollection(
+  userId: string
+): Promise<Collection<DatabaseDeposit>> {
+  const database = await connectToUserDatabase(userId);
+  return database.collection<DatabaseDeposit>("deposits");
 }
