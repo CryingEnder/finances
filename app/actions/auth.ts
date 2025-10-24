@@ -6,7 +6,6 @@ import {
   setAuthCookie,
   removeAuthCookie,
 } from "../lib/auth";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export async function loginAction(formData: FormData) {

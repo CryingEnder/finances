@@ -19,9 +19,24 @@ import type {
   DepositWithCalculations,
   DepositSummary,
 } from "../../lib/types";
+import {
+  useDeposits,
+  useCreateDeposit,
+  useUpdateDeposit,
+  useDeleteDeposit,
+} from "../../lib/hooks/use-deposits";
 
 export default function DepositsTab() {
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const {
+    data: deposits = [],
+    isLoading: depositsLoading,
+    error: depositsQueryError,
+  } = useDeposits();
+
+  const createDepositMutation = useCreateDeposit();
+  const updateDepositMutation = useUpdateDeposit();
+  const deleteDepositMutation = useDeleteDeposit();
+
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
@@ -39,53 +54,41 @@ export default function DepositsTab() {
   });
   const [depositError, setDepositError] = useState<string>("");
 
-  useEffect(() => {
-    loadDeposits();
-  }, []);
-
-  const loadDeposits = async () => {
-    try {
-      const response = await fetch("/api/deposits");
-      if (response.ok) {
-        const data = await response.json();
-        setDeposits(data);
-      }
-    } catch (error) {
-      console.error("Error loading deposits:", error);
-    }
-  };
-
   const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDepositError("");
 
     try {
-      const url = editingDeposit
-        ? `/api/deposits/${editingDeposit._id}`
-        : "/api/deposits";
-      const method = editingDeposit ? "PUT" : "POST";
+      const depositData = {
+        bank: depositForm.bank,
+        depositName: depositForm.depositName,
+        principal: parseFloat(depositForm.principal),
+        interestRate: parseFloat(depositForm.interestRate),
+        startDate: depositForm.startDate,
+        maturityDate: depositForm.maturityDate || undefined,
+        currentBalance: parseFloat(depositForm.currentBalance),
+        earnedInterest: parseFloat(depositForm.earnedInterest),
+        isActive: depositForm.isActive,
+        autoRenew: depositForm.autoRenew,
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(depositForm),
-      });
-
-      if (response.ok) {
-        await loadDeposits();
-        resetDepositForm();
-        setIsDepositDialogOpen(false);
+      if (editingDeposit) {
+        await updateDepositMutation.mutateAsync({
+          ...editingDeposit,
+          ...depositData,
+        });
       } else {
-        const error = await response.json();
-        if (error.details && error.details.length > 0) {
-          setDepositError(error.details[0].message);
-        } else {
-          setDepositError(error.error || "Failed to save deposit");
-        }
+        await createDepositMutation.mutateAsync(depositData);
       }
+
+      resetDepositForm();
+      setIsDepositDialogOpen(false);
     } catch (error) {
-      console.error("Error saving deposit:", error);
-      setDepositError("Failed to save deposit");
+      setDepositError(
+        String(
+          error instanceof Error ? error.message : "Failed to save deposit"
+        )
+      );
     }
   };
 
@@ -93,18 +96,12 @@ export default function DepositsTab() {
     if (!confirm("Are you sure you want to delete this deposit?")) return;
 
     try {
-      const response = await fetch(`/api/deposits/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        await loadDeposits();
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to delete deposit");
-      }
+      await deleteDepositMutation.mutateAsync(id);
     } catch (error) {
       console.error("Error deleting deposit:", error);
-      alert("Failed to delete deposit");
+      alert(
+        error instanceof Error ? error.message : "Failed to delete deposit"
+      );
     }
   };
 
@@ -184,7 +181,7 @@ export default function DepositsTab() {
       totalCurrentBalance: acc.totalCurrentBalance + deposit.currentBalance,
       totalEarnedInterest: acc.totalEarnedInterest + deposit.earnedInterest,
       totalReturn: acc.totalReturn + deposit.totalReturn,
-      totalReturnPercent: 0, // Will calculate after
+      totalReturnPercent: 0,
       activeDeposits: acc.activeDeposits + (deposit.isActive ? 1 : 0),
       maturedDeposits: acc.maturedDeposits + (deposit.isActive ? 0 : 1),
     }),
@@ -203,6 +200,19 @@ export default function DepositsTab() {
     summary.totalPrincipal > 0
       ? (summary.totalReturn / summary.totalPrincipal) * 100
       : 0;
+
+  if (depositsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-zinc-400">Loading deposits...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -461,9 +471,19 @@ export default function DepositsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  disabled={
+                    createDepositMutation.isPending ||
+                    updateDepositMutation.isPending
+                  }
                   className="bg-green-600 hover:bg-green-700 cursor-pointer"
                 >
-                  {editingDeposit ? "Update" : "Add"} Deposit
+                  {createDepositMutation.isPending ||
+                  updateDepositMutation.isPending
+                    ? "Saving..."
+                    : editingDeposit
+                    ? "Update"
+                    : "Add"}{" "}
+                  Deposit
                 </Button>
                 <Button
                   type="button"
@@ -712,6 +732,7 @@ export default function DepositsTab() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleDeleteDeposit(deposit._id!)}
+                              disabled={deleteDepositMutation.isPending}
                               className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                             >
                               <Trash2 className="w-3 h-3" />

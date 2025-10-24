@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -26,14 +26,40 @@ import type {
   PortfolioEntryWithCalculations,
   PortfolioSummary,
 } from "../../lib/types";
+import {
+  useCompanies,
+  useCreateCompany,
+  useUpdateCompany,
+  useDeleteCompany,
+} from "../../lib/hooks/use-companies";
+import {
+  usePortfolioEntries,
+  useCreatePortfolioEntry,
+  useUpdatePortfolioEntry,
+  useDeletePortfolioEntry,
+} from "../../lib/hooks/use-portfolio";
 
 export default function StocksTab() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [portfolioEntries, setPortfolioEntries] = useState<PortfolioEntry[]>(
-    []
-  );
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const {
+    data: companies = [],
+    isLoading: companiesLoading,
+    error: companiesError,
+  } = useCompanies();
+  const {
+    data: portfolioEntries = [],
+    isLoading: portfolioLoading,
+    error: portfolioQueryError,
+  } = usePortfolioEntries();
+
+  const createCompanyMutation = useCreateCompany();
+  const updateCompanyMutation = useUpdateCompany();
+  const deleteCompanyMutation = useDeleteCompany();
+
+  const createPortfolioMutation = useCreatePortfolioEntry();
+  const updatePortfolioMutation = useUpdatePortfolioEntry();
+  const deletePortfolioMutation = useDeletePortfolioEntry();
+
+  const [selectedDate, setSelectedDate] = useState<string>("all");
   const [showCompanies, setShowCompanies] = useState<boolean>(false);
 
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
@@ -60,77 +86,34 @@ export default function StocksTab() {
   });
   const [portfolioError, setPortfolioError] = useState<string>("");
 
-  useEffect(() => {
-    loadCompanies();
-    loadPortfolioEntries();
-  }, []);
-
-  useEffect(() => {
-    const dates = [...new Set(portfolioEntries.map((entry) => entry.date))]
+  const availableDates = useMemo(() => {
+    return [...new Set(portfolioEntries.map((entry) => entry.date))]
       .sort()
       .reverse();
-    setAvailableDates(dates);
-    if (dates.length > 0 && !selectedDate) {
-      setSelectedDate("all");
-    }
-  }, [portfolioEntries, selectedDate]);
-
-  const loadCompanies = async () => {
-    try {
-      const response = await fetch("/api/companies");
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Loaded companies:", data);
-        setCompanies(data);
-      }
-    } catch (error) {
-      console.error("Error loading companies:", error);
-    }
-  };
-
-  const loadPortfolioEntries = async () => {
-    try {
-      const response = await fetch("/api/portfolio");
-      if (response.ok) {
-        const data = await response.json();
-        setPortfolioEntries(data);
-      }
-    } catch (error) {
-      console.error("Error loading portfolio entries:", error);
-    }
-  };
+  }, [portfolioEntries]);
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCompanyError("");
 
     try {
-      const url = editingCompany
-        ? `/api/companies/${editingCompany._id}`
-        : "/api/companies";
-      const method = editingCompany ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(companyForm),
-      });
-
-      if (response.ok) {
-        await loadCompanies();
-        resetCompanyForm();
-        setIsCompanyDialogOpen(false);
+      if (editingCompany) {
+        await updateCompanyMutation.mutateAsync({
+          ...editingCompany,
+          ...companyForm,
+        });
       } else {
-        const error = await response.json();
-        if (error.details && error.details.length > 0) {
-          setCompanyError(error.details[0].message);
-        } else {
-          setCompanyError(error.error || "Failed to save company");
-        }
+        await createCompanyMutation.mutateAsync(companyForm);
       }
+
+      resetCompanyForm();
+      setIsCompanyDialogOpen(false);
     } catch (error) {
-      console.error("Error saving company:", error);
-      setCompanyError("Failed to save company");
+      setCompanyError(
+        String(
+          error instanceof Error ? error.message : "Failed to save company"
+        )
+      );
     }
   };
 
@@ -139,58 +122,54 @@ export default function StocksTab() {
     setPortfolioError("");
 
     try {
-      const url = editingPortfolio
-        ? `/api/portfolio/${editingPortfolio._id}`
-        : "/api/portfolio";
-      const method = editingPortfolio ? "PUT" : "POST";
+      const portfolioData = {
+        date: portfolioForm.date,
+        instrument: portfolioForm.instrument,
+        isin: portfolioForm.isin,
+        issuer: portfolioForm.issuer,
+        quantity: parseFloat(portfolioForm.quantity),
+        locked: parseFloat(portfolioForm.locked),
+        averagePrice: parseFloat(portfolioForm.averagePrice),
+        referencePrice: parseFloat(portfolioForm.referencePrice),
+        currency: "RON" as const,
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(portfolioForm),
-      });
-
-      if (response.ok) {
-        await loadPortfolioEntries();
-
-        if (!editingPortfolio && selectedDate !== "all") {
-          setSelectedDate(portfolioForm.date);
-        }
-
-        resetPortfolioForm();
-        setIsPortfolioDialogOpen(false);
+      if (editingPortfolio) {
+        await updatePortfolioMutation.mutateAsync({
+          ...editingPortfolio,
+          ...portfolioData,
+        });
       } else {
-        const error = await response.json();
-        if (error.details && error.details.length > 0) {
-          setPortfolioError(error.details[0].message);
-        } else {
-          setPortfolioError(error.error || "Failed to save portfolio entry");
-        }
+        await createPortfolioMutation.mutateAsync(portfolioData);
       }
+
+      if (!editingPortfolio && selectedDate !== "all") {
+        setSelectedDate(portfolioForm.date);
+      }
+
+      resetPortfolioForm();
+      setIsPortfolioDialogOpen(false);
     } catch (error) {
-      console.error("Error saving portfolio entry:", error);
-      setPortfolioError("Failed to save portfolio entry");
+      setPortfolioError(
+        String(
+          error instanceof Error
+            ? error.message
+            : "Failed to save portfolio entry"
+        )
+      );
     }
   };
 
   const handleDeleteCompany = async (id: string) => {
     if (!confirm("Are you sure you want to delete this company?")) return;
 
-    console.log("Deleting company with ID:", id);
     try {
-      const response = await fetch(`/api/companies/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        await loadCompanies();
-      } else {
-        const error = await response.json();
-        console.error("Delete error:", error);
-        alert(error.error || "Failed to delete company");
-      }
+      await deleteCompanyMutation.mutateAsync(id);
     } catch (error) {
       console.error("Error deleting company:", error);
-      alert("Failed to delete company");
+      alert(
+        error instanceof Error ? error.message : "Failed to delete company"
+      );
     }
   };
 
@@ -199,18 +178,14 @@ export default function StocksTab() {
       return;
 
     try {
-      const response = await fetch(`/api/portfolio/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        await loadPortfolioEntries();
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to delete portfolio entry");
-      }
+      await deletePortfolioMutation.mutateAsync(id);
     } catch (error) {
       console.error("Error deleting portfolio entry:", error);
-      alert("Failed to delete portfolio entry");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete portfolio entry"
+      );
     }
   };
 
@@ -272,279 +247,266 @@ export default function StocksTab() {
     }
   };
 
-  const currentDateEntries = portfolioEntries.filter(
-    (entry) => entry.date === selectedDate
-  );
+  const renderPortfolioTable = useCallback(
+    (date: string) => {
+      const dateEntries = portfolioEntries.filter(
+        (entry) => entry.date === date
+      );
+      const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
+        dateEntries.map((entry) => {
+          const purchaseValue = entry.quantity * entry.averagePrice;
+          const currentValue = entry.quantity * entry.referencePrice;
+          const profit = currentValue - purchaseValue;
+          const profitPercent =
+            purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
 
-  const entriesWithCalculations: PortfolioEntryWithCalculations[] =
-    currentDateEntries.map((entry) => {
-      const purchaseValue = entry.quantity * entry.averagePrice;
-      const currentValue = entry.quantity * entry.referencePrice;
-      const profit = currentValue - purchaseValue;
-      const profitPercent =
-        purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
+          return {
+            ...entry,
+            purchaseValue,
+            currentValue,
+            profit,
+            profitPercent,
+          };
+        });
 
-      return {
-        ...entry,
-        purchaseValue,
-        currentValue,
-        profit,
-        profitPercent,
-      };
-    });
+      const dateSummary: PortfolioSummary = dateEntriesWithCalculations.reduce(
+        (acc, entry) => ({
+          totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
+          totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
+          totalProfit: acc.totalProfit + entry.profit,
+          totalProfitPercent: 0,
+        }),
+        {
+          totalPurchaseValue: 0,
+          totalCurrentValue: 0,
+          totalProfit: 0,
+          totalProfitPercent: 0,
+        }
+      );
 
-  const summary: PortfolioSummary = entriesWithCalculations.reduce(
-    (acc, entry) => ({
-      totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
-      totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
-      totalProfit: acc.totalProfit + entry.profit,
-      totalProfitPercent: 0, // Will calculate after
-    }),
-    {
-      totalPurchaseValue: 0,
-      totalCurrentValue: 0,
-      totalProfit: 0,
-      totalProfitPercent: 0,
-    }
-  );
+      dateSummary.totalProfitPercent =
+        dateSummary.totalPurchaseValue > 0
+          ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
+          : 0;
 
-  summary.totalProfitPercent =
-    summary.totalPurchaseValue > 0
-      ? (summary.totalProfit / summary.totalPurchaseValue) * 100
-      : 0;
+      return (
+        <div
+          key={date}
+          className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Portfolio Status - {new Date(date).toLocaleDateString()}
+          </h3>
 
-  const renderPortfolioTable = (date: string) => {
-    const dateEntries = portfolioEntries.filter((entry) => entry.date === date);
-    const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
-      dateEntries.map((entry) => {
-        const purchaseValue = entry.quantity * entry.averagePrice;
-        const currentValue = entry.quantity * entry.referencePrice;
-        const profit = currentValue - purchaseValue;
-        const profitPercent =
-          purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
-
-        return {
-          ...entry,
-          purchaseValue,
-          currentValue,
-          profit,
-          profitPercent,
-        };
-      });
-
-    const dateSummary: PortfolioSummary = dateEntriesWithCalculations.reduce(
-      (acc, entry) => ({
-        totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
-        totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
-        totalProfit: acc.totalProfit + entry.profit,
-        totalProfitPercent: 0, // Will be calculated after
-      }),
-      {
-        totalPurchaseValue: 0,
-        totalCurrentValue: 0,
-        totalProfit: 0,
-        totalProfitPercent: 0,
-      }
-    );
-
-    dateSummary.totalProfitPercent =
-      dateSummary.totalPurchaseValue > 0
-        ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
-        : 0;
-
-    return (
-      <div
-        key={date}
-        className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
-      >
-        <h3 className="text-lg font-semibold text-white mb-4">
-          Portfolio Status - {new Date(date).toLocaleDateString()}
-        </h3>
-
-        {dateEntriesWithCalculations.length > 0 ? (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-700">
-                    <th className="text-left py-3 px-2 text-zinc-300">
-                      Instrument
-                    </th>
-                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
-                    <th className="text-left py-3 px-2 text-zinc-300">
-                      Issuer
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Quantity
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Locked
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Avg Price
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Ref Price
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Purchase Value
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Current Value
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Profit
-                    </th>
-                    <th className="text-right py-3 px-2 text-zinc-300">
-                      Profit %
-                    </th>
-                    <th className="text-center py-3 px-2 text-zinc-300">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dateEntriesWithCalculations.map((entry) => (
-                    <tr key={entry._id} className="border-b border-zinc-700/50">
-                      <td className="py-3 px-2 text-white font-medium">
-                        {entry.instrument}
-                      </td>
-                      <td className="py-3 px-2 text-zinc-300">{entry.isin}</td>
-                      <td className="py-3 px-2 text-zinc-300">
-                        {entry.issuer}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {entry.quantity.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {entry.locked.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {formatPrice(entry.averagePrice)}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {formatPrice(entry.referencePrice)}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {entry.purchaseValue.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {entry.currentValue.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td
-                        className={`py-3 px-2 text-right font-medium ${
-                          entry.profit >= 0 ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        {entry.profit.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td
-                        className={`py-3 px-2 text-right font-medium ${
-                          entry.profitPercent >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {entry.profitPercent.toFixed(2)}%
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        <div className="flex gap-1 justify-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditPortfolio(entry)}
-                            className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeletePortfolio(entry._id!)}
-                            className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </td>
+          {dateEntriesWithCalculations.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-700">
+                      <th className="text-left py-3 px-2 text-zinc-300">
+                        Instrument
+                      </th>
+                      <th className="text-left py-3 px-2 text-zinc-300">
+                        ISIN
+                      </th>
+                      <th className="text-left py-3 px-2 text-zinc-300">
+                        Issuer
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Quantity
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Locked
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Avg Price
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Ref Price
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Purchase Value
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Current Value
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Profit
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Profit %
+                      </th>
+                      <th className="text-center py-3 px-2 text-zinc-300">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {dateEntriesWithCalculations.map((entry) => (
+                      <tr
+                        key={entry._id}
+                        className="border-b border-zinc-700/50"
+                      >
+                        <td className="py-3 px-2 text-white font-medium">
+                          {entry.instrument}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-300">
+                          {entry.isin}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-300">
+                          {entry.issuer}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {entry.quantity.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {entry.locked.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {formatPrice(entry.averagePrice)}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {formatPrice(entry.referencePrice)}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {entry.purchaseValue.toLocaleString("ro-RO", {
+                            style: "currency",
+                            currency: "RON",
+                          })}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {entry.currentValue.toLocaleString("ro-RO", {
+                            style: "currency",
+                            currency: "RON",
+                          })}
+                        </td>
+                        <td
+                          className={`py-3 px-2 text-right font-medium ${
+                            entry.profit >= 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {entry.profit.toLocaleString("ro-RO", {
+                            style: "currency",
+                            currency: "RON",
+                          })}
+                        </td>
+                        <td
+                          className={`py-3 px-2 text-right font-medium ${
+                            entry.profitPercent >= 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {entry.profitPercent.toFixed(2)}%
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <div className="flex gap-1 justify-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditPortfolio(entry)}
+                              className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeletePortfolio(entry._id!)}
+                              disabled={deletePortfolioMutation.isPending}
+                              className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Summary */}
-            <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-zinc-400">Total Purchase Value</p>
-                  <p className="text-white font-medium">
-                    {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
-                      style: "currency",
-                      currency: "RON",
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-400">Total Current Value</p>
-                  <p className="text-white font-medium">
-                    {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
-                      style: "currency",
-                      currency: "RON",
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-400">Total Profit</p>
-                  <p
-                    className={`font-medium ${
-                      dateSummary.totalProfit >= 0
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {dateSummary.totalProfit.toLocaleString("ro-RO", {
-                      style: "currency",
-                      currency: "RON",
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-400">Total Profit %</p>
-                  <p
-                    className={`font-medium ${
-                      dateSummary.totalProfitPercent >= 0
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {dateSummary.totalProfitPercent.toFixed(2)}%
-                  </p>
+              {/* Summary */}
+              <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-zinc-400">Total Purchase Value</p>
+                    <p className="text-white font-medium">
+                      {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
+                        style: "currency",
+                        currency: "RON",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">Total Current Value</p>
+                    <p className="text-white font-medium">
+                      {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
+                        style: "currency",
+                        currency: "RON",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">Total Profit</p>
+                    <p
+                      className={`font-medium ${
+                        dateSummary.totalProfit >= 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {dateSummary.totalProfit.toLocaleString("ro-RO", {
+                        style: "currency",
+                        currency: "RON",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">Total Profit %</p>
+                    <p
+                      className={`font-medium ${
+                        dateSummary.totalProfitPercent >= 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {dateSummary.totalProfitPercent.toFixed(2)}%
+                    </p>
+                  </div>
                 </div>
               </div>
+            </>
+          ) : (
+            <div className="text-zinc-400 text-center py-8">
+              <p>No portfolio entries found for this date.</p>
+              <p className="text-sm">
+                Add your first portfolio entry using the "Add Portfolio Status"
+                button above.
+              </p>
             </div>
-          </>
-        ) : (
-          <div className="text-zinc-400 text-center py-8">
-            <p>No portfolio entries found for this date.</p>
-            <p className="text-sm">
-              Add your first portfolio entry using the "Add Portfolio Status"
-              button above.
-            </p>
+          )}
+        </div>
+      );
+    },
+    [portfolioEntries]
+  );
+
+  if (companiesLoading || portfolioLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-zinc-400">Loading data...</p>
           </div>
-        )}
+        </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -632,9 +594,19 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  disabled={
+                    createCompanyMutation.isPending ||
+                    updateCompanyMutation.isPending
+                  }
                   className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                 >
-                  {editingCompany ? "Update" : "Add"} Company
+                  {createCompanyMutation.isPending ||
+                  updateCompanyMutation.isPending
+                    ? "Saving..."
+                    : editingCompany
+                    ? "Update"
+                    : "Add"}{" "}
+                  Company
                 </Button>
                 <Button
                   type="button"
@@ -824,9 +796,19 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  disabled={
+                    createPortfolioMutation.isPending ||
+                    updatePortfolioMutation.isPending
+                  }
                   className="bg-green-600 hover:bg-green-700 cursor-pointer"
                 >
-                  {editingPortfolio ? "Update" : "Add"} Entry
+                  {createPortfolioMutation.isPending ||
+                  updatePortfolioMutation.isPending
+                    ? "Saving..."
+                    : editingPortfolio
+                    ? "Update"
+                    : "Add"}{" "}
+                  Entry
                 </Button>
                 <Button
                   type="button"
@@ -968,6 +950,7 @@ export default function StocksTab() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleDeleteCompany(company._id!)}
+                            disabled={deleteCompanyMutation.isPending}
                             className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -995,10 +978,8 @@ export default function StocksTab() {
       {selectedDate && (
         <>
           {selectedDate === "all"
-            ? // Render all dates as separate tables
-              availableDates.map((date) => renderPortfolioTable(date))
-            : // Render single date table
-              renderPortfolioTable(selectedDate)}
+            ? availableDates.map((date) => renderPortfolioTable(date))
+            : renderPortfolioTable(selectedDate)}
         </>
       )}
     </div>
