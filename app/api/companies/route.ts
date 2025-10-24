@@ -1,0 +1,73 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCompaniesCollection } from "../../lib/database";
+import { requireAuth } from "../../lib/auth";
+import type { Company } from "../../lib/types";
+
+export async function GET() {
+  try {
+    await requireAuth();
+    const companiesCollection = await getCompaniesCollection();
+    const companies = await companiesCollection
+      .find({})
+      .sort({ instrument: 1 })
+      .toArray();
+
+    // Convert ObjectId to string for JSON serialization
+    const serializedCompanies = companies.map((company) => ({
+      ...company,
+      _id: company._id.toString(),
+    }));
+
+    return NextResponse.json(serializedCompanies);
+  } catch (error) {
+    console.error("Error fetching companies:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch companies" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await requireAuth();
+    const body = await request.json();
+    const { instrument, isin, issuer } = body;
+
+    if (!instrument || !isin || !issuer) {
+      return NextResponse.json(
+        { error: "Missing required fields: instrument, isin, issuer" },
+        { status: 400 }
+      );
+    }
+
+    const companiesCollection = await getCompaniesCollection();
+
+    const existingCompany = await companiesCollection.findOne({ instrument });
+    if (existingCompany) {
+      return NextResponse.json(
+        { error: "Company with this instrument already exists" },
+        { status: 409 }
+      );
+    }
+
+    const company = {
+      instrument,
+      isin,
+      issuer,
+    };
+
+    const result = await companiesCollection.insertOne(company);
+
+    return NextResponse.json(
+      { ...company, _id: result.insertedId.toString() },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error creating company:", error);
+    return NextResponse.json(
+      { error: "Failed to create company" },
+      { status: 500 }
+    );
+  }
+}

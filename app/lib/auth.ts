@@ -4,10 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_CONFIG } from "./config";
 import { type User, type LoginCredentials } from "./types";
-
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, AUTH_CONFIG.BCRYPT_ROUNDS);
-}
+import { getUsersCollection } from "./database";
 
 export async function verifyPassword(
   password: string,
@@ -86,35 +83,33 @@ export async function requireAuth(): Promise<User> {
   return user;
 }
 
-// Mock user database (replace with your actual database) TODO:
-const MOCK_USERS = [
-  {
-    id: "1",
-    email: "admin@example.com",
-    password: "$2b$12$dVHr4lY9JLFqIA3D3a4epeCYesAAqyVgblYD26IWAAKhEJRamNJfm", // 'password123'
-    name: "Admin User",
-  },
-];
-
 export async function authenticateUser(
   credentials: LoginCredentials
 ): Promise<User | null> {
-  const user = MOCK_USERS.find((u) => u.email === credentials.email);
-  if (!user) {
+  try {
+    const usersCollection = await getUsersCollection();
+    const user = await usersCollection.findOne({ email: credentials.email });
+
+    if (!user) {
+      return null;
+    }
+
+    const isValidPassword = await verifyPassword(
+      credentials.password,
+      user.password
+    );
+
+    if (!isValidPassword) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    };
+  } catch (error) {
+    console.error("Authentication error:", error);
     return null;
   }
-
-  const isValidPassword = await verifyPassword(
-    credentials.password,
-    user.password
-  );
-  if (!isValidPassword) {
-    return null;
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-  };
 }

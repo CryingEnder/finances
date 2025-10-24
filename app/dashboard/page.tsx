@@ -1,7 +1,15 @@
 import { requireAuth } from "../lib/auth";
 import { logoutAction } from "../actions/auth";
-import { LogOut, User, DollarSign, TrendingUp, CreditCard } from "lucide-react";
+import { LogOut, User, DollarSign } from "lucide-react";
 import { cn } from "../lib/utils";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import StocksTab from "./components/StocksTab";
+import DepositsTab from "./components/DepositsTab";
 
 export default async function Dashboard() {
   const user = await requireAuth();
@@ -55,116 +63,34 @@ export default async function Dashboard() {
           <h2 className="text-2xl font-bold text-white mb-2">
             Welcome back, {user.name}!
           </h2>
-          <p className="text-zinc-400">Here's your financial overview</p>
+          <p className="text-zinc-400">Manage your financial portfolio</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-400 text-sm">Total Balance</p>
-                <p className="text-2xl font-bold text-white">$12,345.67</p>
-              </div>
-              <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-400" />
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <Tabs defaultValue="stocks" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-zinc-800/50 border border-zinc-700 h-12 space-x-1">
+            <TabsTrigger
+              value="stocks"
+              className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+            >
+              Stocks
+            </TabsTrigger>
+            <TabsTrigger
+              value="deposits"
+              className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+            >
+              Deposits
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-400 text-sm">Monthly Income</p>
-                <p className="text-2xl font-bold text-white">$5,200.00</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-          </div>
+          <TabsContent value="stocks" className="mt-6">
+            <StocksTab />
+          </TabsContent>
 
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-400 text-sm">Monthly Expenses</p>
-                <p className="text-2xl font-bold text-white">$3,850.00</p>
-              </div>
-              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-red-400 rotate-180" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-zinc-400 text-sm">Credit Score</p>
-                <p className="text-2xl font-bold text-white">785</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <CreditCard className="w-6 h-6 text-purple-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Recent Transactions
-          </h3>
-          <div className="space-y-3">
-            {[
-              {
-                description: "Grocery Store",
-                amount: "-$127.50",
-                date: "Today",
-                type: "expense",
-              },
-              {
-                description: "Salary Deposit",
-                amount: "+$2,600.00",
-                date: "Yesterday",
-                type: "income",
-              },
-              {
-                description: "Gas Station",
-                amount: "-$45.20",
-                date: "2 days ago",
-                type: "expense",
-              },
-              {
-                description: "Freelance Work",
-                amount: "+$850.00",
-                date: "3 days ago",
-                type: "income",
-              },
-            ].map((transaction, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between py-3 border-b border-zinc-700 last:border-b-0"
-              >
-                <div>
-                  <p className="text-white font-medium">
-                    {transaction.description}
-                  </p>
-                  <p className="text-zinc-400 text-sm">{transaction.date}</p>
-                </div>
-                <p
-                  className={cn(
-                    "font-semibold",
-                    transaction.type === "income"
-                      ? "text-green-400"
-                      : "text-red-400"
-                  )}
-                >
-                  {transaction.amount}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+          <TabsContent value="deposits" className="mt-6">
+            <DepositsTab />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
