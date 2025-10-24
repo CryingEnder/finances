@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth();
@@ -39,15 +39,16 @@ export async function PUT(
     }
 
     const portfolioCollection = await getPortfolioCollection();
+    const { id } = await params;
 
-    if (!isValidObjectId(params.id)) {
+    if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid portfolio entry ID format" },
         { status: 400 }
       );
     }
 
-    const objectId = new ObjectId(params.id);
+    const objectId = new ObjectId(id);
 
     const existingEntry = await portfolioCollection.findOne({
       date,
@@ -98,20 +99,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth();
     const portfolioCollection = await getPortfolioCollection();
+    const { id } = await params;
 
-    if (!isValidObjectId(params.id)) {
+    if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid portfolio entry ID format" },
         { status: 400 }
       );
     }
 
-    const objectId = new ObjectId(params.id);
+    const objectId = new ObjectId(id);
     const result = await portfolioCollection.deleteOne({ _id: objectId });
 
     if (result.deletedCount === 0) {

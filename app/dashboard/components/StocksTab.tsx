@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Plus, Edit, Trash2, Building2 } from "lucide-react";
+import { formatPrice } from "../../lib/utils";
 import type {
   Company,
   PortfolioEntry,
@@ -33,6 +34,7 @@ export default function StocksTab() {
   );
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [showCompanies, setShowCompanies] = useState<boolean>(false);
 
   // Company management states
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
@@ -71,7 +73,7 @@ export default function StocksTab() {
       .reverse();
     setAvailableDates(dates);
     if (dates.length > 0 && !selectedDate) {
-      setSelectedDate(dates[0] || "");
+      setSelectedDate("all");
     }
   }, [portfolioEntries, selectedDate]);
 
@@ -294,6 +296,244 @@ export default function StocksTab() {
     summary.totalPurchaseValue > 0
       ? (summary.totalProfit / summary.totalPurchaseValue) * 100
       : 0;
+
+  // Function to render portfolio table for a specific date
+  const renderPortfolioTable = (date: string) => {
+    const dateEntries = portfolioEntries.filter((entry) => entry.date === date);
+    const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
+      dateEntries.map((entry) => {
+        const purchaseValue = entry.quantity * entry.averagePrice;
+        const currentValue = entry.quantity * entry.referencePrice;
+        const profit = currentValue - purchaseValue;
+        const profitPercent =
+          purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
+
+        return {
+          ...entry,
+          purchaseValue,
+          currentValue,
+          profit,
+          profitPercent,
+        };
+      });
+
+    const dateSummary: PortfolioSummary = dateEntriesWithCalculations.reduce(
+      (acc, entry) => ({
+        totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
+        totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
+        totalProfit: acc.totalProfit + entry.profit,
+        totalProfitPercent: 0, // Will be calculated after
+      }),
+      {
+        totalPurchaseValue: 0,
+        totalCurrentValue: 0,
+        totalProfit: 0,
+        totalProfitPercent: 0,
+      }
+    );
+
+    // Calculate total profit percentage
+    dateSummary.totalProfitPercent =
+      dateSummary.totalPurchaseValue > 0
+        ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
+        : 0;
+
+    return (
+      <div
+        key={date}
+        className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
+      >
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Portfolio Status - {new Date(date).toLocaleDateString()}
+        </h3>
+
+        {dateEntriesWithCalculations.length > 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Instrument
+                    </th>
+                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Issuer
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Quantity
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Locked
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Avg Price
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Ref Price
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Purchase Value
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Current Value
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Profit
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Profit %
+                    </th>
+                    <th className="text-center py-3 px-2 text-zinc-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dateEntriesWithCalculations.map((entry) => (
+                    <tr key={entry._id} className="border-b border-zinc-700/50">
+                      <td className="py-3 px-2 text-white font-medium">
+                        {entry.instrument}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">{entry.isin}</td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {entry.issuer}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.quantity.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.locked.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {formatPrice(entry.averagePrice)}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {formatPrice(entry.referencePrice)}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.purchaseValue.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.currentValue.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td
+                        className={`py-3 px-2 text-right font-medium ${
+                          entry.profit >= 0 ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {entry.profit.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td
+                        className={`py-3 px-2 text-right font-medium ${
+                          entry.profitPercent >= 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {entry.profitPercent.toFixed(2)}%
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditPortfolio(entry)}
+                            className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeletePortfolio(entry._id!)}
+                            className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary */}
+            <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
+              <h4 className="text-md font-semibold text-white mb-3">
+                Summary for {new Date(date).toLocaleDateString()}
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-zinc-400">Total Purchase Value</p>
+                  <p className="text-white font-medium">
+                    {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Current Value</p>
+                  <p className="text-white font-medium">
+                    {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Profit</p>
+                  <p
+                    className={`font-medium ${
+                      dateSummary.totalProfit >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {dateSummary.totalProfit.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Profit %</p>
+                  <p
+                    className={`font-medium ${
+                      dateSummary.totalProfitPercent >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {dateSummary.totalProfitPercent.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-zinc-400 text-center py-8">
+            <p>No portfolio entries found for this date.</p>
+            <p className="text-sm">
+              Add your first portfolio entry using the "Add Portfolio Status"
+              button above.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -569,281 +809,132 @@ export default function StocksTab() {
         </Dialog>
       </div>
 
-      {/* Date Selector */}
+      {/* Date Selector and Companies Toggle */}
       {availableDates.length > 0 && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
-          <Label htmlFor="date-select" className="text-white font-medium">
-            Select Portfolio Date:
-          </Label>
-          <Select value={selectedDate} onValueChange={setSelectedDate}>
-            <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white mt-2 cursor-pointer">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-700 border-zinc-600">
-              {availableDates.map((date) => (
-                <SelectItem key={date} value={date}>
-                  {new Date(date).toLocaleDateString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <Label htmlFor="date-select" className="text-white font-medium">
+                Select Portfolio Date:
+              </Label>
+              <Select value={selectedDate} onValueChange={setSelectedDate}>
+                <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white mt-2 cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-700 border-zinc-600">
+                  <SelectItem value="all" className="font-semibold">
+                    📅 All Dates
+                  </SelectItem>
+                  {availableDates.map((date) => (
+                    <SelectItem key={date} value={date}>
+                      {new Date(date).toLocaleDateString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="ml-6 flex items-end">
+              <Button
+                variant={showCompanies ? "outline" : "default"}
+                size="sm"
+                onClick={() => setShowCompanies(!showCompanies)}
+                className={`cursor-pointer ${
+                  showCompanies
+                    ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                }`}
+              >
+                {showCompanies ? "👁️ Hide Companies" : "👁️ Show Companies"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Portfolio Table */}
-      {selectedDate && (
+      {/* Companies Management */}
+      {showCompanies && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Portfolio Status - {new Date(selectedDate).toLocaleDateString()}
-          </h3>
-
-          {entriesWithCalculations.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-700">
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        Instrument
-                      </th>
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        ISIN
-                      </th>
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        Issuer
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Quantity
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Locked
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Avg Price
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Ref Price
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Purchase Value
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Current Value
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Profit
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Profit %
-                      </th>
-                      <th className="text-center py-3 px-2 text-zinc-300">
-                        Actions
-                      </th>
+          <h3 className="text-lg font-semibold text-white mb-4">Companies</h3>
+          {companies.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Instrument
+                    </th>
+                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Issuer
+                    </th>
+                    <th className="text-center py-3 px-2 text-zinc-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companies.map((company) => (
+                    <tr
+                      key={company._id}
+                      className="border-b border-zinc-700/50"
+                    >
+                      <td className="py-3 px-2 text-white font-medium">
+                        {company.instrument}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {company.isin}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {company.issuer}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditCompany(company)}
+                            className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteCompany(company._id!)}
+                            className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {entriesWithCalculations.map((entry) => (
-                      <tr
-                        key={entry._id}
-                        className="border-b border-zinc-700/50"
-                      >
-                        <td className="py-3 px-2 text-white font-medium">
-                          {entry.instrument}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-300">
-                          {entry.isin}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-300">
-                          {entry.issuer}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.quantity.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.locked.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.averagePrice.toFixed(4)}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.referencePrice.toFixed(4)}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.purchaseValue.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.currentValue.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td
-                          className={`py-3 px-2 text-right font-medium ${
-                            entry.profit >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {entry.profit.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td
-                          className={`py-3 px-2 text-right font-medium ${
-                            entry.profitPercent >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {entry.profitPercent.toFixed(2)}%
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditPortfolio(entry)}
-                              className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeletePortfolio(entry._id!)}
-                              className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-zinc-600 font-semibold">
-                      <td colSpan={7} className="py-3 px-2 text-white">
-                        TOTAL
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {summary.totalPurchaseValue.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td className="py-3 px-2 text-white text-right">
-                        {summary.totalCurrentValue.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td
-                        className={`py-3 px-2 text-right ${
-                          summary.totalProfit >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {summary.totalProfit.toLocaleString("ro-RO", {
-                          style: "currency",
-                          currency: "RON",
-                        })}
-                      </td>
-                      <td
-                        className={`py-3 px-2 text-right ${
-                          summary.totalProfitPercent >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {summary.totalProfitPercent.toFixed(2)}%
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="text-zinc-400 text-center py-8">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No portfolio entries found for this date.</p>
+              <p>No companies found.</p>
               <p className="text-sm">
-                Add your first portfolio entry using the "Add Portfolio Status"
-                button above.
+                Add your first company using the "Add Companies" button above.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Companies Management */}
-      <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Companies</h3>
-        {companies.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-700">
-                  <th className="text-left py-3 px-2 text-zinc-300">
-                    Instrument
-                  </th>
-                  <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
-                  <th className="text-left py-3 px-2 text-zinc-300">Issuer</th>
-                  <th className="text-center py-3 px-2 text-zinc-300">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {companies.map((company) => (
-                  <tr key={company._id} className="border-b border-zinc-700/50">
-                    <td className="py-3 px-2 text-white font-medium">
-                      {company.instrument}
-                    </td>
-                    <td className="py-3 px-2 text-zinc-300">{company.isin}</td>
-                    <td className="py-3 px-2 text-zinc-300">
-                      {company.issuer}
-                    </td>
-                    <td className="py-3 px-2 text-center">
-                      <div className="flex gap-1 justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditCompany(company)}
-                          className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteCompany(company._id!)}
-                          className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-zinc-400 text-center py-8">
-            <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No companies found.</p>
-            <p className="text-sm">
-              Add your first company using the "Add Companies" button above.
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Portfolio Tables */}
+      {selectedDate && (
+        <>
+          {selectedDate === "all"
+            ? // Render all dates as separate tables
+              availableDates.map((date) => renderPortfolioTable(date))
+            : // Render single date table
+              renderPortfolioTable(selectedDate)}
+        </>
+      )}
     </div>
   );
 }

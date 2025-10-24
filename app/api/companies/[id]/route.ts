@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth();
@@ -21,15 +21,16 @@ export async function PUT(
     }
 
     const companiesCollection = await getCompaniesCollection();
+    const { id } = await params;
 
-    if (!isValidObjectId(params.id)) {
+    if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid company ID format" },
         { status: 400 }
       );
     }
 
-    const objectId = new ObjectId(params.id);
+    const objectId = new ObjectId(id);
 
     // Check if company with same instrument already exists (excluding current one)
     const existingCompany = await companiesCollection.findOne({
@@ -70,20 +71,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth();
     const companiesCollection = await getCompaniesCollection();
+    const { id } = await params;
 
-    if (!isValidObjectId(params.id)) {
+    if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid company ID format" },
         { status: 400 }
       );
     }
 
-    const objectId = new ObjectId(params.id);
+    const objectId = new ObjectId(id);
     const result = await companiesCollection.deleteOne({ _id: objectId });
 
     if (result.deletedCount === 0) {
