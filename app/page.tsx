@@ -2,6 +2,7 @@ import { getCurrentUser } from "./lib/auth";
 import { redirect } from "next/navigation";
 import LoginForm from "./components/LoginForm";
 import { cn } from "./lib/utils";
+import Logo from "./components/Logo";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -18,6 +19,9 @@ export default async function Home() {
     >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Logo withBorder size="xl" />
+          </div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
           <p className="text-zinc-400">Sign in to your account</p>
         </div>

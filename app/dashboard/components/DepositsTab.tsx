@@ -12,8 +12,14 @@ import {
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
-import { Plus, Edit, Trash2, Building2, TrendingUp } from "lucide-react";
-import { formatPrice } from "../../lib/utils";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Building2,
+  TrendingUp,
+  BarChart3,
+} from "lucide-react";
 import type {
   Deposit,
   DepositWithCalculations,
@@ -25,6 +31,7 @@ import {
   useUpdateDeposit,
   useDeleteDeposit,
 } from "../../lib/hooks/use-deposits";
+import DepositsChart from "./DepositsChart";
 
 export default function DepositsTab() {
   const {
@@ -40,6 +47,7 @@ export default function DepositsTab() {
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
+  const [showChart, setShowChart] = useState(false);
   const [depositForm, setDepositForm] = useState({
     bank: "",
     depositName: "",
@@ -217,7 +225,7 @@ export default function DepositsTab() {
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 justify-between items-center">
         <Dialog
           open={isDepositDialogOpen}
           onOpenChange={setIsDepositDialogOpen}
@@ -497,6 +505,20 @@ export default function DepositsTab() {
             </form>
           </DialogContent>
         </Dialog>
+        {deposits.length > 0 && (
+          <Button
+            variant={showChart ? "default" : "outline"}
+            onClick={() => setShowChart(!showChart)}
+            className={`cursor-pointer ${
+              showChart
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            {showChart ? "Hide Chart" : "Show Chart"}
+          </Button>
+        )}
       </div>
 
       {/* No Data Message */}
@@ -563,6 +585,14 @@ export default function DepositsTab() {
               </div>
             </div>
           </div>
+
+          {/* Chart */}
+          {showChart && (
+            <DepositsChart
+              deposits={depositsWithCalculations}
+              summary={summary}
+            />
+          )}
 
           {/* Summary */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
