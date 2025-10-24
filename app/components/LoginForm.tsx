@@ -97,11 +97,13 @@ export default function LoginForm() {
         )}
       </button>
 
-      <div className="text-center">
-        <p className="text-zinc-400 text-sm">
-          Demo credentials: admin@example.com / password123
-        </p>
-      </div>
+      {process.env.NODE_ENV !== "production" && (
+        <div className="text-center">
+          <p className="text-zinc-400 text-sm">
+            Demo credentials: admin@example.com / password123
+          </p>
+        </div>
+      )}
     </form>
   );
 }

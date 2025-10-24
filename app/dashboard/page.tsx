@@ -1,6 +1,5 @@
 import { requireAuth } from "../lib/auth";
-import { logoutAction } from "../actions/auth";
-import { LogOut, User, DollarSign } from "lucide-react";
+import { User, DollarSign } from "lucide-react";
 import { cn } from "../lib/utils";
 import Link from "next/link";
 import {
@@ -11,6 +10,7 @@ import {
 } from "../components/ui/tabs";
 import StocksTab from "./components/StocksTab";
 import DepositsTab from "./components/DepositsTab";
+import LogoutButton from "../components/LogoutButton";
 
 export default async function Dashboard() {
   const user = await requireAuth();
@@ -41,18 +41,7 @@ export default async function Dashboard() {
                 <span className="text-sm">{user.name}</span>
               </div>
 
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer",
-                    "text-zinc-400 hover:text-white hover:bg-zinc-700"
-                  )}
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </form>
+              <LogoutButton />
             </div>
           </div>
         </div>

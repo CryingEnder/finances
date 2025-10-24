@@ -35,7 +35,12 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function logoutAction() {
-  await removeAuthCookie();
+  try {
+    await removeAuthCookie();
+  } catch (error) {
+    // Silence
+  }
+
   revalidatePath("/");
-  redirect("/");
+  return { success: true };
 }
