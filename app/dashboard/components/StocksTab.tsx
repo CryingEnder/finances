@@ -146,6 +146,11 @@ export default function StocksTab() {
 
       if (response.ok) {
         await loadPortfolioEntries();
+
+        if (!editingPortfolio && selectedDate !== "all") {
+          setSelectedDate(portfolioForm.date);
+        }
+
         resetPortfolioForm();
         setIsPortfolioDialogOpen(false);
       } else {
@@ -206,7 +211,7 @@ export default function StocksTab() {
 
   const resetPortfolioForm = () => {
     setPortfolioForm({
-      date: "",
+      date: portfolioForm.date,
       instrument: "",
       isin: "",
       issuer: "",
@@ -470,9 +475,6 @@ export default function StocksTab() {
 
             {/* Summary */}
             <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
-              <h4 className="text-md font-semibold text-white mb-3">
-                Summary for {new Date(date).toLocaleDateString()}
-              </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-zinc-400">Total Purchase Value</p>
@@ -573,6 +575,7 @@ export default function StocksTab() {
                     }))
                   }
                   className="bg-zinc-700 border-zinc-600 text-white"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -714,6 +717,8 @@ export default function StocksTab() {
                     id="quantity"
                     type="number"
                     step="0.01"
+                    min="0"
+                    max="1000000000"
                     value={portfolioForm.quantity}
                     onChange={(e) =>
                       setPortfolioForm((prev) => ({
@@ -733,6 +738,8 @@ export default function StocksTab() {
                     id="locked"
                     type="number"
                     step="0.01"
+                    min="0"
+                    max="1000000000"
                     value={portfolioForm.locked}
                     onChange={(e) =>
                       setPortfolioForm((prev) => ({
@@ -755,7 +762,9 @@ export default function StocksTab() {
                   <Input
                     id="averagePrice"
                     type="number"
-                    step="0.01"
+                    step="0.001"
+                    min="0.001"
+                    max="1000000"
                     value={portfolioForm.averagePrice}
                     onChange={(e) =>
                       setPortfolioForm((prev) => ({
@@ -774,7 +783,9 @@ export default function StocksTab() {
                   <Input
                     id="referencePrice"
                     type="number"
-                    step="0.01"
+                    step="0.001"
+                    min="0.001"
+                    max="1000000"
                     value={portfolioForm.referencePrice}
                     onChange={(e) =>
                       setPortfolioForm((prev) => ({
@@ -809,45 +820,78 @@ export default function StocksTab() {
         </Dialog>
       </div>
 
+      {/* No Data Message */}
+      {companies.length === 0 &&
+        portfolioEntries.length === 0 &&
+        !showCompanies && (
+          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+            <div className="text-center">
+              <Building2 className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Welcome to Finance Manager
+              </h3>
+              <p className="text-zinc-400 mb-6 max-w-md mx-auto">
+                Get started by adding your first company and portfolio entries
+                to track your investments.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <p className="text-sm text-zinc-500">
+                  Use the buttons above to add companies and portfolio data
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* Date Selector and Companies Toggle */}
-      {availableDates.length > 0 && (
+      {(companies.length > 0 || portfolioEntries.length > 0) && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Label htmlFor="date-select" className="text-white font-medium">
-                Select Portfolio Date:
-              </Label>
-              <Select value={selectedDate} onValueChange={setSelectedDate}>
-                <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white mt-2 cursor-pointer">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-700 border-zinc-600">
-                  <SelectItem value="all" className="font-semibold">
-                    📅 All Dates
-                  </SelectItem>
-                  {availableDates.map((date) => (
-                    <SelectItem key={date} value={date}>
-                      {new Date(date).toLocaleDateString()}
+            {availableDates.length > 0 ? (
+              <div className="flex-1">
+                <Label htmlFor="date-select" className="text-white font-medium">
+                  Select Portfolio Date:
+                </Label>
+                <Select value={selectedDate} onValueChange={setSelectedDate}>
+                  <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white mt-2 cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-700 border-zinc-600">
+                    <SelectItem value="all" className="font-semibold">
+                      📅 All Dates
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    {availableDates.map((date) => (
+                      <SelectItem key={date} value={date}>
+                        {new Date(date).toLocaleDateString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <p className="text-zinc-400 text-sm">
+                  No portfolio entries yet.
+                </p>
+              </div>
+            )}
 
-            <div className="ml-6 flex items-end">
-              <Button
-                variant={showCompanies ? "outline" : "default"}
-                size="sm"
-                onClick={() => setShowCompanies(!showCompanies)}
-                className={`cursor-pointer ${
-                  showCompanies
-                    ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
-                }`}
-              >
-                {showCompanies ? "👁️ Hide Companies" : "👁️ Show Companies"}
-              </Button>
-            </div>
+            {companies.length > 0 && (
+              <div className="ml-6 flex items-end">
+                <Button
+                  variant={showCompanies ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => setShowCompanies(!showCompanies)}
+                  className={`cursor-pointer ${
+                    showCompanies
+                      ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }`}
+                >
+                  {showCompanies ? "👁️ Hide Companies" : "👁️ Show Companies"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

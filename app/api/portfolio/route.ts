@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPortfolioCollection } from "../../lib/database";
 import { requireAuth } from "../../lib/auth";
-import type { PortfolioEntry } from "../../lib/types";
+import { portfolioEntrySchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
 
-    const portfolioCollection = await getPortfolioCollection();
+    const portfolioCollection = await getPortfolioCollection(user.id);
 
     let query = {};
     if (date) {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const body = await request.json();
     const {
       date,
@@ -68,11 +68,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const portfolioCollection = await getPortfolioCollection();
-
-    const existingEntry = await portfolioCollection.findOne({
+    const validationResult = portfolioEntrySchema.safeParse({
       date,
       instrument,
+      isin,
+      issuer,
+      quantity: Number(quantity),
+      locked: Number(locked),
+      averagePrice: Number(averagePrice),
+      referencePrice: Number(referencePrice),
+    });
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: formatZodErrors(validationResult.error),
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+
+    const portfolioCollection = await getPortfolioCollection(user.id);
+
+    const existingEntry = await portfolioCollection.findOne({
+      date: validatedData.date,
+      instrument: validatedData.instrument,
     });
     if (existingEntry) {
       return NextResponse.json(
@@ -84,15 +107,15 @@ export async function POST(request: NextRequest) {
     }
 
     const entry = {
-      date,
+      date: validatedData.date,
       currency: "RON" as const,
-      instrument,
-      isin,
-      issuer,
-      quantity: Number(quantity),
-      locked: Number(locked),
-      averagePrice: Number(averagePrice),
-      referencePrice: Number(referencePrice),
+      instrument: validatedData.instrument,
+      isin: validatedData.isin,
+      issuer: validatedData.issuer,
+      quantity: validatedData.quantity,
+      locked: validatedData.locked,
+      averagePrice: validatedData.averagePrice,
+      referencePrice: validatedData.referencePrice,
     };
 
     const result = await portfolioCollection.insertOne(entry);

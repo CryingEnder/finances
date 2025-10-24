@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCompaniesCollection } from "../../../lib/database";
 import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
+import { companySchema, formatZodErrors } from "../../../lib/validation";
 import { ObjectId } from "mongodb";
 
 export async function PUT(
@@ -9,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const body = await request.json();
     const { instrument, isin, issuer } = body;
 
@@ -20,7 +21,24 @@ export async function PUT(
       );
     }
 
-    const companiesCollection = await getCompaniesCollection();
+    const validationResult = companySchema.safeParse({
+      instrument,
+      isin,
+      issuer,
+    });
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: formatZodErrors(validationResult.error),
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+    const companiesCollection = await getCompaniesCollection(user.id);
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
@@ -34,7 +52,7 @@ export async function PUT(
 
     // Check if company with same instrument already exists (excluding current one)
     const existingCompany = await companiesCollection.findOne({
-      instrument,
+      instrument: validatedData.instrument,
       _id: { $ne: objectId },
     });
     if (existingCompany) {
@@ -48,9 +66,9 @@ export async function PUT(
       { _id: objectId },
       {
         $set: {
-          instrument,
-          isin,
-          issuer,
+          instrument: validatedData.instrument,
+          isin: validatedData.isin,
+          issuer: validatedData.issuer,
         },
       }
     );
@@ -74,8 +92,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
-    const companiesCollection = await getCompaniesCollection();
+    const user = await requireAuth();
+    const companiesCollection = await getCompaniesCollection(user.id);
     const { id } = await params;
 
     if (!isValidObjectId(id)) {

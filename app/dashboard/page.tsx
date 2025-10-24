@@ -2,6 +2,7 @@ import { requireAuth } from "../lib/auth";
 import { logoutAction } from "../actions/auth";
 import { LogOut, User, DollarSign } from "lucide-react";
 import { cn } from "../lib/utils";
+import Link from "next/link";
 import {
   Tabs,
   TabsContent,
@@ -23,16 +24,16 @@ export default async function Dashboard() {
     >
       {/* Header */}
       <header className="bg-zinc-800/50 backdrop-blur-sm border-b border-zinc-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <div className="w-8 h-8 bg-linear-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-xl font-semibold text-white">
                 Finance Manager
               </h1>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-zinc-300">
@@ -58,7 +59,7 @@ export default async function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-2">
             Welcome back, {user.name}!

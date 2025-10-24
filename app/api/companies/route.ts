@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCompaniesCollection } from "../../lib/database";
 import { requireAuth } from "../../lib/auth";
+import { companySchema, formatZodErrors } from "../../lib/validation";
 import type { Company } from "../../lib/types";
 
 export async function GET() {
   try {
-    await requireAuth();
-    const companiesCollection = await getCompaniesCollection();
+    const user = await requireAuth();
+    const companiesCollection = await getCompaniesCollection(user.id);
     const companies = await companiesCollection
       .find({})
       .sort({ instrument: 1 })
@@ -30,7 +31,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const body = await request.json();
     const { instrument, isin, issuer } = body;
 
@@ -41,9 +42,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const companiesCollection = await getCompaniesCollection();
+    const validationResult = companySchema.safeParse({
+      instrument,
+      isin,
+      issuer,
+    });
 
-    const existingCompany = await companiesCollection.findOne({ instrument });
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: formatZodErrors(validationResult.error),
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+    const companiesCollection = await getCompaniesCollection(user.id);
+
+    const existingCompany = await companiesCollection.findOne({
+      instrument: validatedData.instrument,
+    });
     if (existingCompany) {
       return NextResponse.json(
         { error: "Company with this instrument already exists" },
@@ -52,9 +72,9 @@ export async function POST(request: NextRequest) {
     }
 
     const company = {
-      instrument,
-      isin,
-      issuer,
+      instrument: validatedData.instrument,
+      isin: validatedData.isin,
+      issuer: validatedData.issuer,
     };
 
     const result = await companiesCollection.insertOne(company);

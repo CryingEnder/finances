@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPortfolioCollection } from "../../../lib/database";
 import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
+import { portfolioEntrySchema, formatZodErrors } from "../../../lib/validation";
 import { ObjectId } from "mongodb";
 
 export async function PUT(
@@ -9,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const body = await request.json();
     const {
       date,
@@ -38,7 +39,30 @@ export async function PUT(
       );
     }
 
-    const portfolioCollection = await getPortfolioCollection();
+    const validationResult = portfolioEntrySchema.safeParse({
+      date,
+      instrument,
+      isin,
+      issuer,
+      quantity: Number(quantity),
+      locked: Number(locked),
+      averagePrice: Number(averagePrice),
+      referencePrice: Number(referencePrice),
+    });
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: formatZodErrors(validationResult.error),
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
+
+    const portfolioCollection = await getPortfolioCollection(user.id);
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
@@ -51,8 +75,8 @@ export async function PUT(
     const objectId = new ObjectId(id);
 
     const existingEntry = await portfolioCollection.findOne({
-      date,
-      instrument,
+      date: validatedData.date,
+      instrument: validatedData.instrument,
       _id: { $ne: objectId },
     });
     if (existingEntry) {
@@ -68,14 +92,14 @@ export async function PUT(
       { _id: objectId },
       {
         $set: {
-          date,
-          instrument,
-          isin,
-          issuer,
-          quantity: Number(quantity),
-          locked: Number(locked),
-          averagePrice: Number(averagePrice),
-          referencePrice: Number(referencePrice),
+          date: validatedData.date,
+          instrument: validatedData.instrument,
+          isin: validatedData.isin,
+          issuer: validatedData.issuer,
+          quantity: validatedData.quantity,
+          locked: validatedData.locked,
+          averagePrice: validatedData.averagePrice,
+          referencePrice: validatedData.referencePrice,
         },
       }
     );
@@ -102,8 +126,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
-    const portfolioCollection = await getPortfolioCollection();
+    const user = await requireAuth();
+    const portfolioCollection = await getPortfolioCollection(user.id);
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
