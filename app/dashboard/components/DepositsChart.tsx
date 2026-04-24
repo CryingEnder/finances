@@ -30,12 +30,22 @@ export default function DepositsChart({
     returnPercent: deposit.totalReturnPercent,
   }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      dataKey: string;
+      value: number;
+      color: string;
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
           <p className="text-white font-medium mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => {
+          {payload.map((entry, index: number) => {
             const labelMap: { [key: string]: string } = {
               principal: "Principal",
               currentBalance: "Current Balance",

@@ -16,6 +16,8 @@ import { ClientProvider } from "../../lib/providers/client-provider";
 
 const StocksTab = lazy(() => import("./StocksTab"));
 const DepositsTab = lazy(() => import("./DepositsTab"));
+const TransactionsTab = lazy(() => import("./TransactionsTab"));
+const SummaryTab = lazy(() => import("./SummaryTab"));
 
 interface DashboardContentProps {
   userName: string;
@@ -61,18 +63,30 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
 
           <Tabs defaultValue="stocks" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-zinc-800/50 border border-zinc-700 h-12 space-x-1">
+            <TabsList className="grid w-full grid-cols-4 bg-zinc-800/50 border border-zinc-700 h-12 space-x-1">
               <TabsTrigger
                 value="stocks"
                 className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
               >
-                Stocks
+                Portfolio
+              </TabsTrigger>
+              <TabsTrigger
+                value="transactions"
+                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+              >
+                Transactions
               </TabsTrigger>
               <TabsTrigger
                 value="deposits"
                 className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
               >
                 Deposits
+              </TabsTrigger>
+              <TabsTrigger
+                value="summary"
+                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+              >
+                Summary
               </TabsTrigger>
             </TabsList>
 
@@ -91,6 +105,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               </Suspense>
             </TabsContent>
 
+            <TabsContent value="transactions" className="mt-6">
+              <Suspense
+                fallback={
+                  <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                      <p className="text-zinc-400">Loading transactions...</p>
+                    </div>
+                  </div>
+                }
+              >
+                <TransactionsTab />
+              </Suspense>
+            </TabsContent>
+
             <TabsContent value="deposits" className="mt-6">
               <Suspense
                 fallback={
@@ -103,6 +132,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 }
               >
                 <DepositsTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="summary" className="mt-6">
+              <Suspense
+                fallback={
+                  <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
+                      <p className="text-zinc-400">Loading summary...</p>
+                    </div>
+                  </div>
+                }
+              >
+                <SummaryTab />
               </Suspense>
             </TabsContent>
           </Tabs>

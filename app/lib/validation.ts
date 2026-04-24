@@ -138,6 +138,107 @@ export const depositSchema = z
     maturityDate: data.maturityDate === "" ? undefined : data.maturityDate,
   }));
 
+export const transactionSchema = z
+  .object({
+    transactionDate: z
+      .string()
+      .min(1, "Transaction date is required")
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Transaction date must be in YYYY-MM-DD format"
+      ),
+    settlementDate: z
+      .string()
+      .min(1, "Settlement date is required")
+      .regex(
+        /^\d{4}-\d{2}-\d{2}$/,
+        "Settlement date must be in YYYY-MM-DD format"
+      ),
+    type: z.enum(["BUY", "SELL"], {
+      message: "Type must be either BUY or SELL",
+    }),
+    symbol: z
+      .string()
+      .min(1, "Symbol is required")
+      .max(50, "Symbol must be 50 characters or less")
+      .trim(),
+    isin: z
+      .string()
+      .length(12, "ISIN must be exactly 12 characters")
+      .regex(
+        /^[A-Z0-9]{12}$/,
+        "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)"
+      )
+      .transform((val) => val.toUpperCase()),
+    issuer: z
+      .string()
+      .min(1, "Issuer name is required")
+      .max(200, "Issuer name must be 200 characters or less")
+      .trim(),
+    quantity: z
+      .number()
+      .min(0.0001, "Quantity must be greater than 0")
+      .max(1000000000, "Quantity cannot exceed 1 billion units"),
+    unitPrice: z
+      .number()
+      .min(0.0001, "Unit price must be greater than 0")
+      .max(1000000, "Unit price cannot exceed 1,000,000 RON"),
+    grossAmount: z
+      .number()
+      .min(0, "Gross amount must be 0 or greater")
+      .max(100000000, "Gross amount cannot exceed 100,000,000 RON"),
+    bcrCommission: z
+      .number()
+      .min(0, "BCR commission must be 0 or greater")
+      .max(1000000, "BCR commission cannot exceed 1,000,000 RON"),
+    settlementCommission: z
+      .number()
+      .min(0, "Settlement commission must be 0 or greater")
+      .max(1000000, "Settlement commission cannot exceed 1,000,000 RON"),
+    otherFees: z
+      .number()
+      .min(0, "Other fees must be 0 or greater")
+      .max(1000000, "Other fees cannot exceed 1,000,000 RON"),
+    externalCosts: z
+      .number()
+      .min(0, "External costs must be 0 or greater")
+      .max(1000000, "External costs cannot exceed 1,000,000 RON"),
+    netAmount: z
+      .number()
+      .max(100000000, "Net amount cannot exceed 100,000,000 RON"),
+    realizedProfit: z
+      .number()
+      .max(100000000, "Realized profit cannot exceed 100,000,000 RON")
+      .optional(),
+    realizedProfitCCY: z
+      .number()
+      .max(100000000, "Realized profit CCY cannot exceed 100,000,000")
+      .optional(),
+    taxWithheld: z
+      .number()
+      .min(0, "Tax withheld must be 0 or greater")
+      .max(1000000, "Tax withheld cannot exceed 1,000,000 RON")
+      .optional(),
+    market: z
+      .string()
+      .min(1, "Market Identifier Code (MIC) is required")
+      .max(20, "Market Identifier Code must be 20 characters or less")
+      .trim(),
+  })
+  .refine(
+    (data) => {
+      if (data.type === "SELL") {
+        return data.realizedProfit !== undefined;
+      }
+      return true;
+    },
+    {
+      message: "Realized profit is required for SELL transactions",
+      path: ["realizedProfit"],
+    }
+  );
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type PortfolioEntryInput = z.infer<typeof portfolioEntrySchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
+export type TransactionInput = z.infer<typeof transactionSchema>;

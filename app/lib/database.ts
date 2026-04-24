@@ -1,5 +1,11 @@
 import { MongoClient, Db, Collection, ObjectId } from "mongodb";
-import type { User, Company, PortfolioEntry, Deposit } from "./types";
+import type {
+  User,
+  Company,
+  PortfolioEntry,
+  Deposit,
+  Transaction,
+} from "./types";
 import { DATABASE_CONFIG } from "./config";
 
 type DatabaseCompany = Omit<Company, "_id" | "userId"> & { _id?: ObjectId };
@@ -7,6 +13,9 @@ type DatabasePortfolioEntry = Omit<PortfolioEntry, "_id" | "userId"> & {
   _id?: ObjectId;
 };
 type DatabaseDeposit = Omit<Deposit, "_id" | "userId"> & { _id?: ObjectId };
+export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
+  _id?: ObjectId;
+};
 
 let client: MongoClient;
 let globalDb: Db;
@@ -81,4 +90,11 @@ export async function getDepositsCollection(
 ): Promise<Collection<DatabaseDeposit>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseDeposit>("deposits");
+}
+
+export async function getTransactionsCollection(
+  userId: string
+): Promise<Collection<DatabaseTransaction>> {
+  const database = await connectToUserDatabase(userId);
+  return database.collection<DatabaseTransaction>("transactions");
 }

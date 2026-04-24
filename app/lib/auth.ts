@@ -70,7 +70,9 @@ export async function removeAuthCookie() {
 
 export async function getCurrentUser(): Promise<User | null> {
   const token = await getAuthCookie();
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
 
   return verifyJWT(token);
 }

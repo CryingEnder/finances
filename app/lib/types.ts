@@ -75,3 +75,32 @@ export type DepositSummary = {
   activeDeposits: number;
   maturedDeposits: number;
 };
+
+export type Transaction = {
+  _id?: string;
+  transactionDate: string; // ISO date string like "2025-10-30"
+  settlementDate: string; // ISO date string like "2025-11-03"
+  type: "BUY" | "SELL";
+  symbol: string; // e.g. "H2O", "TBM"
+  isin: string;
+  issuer: string;
+  quantity: number;
+  unitPrice: number;
+  grossAmount: number;
+  bcrCommission: number;
+  settlementCommission: number;
+  otherFees: number;
+  externalCosts: number;
+  netAmount: number;
+  realizedProfit?: number; // Only for SELL transactions
+  realizedProfitCCY?: number; // Optional, in original currency
+  taxWithheld?: number; // Tax withheld (Impozit >=365 RON + Impozit <365 RON), typically for SELL transactions
+  market: string; // Market Identifier Code (MIC), e.g. "XBSE" (Bucharest Stock Exchange)
+  currency: "RON";
+};
+
+// Client-side calculated fields (not stored in DB)
+export type TransactionWithCalculations = Transaction & {
+  totalFees: number; // bcrCommission + settlementCommission + otherFees + externalCosts + taxWithheld
+  feesWithoutTax: number; // bcrCommission + settlementCommission + otherFees + externalCosts (excluding tax)
+};

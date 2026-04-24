@@ -148,9 +148,15 @@ export default function DepositsTab() {
   };
 
   const filteredDeposits = deposits.filter((deposit) => {
-    if (selectedFilter === "all") return true;
-    if (selectedFilter === "active") return deposit.isActive;
-    if (selectedFilter === "matured") return !deposit.isActive;
+    if (selectedFilter === "all") {
+      return true;
+    }
+    if (selectedFilter === "active") {
+      return deposit.isActive;
+    }
+    if (selectedFilter === "matured") {
+      return !deposit.isActive;
+    }
     return true;
   });
 
