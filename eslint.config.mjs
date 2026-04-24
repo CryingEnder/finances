@@ -29,7 +29,6 @@ import reactHooks from "eslint-plugin-react-hooks";
 import graphql from "@graphql-eslint/eslint-plugin";
 import perfectionist from "eslint-plugin-perfectionist";
 
-import { FlatCompat } from "@eslint/eslintrc";
 import { defineConfig, globalIgnores } from "eslint/config";
 import {
   parser as TSESLintParser,
@@ -41,21 +40,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
 export default defineConfig([
-  {
-    plugins: {
-      "@next/next": nextPlugin,
-    },
-  },
   globalIgnores([
+    ".next",
     ".vscode",
     "CHANGELOG.md",
-    "package.json",
+    "node_modules",
     "package-lock.json",
+    "package.json",
   ]),
   {
     files: ["**/*.{ts,tsx}"],
@@ -224,14 +216,14 @@ export default defineConfig([
       stylistic.configs.recommended,
       TSESLintConfigs.recommended,
       TSESLintConfigs.stylistic,
-      compat.extends("plugin:@next/next/core-web-vitals"),
+      nextPlugin.configs["core-web-vitals"],
       reactPlugin.configs.flat.recommended,
       reactPlugin.configs.flat["jsx-runtime"],
       importPlugin.flatConfigs.recommended,
       importPlugin.flatConfigs.typescript,
       jsxA11y.flatConfigs.recommended,
       query.configs["flat/recommended"],
-      reactHooks.configs.recommended,
+      reactHooks.configs.flat.recommended,
       prettier, // The ESLint Prettier Config should be the last in the extends array! (Do not CHANGE)
     ],
     rules: {
@@ -336,9 +328,8 @@ export default defineConfig([
       "unicorn/no-useless-promise-resolve-reject": "error",
       "unicorn/no-single-promise-in-promise-methods": "error",
 
-      // "react-hooks/rules-of-hooks" & "react/no-unstable-nested-components" are disabled because we use the React Compiler -> https://github.com/reactwg/react-compiler/discussions/18
+      // eslint-plugin-react-hooks v7 has no "react-compiler" rule; use flat.recommended / flat["recommended-latest"] presets for rule sets.
 
-      "react-hooks/react-compiler": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
 
