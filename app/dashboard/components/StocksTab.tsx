@@ -1,7 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Edit, Plus, Trash2, Building2 } from "lucide-react";
-import { useMemo, useState, useEffect, useCallback } from "react";
 
 import type {
   Company,
@@ -45,12 +45,10 @@ export default function StocksTab() {
   const {
     data: companies = [],
     isLoading: companiesLoading,
-    error: companiesError,
   } = useCompanies();
   const {
     data: portfolioEntries = [],
     isLoading: portfolioLoading,
-    error: portfolioQueryError,
   } = usePortfolioEntries();
 
   const createCompanyMutation = useCreateCompany();
@@ -112,9 +110,7 @@ export default function StocksTab() {
       setIsCompanyDialogOpen(false);
     } catch (error) {
       setCompanyError(
-        String(
-          error instanceof Error ? error.message : "Failed to save company"
-        )
+        error instanceof Error ? error.message : "Failed to save company"
       );
     }
   };
@@ -153,11 +149,7 @@ export default function StocksTab() {
       setIsPortfolioDialogOpen(false);
     } catch (error) {
       setPortfolioError(
-        String(
-          error instanceof Error
-            ? error.message
-            : "Failed to save portfolio entry"
-        )
+        error instanceof Error ? error.message : "Failed to save portfolio entry"
       );
     }
   };
@@ -249,8 +241,7 @@ export default function StocksTab() {
     }
   };
 
-  const renderPortfolioTable = useCallback(
-    (date: string) => {
+  const renderPortfolioTable = (date: string) => {
       const dateEntries = portfolioEntries.filter(
         (entry) => entry.date === date
       );
@@ -418,8 +409,10 @@ export default function StocksTab() {
                               size="sm"
                               variant="outline"
                               disabled={deletePortfolioMutation.isPending}
-                              onClick={() => handleDeletePortfolio(entry._id!)}
                               className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                              onClick={() => {
+                                void handleDeletePortfolio(entry._id!);
+                              }}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -486,16 +479,14 @@ export default function StocksTab() {
             <div className="text-zinc-400 text-center py-8">
               <p>No portfolio entries found for this date.</p>
               <p className="text-sm">
-                Add your first portfolio entry using the "Add Portfolio Status"
+                Add your first portfolio entry using the &quot;Add Portfolio Status&quot;
                 button above.
               </p>
             </div>
           )}
         </div>
       );
-    },
-    [portfolioEntries]
-  );
+  };
 
   if (companiesLoading || portfolioLoading) {
     return (
@@ -533,7 +524,12 @@ export default function StocksTab() {
                 {editingCompany ? "Edit Company" : "Add New Company"}
               </DialogTitle>
             </DialogHeader>
-            <form className="space-y-4" onSubmit={handleCompanySubmit}>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                void handleCompanySubmit(e);
+              }}
+            >
               <div>
                 <Label htmlFor="instrument" className="mb-2 block">
                   Instrument
@@ -596,7 +592,7 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   disabled={
                     createCompanyMutation.isPending ||
                     updateCompanyMutation.isPending
@@ -644,7 +640,12 @@ export default function StocksTab() {
                   : "Add New Portfolio Entry"}
               </DialogTitle>
             </DialogHeader>
-            <form className="space-y-4" onSubmit={handlePortfolioSubmit}>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                void handlePortfolioSubmit(e);
+              }}
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="date" className="mb-2 block">
@@ -798,7 +799,7 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
+                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
                   disabled={
                     createPortfolioMutation.isPending ||
                     updatePortfolioMutation.isPending
@@ -952,8 +953,10 @@ export default function StocksTab() {
                             size="sm"
                             variant="outline"
                             disabled={deleteCompanyMutation.isPending}
-                            onClick={() => handleDeleteCompany(company._id!)}
                             className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                            onClick={() => {
+                              void handleDeleteCompany(company._id!);
+                            }}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -969,7 +972,7 @@ export default function StocksTab() {
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No companies found.</p>
               <p className="text-sm">
-                Add your first company using the "Add Companies" button above.
+                Add your first company using the &quot;Add Companies&quot; button above.
               </p>
             </div>
           )}
@@ -977,13 +980,10 @@ export default function StocksTab() {
       )}
 
       {/* Portfolio Tables */}
-      {selectedDate && (
-        <>
-          {"all" === selectedDate
-            ? availableDates.map((date) => renderPortfolioTable(date))
-            : renderPortfolioTable(selectedDate)}
-        </>
-      )}
+      {selectedDate &&
+        ("all" === selectedDate
+          ? availableDates.map((date) => renderPortfolioTable(date))
+          : renderPortfolioTable(selectedDate))}
     </div>
   );
 }

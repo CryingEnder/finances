@@ -690,7 +690,7 @@ export default function TransactionsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   disabled={
                     createTransactionMutation.isPending ||
                     updateTransactionMutation.isPending

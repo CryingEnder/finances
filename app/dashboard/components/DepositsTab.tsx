@@ -495,7 +495,7 @@ export default function DepositsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
+                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
                   disabled={
                     createDepositMutation.isPending ||
                     updateDepositMutation.isPending
