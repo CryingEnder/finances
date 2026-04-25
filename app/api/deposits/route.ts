@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const {
       bank,
       depositName,
+      termMonths,
       principal,
       interestRate,
       startDate,
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
     if (
       !bank ||
       !depositName ||
+      termMonths === undefined ||
       principal === undefined ||
       interestRate === undefined ||
       !startDate ||
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
     const validationResult = depositSchema.safeParse({
       bank,
       depositName,
+      termMonths: Number(termMonths),
       principal: Number(principal),
       interestRate: Number(interestRate),
       startDate,
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest) {
     const deposit = {
       bank: validatedData.bank,
       depositName: validatedData.depositName,
+      termMonths: validatedData.termMonths,
       principal: validatedData.principal,
       interestRate: validatedData.interestRate,
       startDate: validatedData.startDate,

@@ -169,7 +169,7 @@ export default function SummaryTab() {
   const pieChartData = useMemo(() => {
     const data = [
       {
-        name: "Deposits",
+        name: "Term Deposits",
         value: summary.totalDepositsCurrentValue,
         color: COLORS.deposits,
       },
@@ -226,7 +226,7 @@ export default function SummaryTab() {
 
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-sm">Deposits</p>
+            <p className="text-zinc-400 text-sm">Term Deposits</p>
             <TrendingUp className="w-5 h-5 text-green-400" />
           </div>
           <p className="text-2xl font-bold text-white">

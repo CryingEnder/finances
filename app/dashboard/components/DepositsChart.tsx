@@ -97,7 +97,7 @@ export default function DepositsChart({
       <div className="flex items-center mb-6">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <TrendingUp className="w-5 h-5" />
-          Deposit Analytics
+          Term Deposit Analytics
         </h3>
       </div>
 
@@ -186,7 +186,7 @@ export default function DepositsChart({
       {/* Summary Stats */}
       <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <div className="text-center">
-          <p className="text-zinc-400">Total Deposits</p>
+          <p className="text-zinc-400">Total Term Deposits</p>
           <p className="text-white font-medium">{deposits.length}</p>
         </div>
         <div className="text-center">

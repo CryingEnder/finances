@@ -86,6 +86,11 @@ export const depositSchema = z
       .min(1, "Deposit name is required")
       .max(200, "Deposit name must be 200 characters or less")
       .trim(),
+    termMonths: z
+      .number()
+      .int("Term must be a whole number of months")
+      .min(1, "Term must be at least 1 month")
+      .max(120, "Term cannot exceed 120 months"),
     principal: z
       .number()
       .min(0.01, "Principal must be at least 0.01 RON")

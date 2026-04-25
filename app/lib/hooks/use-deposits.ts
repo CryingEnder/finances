@@ -23,6 +23,7 @@ const parseDeposit = (value: unknown): Deposit => {
   const payload = value as Record<string, unknown>;
   const bank = payload.bank;
   const depositName = payload.depositName;
+  const termMonths = payload.termMonths;
   const principal = payload.principal;
   const interestRate = payload.interestRate;
   const startDate = payload.startDate;
@@ -36,6 +37,7 @@ const parseDeposit = (value: unknown): Deposit => {
   if (
     "string" !== typeof bank ||
     "string" !== typeof depositName ||
+    "number" !== typeof termMonths ||
     "number" !== typeof principal ||
     "number" !== typeof interestRate ||
     "string" !== typeof startDate ||
@@ -58,6 +60,7 @@ const parseDeposit = (value: unknown): Deposit => {
     _id: id,
     bank,
     depositName,
+    termMonths,
     principal,
     interestRate,
     startDate,

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
@@ -8,7 +8,7 @@ import { companySchema, formatZodErrors } from "../../../lib/validation";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -16,7 +16,7 @@ export async function PUT(
     if (typeof body !== "object" || null === body) {
       return NextResponse.json(
         { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function PUT(
     if (!instrument || !isin || !issuer) {
       return NextResponse.json(
         { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -42,7 +42,7 @@ export async function PUT(
           error: "Validation failed",
           details: formatZodErrors(validationResult.error),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,7 +53,7 @@ export async function PUT(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid company ID format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -66,7 +66,7 @@ export async function PUT(
     if (existingCompany) {
       return NextResponse.json(
         { error: "Company with this instrument already exists" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -78,26 +78,34 @@ export async function PUT(
           isin: validatedData.isin,
           issuer: validatedData.issuer,
         },
-      }
+      },
     );
 
     if (0 === result.matchedCount) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    const updatedCompany = await companiesCollection.findOne({ _id: objectId });
+    if (!updatedCompany) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      ...updatedCompany,
+      _id: updatedCompany._id.toString(),
+    });
   } catch (error) {
     console.error("Error updating company:", error);
     return NextResponse.json(
       { error: "Failed to update company" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -107,7 +115,7 @@ export async function DELETE(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid company ID format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -123,7 +131,7 @@ export async function DELETE(
     console.error("Error deleting company:", error);
     return NextResponse.json(
       { error: "Failed to delete company" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

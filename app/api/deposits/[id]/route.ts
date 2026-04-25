@@ -24,6 +24,7 @@ export async function PUT(
     const {
       bank,
       depositName,
+      termMonths,
       principal,
       interestRate,
       startDate,
@@ -37,6 +38,7 @@ export async function PUT(
     if (
       !bank ||
       !depositName ||
+      termMonths === undefined ||
       principal === undefined ||
       interestRate === undefined ||
       !startDate ||
@@ -54,6 +56,7 @@ export async function PUT(
     const validationResult = depositSchema.safeParse({
       bank,
       depositName,
+      termMonths: Number(termMonths),
       principal: Number(principal),
       interestRate: Number(interestRate),
       startDate,
@@ -105,6 +108,7 @@ export async function PUT(
         $set: {
           bank: validatedData.bank,
           depositName: validatedData.depositName,
+          termMonths: validatedData.termMonths,
           principal: validatedData.principal,
           interestRate: validatedData.interestRate,
           startDate: validatedData.startDate,
@@ -121,7 +125,15 @@ export async function PUT(
       return NextResponse.json({ error: "Deposit not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    const updatedDeposit = await depositsCollection.findOne({ _id: objectId });
+    if (!updatedDeposit) {
+      return NextResponse.json({ error: "Deposit not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      ...updatedDeposit,
+      _id: updatedDeposit._id.toString(),
+    });
   } catch (error) {
     console.error("Error updating deposit:", error);
     return NextResponse.json(

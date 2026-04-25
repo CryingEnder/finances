@@ -119,7 +119,18 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ success: true });
+    const updatedEntry = await portfolioCollection.findOne({ _id: objectId });
+    if (!updatedEntry) {
+      return NextResponse.json(
+        { error: "Portfolio entry not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      ...updatedEntry,
+      _id: updatedEntry._id.toString(),
+    });
   } catch (error) {
     console.error("Error updating portfolio entry:", error);
     return NextResponse.json(

@@ -48,12 +48,14 @@ export default function DepositsTab() {
   const deleteDepositMutation = useDeleteDeposit();
 
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [selectedTermFilter, setSelectedTermFilter] = useState<string>("all");
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
   const [showChart, setShowChart] = useState(false);
   const [depositForm, setDepositForm] = useState({
     bank: "",
     depositName: "",
+    termMonths: "3",
     principal: "",
     interestRate: "",
     startDate: "",
@@ -73,6 +75,7 @@ export default function DepositsTab() {
       const depositData = {
         bank: depositForm.bank,
         depositName: depositForm.depositName,
+        termMonths: parseInt(depositForm.termMonths, 10),
         principal: parseFloat(depositForm.principal),
         interestRate: parseFloat(depositForm.interestRate),
         startDate: depositForm.startDate,
@@ -120,6 +123,7 @@ export default function DepositsTab() {
     setDepositForm({
       bank: depositForm.bank,
       depositName: "",
+      termMonths: "3",
       principal: "",
       interestRate: "",
       startDate: "",
@@ -138,6 +142,7 @@ export default function DepositsTab() {
     setDepositForm({
       bank: deposit.bank,
       depositName: deposit.depositName,
+      termMonths: deposit.termMonths.toString(),
       principal: deposit.principal.toString(),
       interestRate: deposit.interestRate.toString(),
       startDate: deposit.startDate,
@@ -150,17 +155,36 @@ export default function DepositsTab() {
     setIsDepositDialogOpen(true);
   };
 
-  const filteredDeposits = deposits.filter((deposit) => {
-    if ("all" === selectedFilter) {
+  const matchesTermFilter = (termMonths: number) => {
+    if ("all" === selectedTermFilter) {
       return true;
     }
-    if ("active" === selectedFilter) {
-      return deposit.isActive;
+    if ("short" === selectedTermFilter) {
+      return termMonths <= 3;
     }
-    if ("matured" === selectedFilter) {
-      return !deposit.isActive;
+    if ("medium" === selectedTermFilter) {
+      return termMonths > 3 && termMonths <= 6;
+    }
+    if ("long" === selectedTermFilter) {
+      return termMonths > 6 && termMonths <= 12;
+    }
+    if ("xlong" === selectedTermFilter) {
+      return termMonths > 12;
     }
     return true;
+  };
+
+  const filteredDeposits = deposits.filter((deposit) => {
+    if ("all" === selectedFilter) {
+      return matchesTermFilter(deposit.termMonths);
+    }
+    if ("active" === selectedFilter) {
+      return deposit.isActive && matchesTermFilter(deposit.termMonths);
+    }
+    if ("matured" === selectedFilter) {
+      return !deposit.isActive && matchesTermFilter(deposit.termMonths);
+    }
+    return matchesTermFilter(deposit.termMonths);
   });
 
   const depositsWithCalculations: DepositWithCalculations[] =
@@ -224,7 +248,7 @@ export default function DepositsTab() {
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
-            <p className="text-zinc-400">Loading deposits...</p>
+            <p className="text-zinc-400">Loading term deposits...</p>
           </div>
         </div>
       </div>
@@ -245,13 +269,13 @@ export default function DepositsTab() {
               className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Deposit
+              Add Term Deposit
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editingDeposit ? "Edit Deposit" : "Add New Deposit"}
+                {editingDeposit ? "Edit Term Deposit" : "Add New Term Deposit"}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -283,7 +307,7 @@ export default function DepositsTab() {
                 </div>
                 <div>
                   <Label htmlFor="depositName" className="mb-2 block">
-                    Deposit Name
+                    Term Deposit Name
                   </Label>
                   <Input
                     required
@@ -295,6 +319,34 @@ export default function DepositsTab() {
                       setDepositForm((prev) => ({
                         ...prev,
                         depositName: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label
+                    htmlFor="termMonths"
+                    className="mb-2 flex items-center gap-2"
+                  >
+                    Term (Months)
+                    <InfoTooltip content="Fixed term duration in months (e.g., 3, 6, 12)" />
+                  </Label>
+                  <Input
+                    min="1"
+                    required
+                    step="1"
+                    max="120"
+                    type="number"
+                    id="termMonths"
+                    value={depositForm.termMonths}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setDepositForm((prev) => ({
+                        ...prev,
+                        termMonths: e.target.value,
                       }));
                     }}
                   />
@@ -460,7 +512,7 @@ export default function DepositsTab() {
                     }}
                   />
                   <Label htmlFor="isActive" className="text-sm">
-                    Active Deposit
+                    Active Term Deposit
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -507,7 +559,7 @@ export default function DepositsTab() {
                     : editingDeposit
                       ? "Update"
                       : "Add"}{" "}
-                  Deposit
+                  Term Deposit
                 </Button>
                 <Button
                   type="button"
@@ -547,13 +599,13 @@ export default function DepositsTab() {
           <div className="text-center">
             <Building2 className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
             <h3 className="text-xl font-semibold text-white mb-3">
-              No Deposits Yet
+              No Term Deposits Yet
             </h3>
             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-              Start tracking your deposits by adding your first deposit entry.
+              Start tracking your term deposits by adding your first entry.
             </p>
             <p className="text-sm text-zinc-500">
-              Use the &quot;Add Deposit&quot; button above to get started.
+              Use the &quot;Add Term Deposit&quot; button above to get started.
             </p>
           </div>
         </div>
@@ -562,9 +614,9 @@ export default function DepositsTab() {
       {/* Filter and Summary */}
       {deposits.length > 0 && (
         <>
-          {/* Filter */}
+          {/* Filters */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3">
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -609,6 +661,78 @@ export default function DepositsTab() {
                   Matured ({summary.maturedDeposits})
                 </Button>
               </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant={"all" === selectedTermFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedTermFilter("all");
+                  }}
+                  className={`cursor-pointer ${
+                    "all" === selectedTermFilter
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  All Terms
+                </Button>
+                <Button
+                  size="sm"
+                  variant={"short" === selectedTermFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedTermFilter("short");
+                  }}
+                  className={`cursor-pointer ${
+                    "short" === selectedTermFilter
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  0-3 months
+                </Button>
+                <Button
+                  size="sm"
+                  variant={"medium" === selectedTermFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedTermFilter("medium");
+                  }}
+                  className={`cursor-pointer ${
+                    "medium" === selectedTermFilter
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  4-6 months
+                </Button>
+                <Button
+                  size="sm"
+                  variant={"long" === selectedTermFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedTermFilter("long");
+                  }}
+                  className={`cursor-pointer ${
+                    "long" === selectedTermFilter
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  7-12 months
+                </Button>
+                <Button
+                  size="sm"
+                  variant={"xlong" === selectedTermFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedTermFilter("xlong");
+                  }}
+                  className={`cursor-pointer ${
+                    "xlong" === selectedTermFilter
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  12+ months
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -624,7 +748,7 @@ export default function DepositsTab() {
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
-              Deposit Summary
+              Term Deposit Summary
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
@@ -669,9 +793,11 @@ export default function DepositsTab() {
             </div>
           </div>
 
-          {/* Deposits Table */}
+          {/* Term Deposits Table */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Deposits</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Term Deposits
+            </h3>
             {depositsWithCalculations.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -682,6 +808,9 @@ export default function DepositsTab() {
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
                         Deposit Name
+                      </th>
+                      <th className="text-right py-3 px-2 text-zinc-300">
+                        Term
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
                         Principal
@@ -720,6 +849,9 @@ export default function DepositsTab() {
                         </td>
                         <td className="py-3 px-2 text-zinc-300">
                           {deposit.depositName}
+                        </td>
+                        <td className="py-3 px-2 text-white text-right">
+                          {deposit.termMonths}m
                         </td>
                         <td className="py-3 px-2 text-white text-right">
                           {deposit.principal.toLocaleString("ro-RO", {
@@ -808,7 +940,7 @@ export default function DepositsTab() {
               </div>
             ) : (
               <div className="text-zinc-400 text-center py-8">
-                <p>No deposits found for the selected filter.</p>
+                <p>No term deposits found for the selected filters.</p>
               </div>
             )}
           </div>

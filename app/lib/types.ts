@@ -47,11 +47,12 @@ export interface PortfolioSummary {
 export interface Deposit {
   _id?: string;
   bank: string; // e.g. "BCR", "BRD", "ING"
-  depositName: string; // e.g. "6-month term deposit", "Savings account"
+  depositName: string; // e.g. "6-month standard term deposit"
+  termMonths: number; // Fixed term duration in months (e.g. 3, 6, 12)
   principal: number; // Initial amount deposited
   interestRate: number; // Annual interest rate as percentage (e.g., 5.5 for 5.5%)
   startDate: string; // ISO date string when deposit was made
-  maturityDate?: string; // ISO date string when it matures (optional for term deposits)
+  maturityDate?: string; // ISO date string when it matures
   currentBalance: number; // Current amount including earned interest
   earnedInterest: number; // Total interest earned so far
   isActive: boolean; // Whether it's still active or matured

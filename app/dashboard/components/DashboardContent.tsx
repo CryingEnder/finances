@@ -83,7 +83,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 value="deposits"
                 className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
               >
-                Deposits
+                Term Deposits
               </TabsTrigger>
               <TabsTrigger
                 value="summary"
@@ -129,7 +129,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
-                      <p className="text-zinc-400">Loading deposits...</p>
+                      <p className="text-zinc-400">Loading term deposits...</p>
                     </div>
                   </div>
                 }
