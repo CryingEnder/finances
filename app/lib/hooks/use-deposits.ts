@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import type { Deposit } from "../types";
 
 export const depositsKeys = {
@@ -9,13 +10,114 @@ export const depositsKeys = {
   detail: (id: string) => [...depositsKeys.details(), id] as const,
 };
 
+interface ApiErrorPayload {
+  error?: string;
+  details?: { message?: string }[];
+}
+
+const parseDeposit = (value: unknown): Deposit => {
+  if ("object" !== typeof value || null === value) {
+    throw new Error("Invalid deposit payload");
+  }
+
+  const payload = value as Record<string, unknown>;
+  const bank = payload.bank;
+  const depositName = payload.depositName;
+  const principal = payload.principal;
+  const interestRate = payload.interestRate;
+  const startDate = payload.startDate;
+  const maturityDate = payload.maturityDate;
+  const currentBalance = payload.currentBalance;
+  const earnedInterest = payload.earnedInterest;
+  const isActive = payload.isActive;
+  const autoRenew = payload.autoRenew;
+  const id = payload._id;
+
+  if (
+    "string" !== typeof bank ||
+    "string" !== typeof depositName ||
+    "number" !== typeof principal ||
+    "number" !== typeof interestRate ||
+    "string" !== typeof startDate ||
+    ("string" !== typeof maturityDate &&
+      undefined !== maturityDate &&
+      null !== maturityDate) ||
+    "number" !== typeof currentBalance ||
+    "number" !== typeof earnedInterest ||
+    "boolean" !== typeof isActive ||
+    "boolean" !== typeof autoRenew
+  ) {
+    throw new Error("Invalid deposit payload");
+  }
+
+  if (undefined !== id && "string" !== typeof id) {
+    throw new Error("Invalid deposit payload");
+  }
+
+  return {
+    _id: id,
+    bank,
+    depositName,
+    principal,
+    interestRate,
+    startDate,
+    maturityDate:
+      "string" === typeof maturityDate && maturityDate.length > 0
+        ? maturityDate
+        : undefined,
+    currentBalance,
+    earnedInterest,
+    isActive,
+    autoRenew,
+  };
+};
+
+const parseDeposits = (value: unknown): Deposit[] => {
+  if (!Array.isArray(value)) {
+    throw new Error("Invalid deposits payload");
+  }
+
+  return value.reduce<Deposit[]>((acc, item) => {
+    try {
+      acc.push(parseDeposit(item));
+    } catch (error) {
+      // Keep legacy rows from blanking the whole tab.
+      console.warn("Skipping invalid deposit payload", error);
+    }
+    return acc;
+  }, []);
+};
+
+const extractErrorMessage = (
+  payload: unknown,
+  fallback: string,
+): string => {
+  if ("object" !== typeof payload || null === payload) {
+    return fallback;
+  }
+
+  const errorPayload = payload as ApiErrorPayload;
+  const detailMessage = errorPayload.details?.[0]?.message;
+  if ("string" === typeof detailMessage && detailMessage.length > 0) {
+    return detailMessage;
+  }
+
+  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
+    return errorPayload.error;
+  }
+
+  return fallback;
+};
+
 const fetchDeposits = async (): Promise<Deposit[]> => {
   try {
     const response = await fetch("/api/deposits");
     if (!response.ok) {
-      throw new Error(`Failed to fetch deposits (${response.status})`);
+      throw new Error(`Failed to fetch deposits (${String(response.status)})`);
     }
-    return response.json();
+
+    const data: unknown = await response.json();
+    return parseDeposits(data);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -25,7 +127,7 @@ const fetchDeposits = async (): Promise<Deposit[]> => {
 };
 
 const createDeposit = async (
-  deposit: Omit<Deposit, "_id">
+  deposit: Omit<Deposit, "_id">,
 ): Promise<Deposit> => {
   try {
     const response = await fetch("/api/deposits", {
@@ -35,15 +137,16 @@ const createDeposit = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.details?.[0]?.message ||
-        errorData.error ||
-        `Failed to create deposit (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to create deposit (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data: unknown = await response.json();
+    return parseDeposit(data);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -57,6 +160,10 @@ const updateDeposit = async ({
   ...deposit
 }: Deposit): Promise<Deposit> => {
   try {
+    if (!_id) {
+      throw new Error("Deposit ID is required");
+    }
+
     const response = await fetch(`/api/deposits/${_id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -64,15 +171,16 @@ const updateDeposit = async ({
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.details?.[0]?.message ||
-        errorData.error ||
-        `Failed to update deposit (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to update deposit (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data: unknown = await response.json();
+    return parseDeposit(data);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -88,9 +196,11 @@ const deleteDeposit = async (id: string): Promise<void> => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error || `Failed to delete deposit (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to delete deposit (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
   } catch (error) {
@@ -114,7 +224,7 @@ export function useCreateDeposit() {
   return useMutation({
     mutationFn: createDeposit,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
     },
   });
 }
@@ -125,7 +235,7 @@ export function useUpdateDeposit() {
   return useMutation({
     mutationFn: updateDeposit,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
     },
   });
 }
@@ -136,7 +246,7 @@ export function useDeleteDeposit() {
   return useMutation({
     mutationFn: deleteDeposit,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: depositsKeys.lists() });
     },
   });
 }

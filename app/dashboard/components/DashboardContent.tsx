@@ -1,18 +1,21 @@
 "use client";
 
-import { User } from "lucide-react";
-import { cn } from "../../lib/utils";
 import Link from "next/link";
+
+import { User } from "lucide-react";
+import { lazy, Suspense } from "react";
+
 import Logo from "../../components/Logo";
+import LogoutButton from "../../components/LogoutButton";
+
+import { cn } from "../../lib/utils";
+import { ClientProvider } from "../../lib/providers/client-provider";
 import {
   Tabs,
-  TabsContent,
   TabsList,
+  TabsContent,
   TabsTrigger,
 } from "../../components/ui/tabs";
-import { Suspense, lazy } from "react";
-import LogoutButton from "../../components/LogoutButton";
-import { ClientProvider } from "../../lib/providers/client-provider";
 
 const StocksTab = lazy(() => import("./StocksTab"));
 const DepositsTab = lazy(() => import("./DepositsTab"));
@@ -29,14 +32,14 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
       <div
         className={cn(
           "min-h-screen",
-          "bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900"
+          "bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900",
         )}
       >
         <header className="bg-zinc-800/50 backdrop-blur-sm border-b border-zinc-700">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <Link href="/" className="flex items-center gap-3">
-                <Logo withBorder size="md" borderSize="sm" />
+                <Logo size="md" withBorder borderSize="sm" />
                 <h1 className="text-xl font-semibold text-white">
                   Finance Manager
                 </h1>
@@ -62,7 +65,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             <p className="text-zinc-400">Manage your financial portfolio</p>
           </div>
 
-          <Tabs defaultValue="stocks" className="w-full">
+          <Tabs className="w-full" defaultValue="stocks">
             <TabsList className="grid w-full grid-cols-4 bg-zinc-800/50 border border-zinc-700 h-12 space-x-1">
               <TabsTrigger
                 value="stocks"
@@ -95,7 +98,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
                       <p className="text-zinc-400">Loading stocks...</p>
                     </div>
                   </div>
@@ -105,12 +108,12 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               </Suspense>
             </TabsContent>
 
-            <TabsContent value="transactions" className="mt-6">
+            <TabsContent className="mt-6" value="transactions">
               <Suspense
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4" />
                       <p className="text-zinc-400">Loading transactions...</p>
                     </div>
                   </div>
@@ -120,12 +123,12 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               </Suspense>
             </TabsContent>
 
-            <TabsContent value="deposits" className="mt-6">
+            <TabsContent className="mt-6" value="deposits">
               <Suspense
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
                       <p className="text-zinc-400">Loading deposits...</p>
                     </div>
                   </div>
@@ -140,7 +143,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4" />
                       <p className="text-zinc-400">Loading summary...</p>
                     </div>
                   </div>

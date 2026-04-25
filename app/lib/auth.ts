@@ -1,16 +1,18 @@
-import * as jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import * as jwt from "jsonwebtoken";
+
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
 import { AUTH_CONFIG } from "./config";
-import { type User, type LoginCredentials } from "./types";
 import { getUsersCollection } from "./database";
+import { type User, type LoginCredentials } from "./types";
 
 export async function verifyPassword(
   password: string,
-  hashedPassword: string
+  hashedPassword: string,
 ): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword);
+  return await bcrypt.compare(password, hashedPassword);
 }
 
 export function generateJWT(user: User): string {
@@ -25,7 +27,7 @@ export function generateJWT(user: User): string {
       name: user.name,
     },
     AUTH_CONFIG.JWT_SECRET,
-    { expiresIn: AUTH_CONFIG.JWT_EXPIRES_IN }
+    { expiresIn: AUTH_CONFIG.JWT_EXPIRES_IN },
   );
 }
 
@@ -35,14 +37,30 @@ export function verifyJWT(token: string): User | null {
       throw new Error("JWT_SECRET environment variable is required");
     }
 
-    const decoded = jwt.verify(token, AUTH_CONFIG.JWT_SECRET) as jwt.JwtPayload;
+    const decodedToken = jwt.verify(token, AUTH_CONFIG.JWT_SECRET);
+    if ("object" !== typeof decodedToken) {
+      return null;
+    }
+
+    const payload = decodedToken as Record<string, unknown>;
+    const userId = payload.userId;
+    const email = payload.email;
+    const name = payload.name;
+
+    if (
+      "string" !== typeof userId ||
+      "string" !== typeof email ||
+      "string" !== typeof name
+    ) {
+      return null;
+    }
 
     return {
-      id: decoded.userId,
-      email: decoded.email,
-      name: decoded.name,
+      id: userId,
+      email,
+      name,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -51,7 +69,7 @@ export async function setAuthCookie(token: string) {
   const cookieStore = await cookies();
   cookieStore.set(AUTH_CONFIG.COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: "production" === process.env.NODE_ENV,
     sameSite: "strict",
     maxAge: AUTH_CONFIG.COOKIE_MAX_AGE,
     path: "/",
@@ -86,7 +104,7 @@ export async function requireAuth(): Promise<User> {
 }
 
 export async function authenticateUser(
-  credentials: LoginCredentials
+  credentials: LoginCredentials,
 ): Promise<User | null> {
   try {
     const usersCollection = await getUsersCollection();
@@ -98,7 +116,7 @@ export async function authenticateUser(
 
     const isValidPassword = await verifyPassword(
       credentials.password,
-      user.password
+      user.password,
     );
 
     if (!isValidPassword) {

@@ -1,11 +1,13 @@
 import type { Filter } from "mongodb";
+
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getTransactionsCollection,
-  type DatabaseTransaction,
-} from "../../lib/database";
+
 import { requireAuth } from "../../lib/auth";
-import { transactionSchema, formatZodErrors } from "../../lib/validation";
+import { formatZodErrors, transactionSchema } from "../../lib/validation";
+import {
+  type DatabaseTransaction,
+  getTransactionsCollection,
+} from "../../lib/database";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
     const transactionsCollection = await getTransactionsCollection(user.id);
 
     const query: Filter<DatabaseTransaction> = {};
-    if (type === "BUY" || type === "SELL") {
+    if ("BUY" === type || "SELL" === type) {
       query.type = type;
     }
     if (symbol) {

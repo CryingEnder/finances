@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCompaniesCollection } from "../../lib/database";
+
 import { requireAuth } from "../../lib/auth";
+import { getCompaniesCollection } from "../../lib/database";
 import { companySchema, formatZodErrors } from "../../lib/validation";
-import type { Company } from "../../lib/types";
 
 export async function GET() {
   try {
@@ -31,8 +31,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
-    const body = await request.json();
-    const { instrument, isin, issuer } = body;
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || null === body) {
+      return NextResponse.json(
+        { error: "Missing required fields: instrument, isin, issuer" },
+        { status: 400 }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
+    const { instrument, isin, issuer } = payload;
 
     if (!instrument || !isin || !issuer) {
       return NextResponse.json(

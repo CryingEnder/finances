@@ -1,42 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Button } from "../../components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
-import { Plus, Edit, Trash2, Building2 } from "lucide-react";
-import { formatPrice } from "../../lib/utils";
+import { Edit, Plus, Trash2, Building2 } from "lucide-react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+
 import type {
   Company,
   PortfolioEntry,
-  PortfolioEntryWithCalculations,
   PortfolioSummary,
+  PortfolioEntryWithCalculations,
 } from "../../lib/types";
+
+import { formatPrice } from "../../lib/utils";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Button } from "../../components/ui/button";
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+  SelectContent,
+  SelectTrigger,
+} from "../../components/ui/select";
+import {
+  Dialog,
+  DialogTitle,
+  DialogHeader,
+  DialogContent,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import {
   useCompanies,
   useCreateCompany,
-  useUpdateCompany,
   useDeleteCompany,
+  useUpdateCompany,
 } from "../../lib/hooks/use-companies";
 import {
   usePortfolioEntries,
   useCreatePortfolioEntry,
-  useUpdatePortfolioEntry,
   useDeletePortfolioEntry,
+  useUpdatePortfolioEntry,
 } from "../../lib/hooks/use-portfolio";
 
 export default function StocksTab() {
@@ -407,7 +409,7 @@ export default function StocksTab() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => openEditPortfolio(entry)}
+                              onClick={() => { openEditPortfolio(entry); }}
                               className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                             >
                               <Edit className="w-3 h-3" />
@@ -415,8 +417,8 @@ export default function StocksTab() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleDeletePortfolio(entry._id!)}
                               disabled={deletePortfolioMutation.isPending}
+                              onClick={() => handleDeletePortfolio(entry._id!)}
                               className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -500,7 +502,7 @@ export default function StocksTab() {
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
             <p className="text-zinc-400">Loading data...</p>
           </div>
         </div>
@@ -531,23 +533,23 @@ export default function StocksTab() {
                 {editingCompany ? "Edit Company" : "Add New Company"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCompanySubmit} className="space-y-4">
+            <form className="space-y-4" onSubmit={handleCompanySubmit}>
               <div>
                 <Label htmlFor="instrument" className="mb-2 block">
                   Instrument
                 </Label>
                 <Input
+                  required
                   id="instrument"
+                  maxLength={100}
                   value={companyForm.instrument}
+                  className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) =>
-                    setCompanyForm((prev) => ({
+                    { setCompanyForm((prev) => ({
                       ...prev,
                       instrument: e.target.value,
-                    }))
+                    })); }
                   }
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                  maxLength={100}
-                  required
                 />
               </div>
               <div>
@@ -555,16 +557,16 @@ export default function StocksTab() {
                   ISIN
                 </Label>
                 <Input
+                  required
                   id="isin"
                   value={companyForm.isin}
+                  className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) =>
-                    setCompanyForm((prev) => ({
+                    { setCompanyForm((prev) => ({
                       ...prev,
                       isin: e.target.value,
-                    }))
+                    })); }
                   }
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                  required
                 />
               </div>
               <div>
@@ -572,16 +574,16 @@ export default function StocksTab() {
                   Issuer
                 </Label>
                 <Input
+                  required
                   id="issuer"
                   value={companyForm.issuer}
+                  className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) =>
-                    setCompanyForm((prev) => ({
+                    { setCompanyForm((prev) => ({
                       ...prev,
                       issuer: e.target.value,
-                    }))
+                    })); }
                   }
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                  required
                 />
               </div>
 
@@ -594,11 +596,11 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                   disabled={
                     createCompanyMutation.isPending ||
                     updateCompanyMutation.isPending
                   }
-                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                 >
                   {createCompanyMutation.isPending ||
                   updateCompanyMutation.isPending
@@ -611,7 +613,7 @@ export default function StocksTab() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsCompanyDialogOpen(false)}
+                  onClick={() => { setIsCompanyDialogOpen(false); }}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                 >
                   Cancel
@@ -642,24 +644,24 @@ export default function StocksTab() {
                   : "Add New Portfolio Entry"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handlePortfolioSubmit} className="space-y-4">
+            <form className="space-y-4" onSubmit={handlePortfolioSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="date" className="mb-2 block">
                     Date
                   </Label>
                   <Input
+                    required
                     id="date"
                     type="date"
                     value={portfolioForm.date}
+                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
                     onChange={(e) =>
-                      setPortfolioForm((prev) => ({
+                      { setPortfolioForm((prev) => ({
                         ...prev,
                         date: e.target.value,
-                      }))
+                      })); }
                     }
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                    required
                   />
                 </div>
                 <div className="min-w-0">
@@ -669,8 +671,8 @@ export default function StocksTab() {
                   <Select onValueChange={handleCompanySelect}>
                     <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full">
                       <SelectValue
-                        placeholder="Select company"
                         className="truncate"
+                        placeholder="Select company"
                       />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-700 border-zinc-600 min-w-[200px] max-w-[400px]">
@@ -702,20 +704,20 @@ export default function StocksTab() {
                     Quantity
                   </Label>
                   <Input
+                    min="0"
+                    required
+                    step="0.01"
                     id="quantity"
                     type="number"
-                    step="0.01"
-                    min="0"
                     max="1000000000"
                     value={portfolioForm.quantity}
+                    className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) =>
-                      setPortfolioForm((prev) => ({
+                      { setPortfolioForm((prev) => ({
                         ...prev,
                         quantity: e.target.value,
-                      }))
+                      })); }
                     }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
                   />
                 </div>
                 <div>
@@ -723,66 +725,66 @@ export default function StocksTab() {
                     Locked
                   </Label>
                   <Input
-                    id="locked"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    id="locked"
+                    step="0.01"
+                    type="number"
+                    placeholder="0"
                     max="1000000000"
                     value={portfolioForm.locked}
+                    className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) =>
-                      setPortfolioForm((prev) => ({
+                      { setPortfolioForm((prev) => ({
                         ...prev,
                         locked: e.target.value,
-                      }))
+                      })); }
                     }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    placeholder="0"
-                    required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="averagePrice" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="averagePrice">
                     Average Price
                   </Label>
                   <Input
-                    id="averagePrice"
-                    type="number"
-                    step="0.001"
+                    required
                     min="0.001"
+                    step="0.001"
                     max="1000000"
+                    type="number"
+                    id="averagePrice"
                     value={portfolioForm.averagePrice}
+                    className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) =>
-                      setPortfolioForm((prev) => ({
+                      { setPortfolioForm((prev) => ({
                         ...prev,
                         averagePrice: e.target.value,
-                      }))
+                      })); }
                     }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="referencePrice" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="referencePrice">
                     Reference Price
                   </Label>
                   <Input
-                    id="referencePrice"
-                    type="number"
-                    step="0.001"
+                    required
                     min="0.001"
+                    step="0.001"
                     max="1000000"
+                    type="number"
+                    id="referencePrice"
                     value={portfolioForm.referencePrice}
+                    className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) =>
-                      setPortfolioForm((prev) => ({
+                      { setPortfolioForm((prev) => ({
                         ...prev,
                         referencePrice: e.target.value,
-                      }))
+                      })); }
                     }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
                   />
                 </div>
               </div>
@@ -796,11 +798,11 @@ export default function StocksTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
                   disabled={
                     createPortfolioMutation.isPending ||
                     updatePortfolioMutation.isPending
                   }
-                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
                 >
                   {createPortfolioMutation.isPending ||
                   updatePortfolioMutation.isPending
@@ -813,7 +815,7 @@ export default function StocksTab() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsPortfolioDialogOpen(false)}
+                  onClick={() => { setIsPortfolioDialogOpen(false); }}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                 >
                   Cancel
@@ -825,8 +827,8 @@ export default function StocksTab() {
       </div>
 
       {/* No Data Message */}
-      {companies.length === 0 &&
-        portfolioEntries.length === 0 &&
+      {0 === companies.length &&
+        0 === portfolioEntries.length &&
         !showCompanies && (
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
             <div className="text-center">
@@ -883,9 +885,9 @@ export default function StocksTab() {
             {companies.length > 0 && (
               <div className="ml-6 flex items-end">
                 <Button
-                  variant={showCompanies ? "outline" : "default"}
                   size="sm"
-                  onClick={() => setShowCompanies(!showCompanies)}
+                  variant={showCompanies ? "outline" : "default"}
+                  onClick={() => { setShowCompanies(!showCompanies); }}
                   className={`cursor-pointer ${
                     showCompanies
                       ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
@@ -941,7 +943,7 @@ export default function StocksTab() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openEditCompany(company)}
+                            onClick={() => { openEditCompany(company); }}
                             className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                           >
                             <Edit className="w-3 h-3" />
@@ -949,8 +951,8 @@ export default function StocksTab() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteCompany(company._id!)}
                             disabled={deleteCompanyMutation.isPending}
+                            onClick={() => handleDeleteCompany(company._id!)}
                             className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -977,7 +979,7 @@ export default function StocksTab() {
       {/* Portfolio Tables */}
       {selectedDate && (
         <>
-          {selectedDate === "all"
+          {"all" === selectedDate
             ? availableDates.map((date) => renderPortfolioTable(date))
             : renderPortfolioTable(selectedDate)}
         </>

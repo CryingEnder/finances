@@ -1,17 +1,68 @@
 "use client";
 
+import { TrendingUp } from "lucide-react";
 import {
-  BarChart,
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
-  Legend,
+  BarChart,
+  CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
-import type { DepositWithCalculations, DepositSummary } from "../../lib/types";
+
+import type { DepositSummary, DepositWithCalculations } from "../../lib/types";
+
+const TOOLTIP_LABELS: Record<string, string> = {
+  principal: "Principal",
+  currentBalance: "Current Balance",
+  earnedInterest: "Earned Interest",
+};
+
+interface TooltipPayloadEntry {
+  dataKey: string;
+  value: number;
+  color: string;
+}
+
+interface DepositsBarTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  label?: string;
+}
+
+function DepositsBarTooltip({
+  active,
+  payload,
+  label,
+}: DepositsBarTooltipProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
+      <p className="text-white font-medium mb-2">{label}</p>
+      {payload.map((entry, index) => {
+        const readableLabel = TOOLTIP_LABELS[entry.dataKey] ?? entry.dataKey;
+
+        return (
+          <p
+            className="text-sm"
+            key={String(index)}
+            style={{ color: entry.color }}
+          >
+            {readableLabel}:{" "}
+            {entry.value.toLocaleString("ro-RO", {
+              style: "currency",
+              currency: "RON",
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 interface DepositsChartProps {
   deposits: DepositWithCalculations[];
@@ -30,46 +81,7 @@ export default function DepositsChart({
     returnPercent: deposit.totalReturnPercent,
   }));
 
-  interface TooltipProps {
-    active?: boolean;
-    payload?: Array<{
-      dataKey: string;
-      value: number;
-      color: string;
-    }>;
-    label?: string;
-  }
-
-  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
-          <p className="text-white font-medium mb-2">{label}</p>
-          {payload.map((entry, index: number) => {
-            const labelMap: { [key: string]: string } = {
-              principal: "Principal",
-              currentBalance: "Current Balance",
-              earnedInterest: "Earned Interest",
-            };
-            const readableLabel = labelMap[entry.dataKey] || entry.dataKey;
-
-            return (
-              <p key={index} className="text-sm" style={{ color: entry.color }}>
-                {readableLabel}:{" "}
-                {entry.value.toLocaleString("ro-RO", {
-                  style: "currency",
-                  currency: "RON",
-                })}
-              </p>
-            );
-          })}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  if (deposits.length === 0) {
+  if (0 === deposits.length) {
     return (
       <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-8">
         <div className="text-center">
@@ -89,8 +101,8 @@ export default function DepositsChart({
         </h3>
       </div>
 
-      <div className="h-96">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-96 w-full min-w-0">
+        <ResponsiveContainer height={384} minWidth={0} width="100%">
           <BarChart
             data={barChartData}
             margin={{
@@ -100,20 +112,20 @@ export default function DepositsChart({
               bottom: 0,
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <CartesianGrid stroke="#374151" strokeDasharray="3 3" />
             <XAxis
+              angle={0}
+              height={100}
+              fontSize={12}
               dataKey="name"
               stroke="#9ca3af"
-              fontSize={12}
-              angle={0}
               textAnchor="middle"
-              height={100}
             />
             <YAxis
-              stroke="#9ca3af"
               fontSize={12}
+              stroke="#9ca3af"
               tickFormatter={(value) =>
-                value.toLocaleString("ro-RO", {
+                Number(value).toLocaleString("ro-RO", {
                   style: "currency",
                   currency: "RON",
                   minimumFractionDigits: 0,
@@ -121,26 +133,26 @@ export default function DepositsChart({
               }
             />
             <Tooltip
-              content={<CustomTooltip />}
+              content={<DepositsBarTooltip />}
               cursor={{ fill: "rgba(63, 63, 70, 0.3)" }}
             />
             <Bar
-              dataKey="principal"
               fill="#6b7280"
               name="Principal"
+              dataKey="principal"
               radius={[2, 2, 0, 0]}
             />
             <Bar
-              dataKey="currentBalance"
               fill="#10b981"
-              name="Current Balance"
               radius={[2, 2, 0, 0]}
+              name="Current Balance"
+              dataKey="currentBalance"
             />
             <Bar
-              dataKey="earnedInterest"
               fill="#f59e0b"
-              name="Earned Interest"
               radius={[2, 2, 0, 0]}
+              name="Earned Interest"
+              dataKey="earnedInterest"
             />
           </BarChart>
         </ResponsiveContainer>
@@ -152,21 +164,21 @@ export default function DepositsChart({
           <div
             className="w-3 h-3 rounded"
             style={{ backgroundColor: "#6b7280" }}
-          ></div>
+          />
           <span className="text-sm text-zinc-300">Principal</span>
         </div>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded"
             style={{ backgroundColor: "#10b981" }}
-          ></div>
+          />
           <span className="text-sm text-zinc-300">Current Balance</span>
         </div>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded"
             style={{ backgroundColor: "#f59e0b" }}
-          ></div>
+          />
           <span className="text-sm text-zinc-300">Earned Interest</span>
         </div>
       </div>

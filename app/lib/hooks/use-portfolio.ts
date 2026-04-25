@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import type { PortfolioEntry } from "../types";
 
 export const portfolioKeys = {
@@ -9,13 +10,100 @@ export const portfolioKeys = {
   detail: (id: string) => [...portfolioKeys.details(), id] as const,
 };
 
+interface ApiErrorPayload {
+  error?: string;
+  details?: { message?: string }[];
+}
+
+const parsePortfolioEntry = (value: unknown): PortfolioEntry => {
+  if ("object" !== typeof value || null === value) {
+    throw new Error("Invalid portfolio entry payload");
+  }
+
+  const payload = value as Record<string, unknown>;
+  const date = payload.date;
+  const currency = payload.currency;
+  const instrument = payload.instrument;
+  const isin = payload.isin;
+  const issuer = payload.issuer;
+  const quantity = payload.quantity;
+  const locked = payload.locked;
+  const averagePrice = payload.averagePrice;
+  const referencePrice = payload.referencePrice;
+  const id = payload._id;
+
+  if (
+    "string" !== typeof date ||
+    "RON" !== currency ||
+    "string" !== typeof instrument ||
+    "string" !== typeof isin ||
+    "string" !== typeof issuer ||
+    "number" !== typeof quantity ||
+    "number" !== typeof locked ||
+    "number" !== typeof averagePrice ||
+    "number" !== typeof referencePrice
+  ) {
+    throw new Error("Invalid portfolio entry payload");
+  }
+
+  if (undefined !== id && "string" !== typeof id) {
+    throw new Error("Invalid portfolio entry payload");
+  }
+
+  return {
+    _id: id,
+    date,
+    currency,
+    instrument,
+    isin,
+    issuer,
+    quantity,
+    locked,
+    averagePrice,
+    referencePrice,
+  };
+};
+
+const parsePortfolioEntries = (value: unknown): PortfolioEntry[] => {
+  if (!Array.isArray(value)) {
+    throw new Error("Invalid portfolio entries payload");
+  }
+
+  return value.map((item) => parsePortfolioEntry(item));
+};
+
+const extractErrorMessage = (
+  payload: unknown,
+  fallback: string,
+): string => {
+  if ("object" !== typeof payload || null === payload) {
+    return fallback;
+  }
+
+  const errorPayload = payload as ApiErrorPayload;
+  const detailMessage = errorPayload.details?.[0]?.message;
+  if ("string" === typeof detailMessage && detailMessage.length > 0) {
+    return detailMessage;
+  }
+
+  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
+    return errorPayload.error;
+  }
+
+  return fallback;
+};
+
 const fetchPortfolioEntries = async (): Promise<PortfolioEntry[]> => {
   try {
     const response = await fetch("/api/portfolio");
     if (!response.ok) {
-      throw new Error(`Failed to fetch portfolio entries (${response.status})`);
+      throw new Error(
+        `Failed to fetch portfolio entries (${String(response.status)})`,
+      );
     }
-    return response.json();
+
+    const data: unknown = await response.json();
+    return parsePortfolioEntries(data);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -25,7 +113,7 @@ const fetchPortfolioEntries = async (): Promise<PortfolioEntry[]> => {
 };
 
 const createPortfolioEntry = async (
-  entry: Omit<PortfolioEntry, "_id">
+  entry: Omit<PortfolioEntry, "_id">,
 ): Promise<PortfolioEntry> => {
   try {
     const response = await fetch("/api/portfolio", {
@@ -35,17 +123,17 @@ const createPortfolioEntry = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.details?.[0]?.message ||
-        errorData.error ||
-        `Failed to create portfolio entry (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to create portfolio entry (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data: unknown = await response.json();
+    return parsePortfolioEntry(data);
   } catch (error) {
-    // Re-throw with more context if it's not already an Error
     if (error instanceof Error) {
       throw error;
     }
@@ -58,6 +146,10 @@ const updatePortfolioEntry = async ({
   ...entry
 }: PortfolioEntry): Promise<PortfolioEntry> => {
   try {
+    if (!_id) {
+      throw new Error("Portfolio entry ID is required");
+    }
+
     const response = await fetch(`/api/portfolio/${_id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -65,15 +157,16 @@ const updatePortfolioEntry = async ({
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.details?.[0]?.message ||
-        errorData.error ||
-        `Failed to update portfolio entry (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to update portfolio entry (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data: unknown = await response.json();
+    return parsePortfolioEntry(data);
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -89,10 +182,11 @@ const deletePortfolioEntry = async (id: string): Promise<void> => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error ||
-        `Failed to delete portfolio entry (${response.status})`;
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage = extractErrorMessage(
+        errorData,
+        `Failed to delete portfolio entry (${String(response.status)})`,
+      );
       throw new Error(errorMessage);
     }
   } catch (error) {
@@ -116,7 +210,7 @@ export function useCreatePortfolioEntry() {
   return useMutation({
     mutationFn: createPortfolioEntry,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
     },
   });
 }
@@ -127,7 +221,7 @@ export function useUpdatePortfolioEntry() {
   return useMutation({
     mutationFn: updatePortfolioEntry,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
     },
   });
 }
@@ -138,7 +232,7 @@ export function useDeletePortfolioEntry() {
   return useMutation({
     mutationFn: deletePortfolioEntry,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
     },
   });
 }

@@ -27,12 +27,12 @@ export default function Logo({
       className={`${sizeClasses[size]} flex items-center justify-center overflow-hidden rounded-lg ${className}`}
     >
       <img
-        src={logo.src}
         alt="Logo"
+        src={logo.src}
         className={`w-full h-full object-cover ${
           withBorder
             ? `rounded-full ${
-                borderSize === "sm" ? "border" : "border-2"
+                "sm" === borderSize ? "border" : "border-2"
               } border-white`
             : ""
         }`}

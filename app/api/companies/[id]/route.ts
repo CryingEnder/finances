@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCompaniesCollection } from "../../../lib/database";
+import { ObjectId } from "mongodb";
+
 import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
+import { getCompaniesCollection } from "../../../lib/database";
 import { companySchema, formatZodErrors } from "../../../lib/validation";
-import { ObjectId } from "mongodb";
 
 export async function PUT(
   request: NextRequest,
@@ -11,8 +12,16 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
-    const body = await request.json();
-    const { instrument, isin, issuer } = body;
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || null === body) {
+      return NextResponse.json(
+        { error: "Missing required fields: instrument, isin, issuer" },
+        { status: 400 }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
+    const { instrument, isin, issuer } = payload;
 
     if (!instrument || !isin || !issuer) {
       return NextResponse.json(
@@ -72,7 +81,7 @@ export async function PUT(
       }
     );
 
-    if (result.matchedCount === 0) {
+    if (0 === result.matchedCount) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 
@@ -87,7 +96,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -105,7 +114,7 @@ export async function DELETE(
     const objectId = new ObjectId(id);
     const result = await companiesCollection.deleteOne({ _id: objectId });
 
-    if (result.deletedCount === 0) {
+    if (0 === result.deletedCount) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 

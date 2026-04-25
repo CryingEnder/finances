@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { logoutAction } from "../actions/auth";
 import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 import { cn } from "../lib/utils";
+import { logoutAction } from "../actions/auth";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     try {
       await logoutAction();
-    } catch (error) {
+    } catch {
       // Silence
     }
     router.push("/");
@@ -19,10 +20,13 @@ export default function LogoutButton() {
 
   return (
     <button
-      onClick={handleLogout}
+      type="button"
+      onClick={() => {
+        void handleLogout();
+      }}
       className={cn(
         "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer",
-        "text-zinc-400 hover:text-white hover:bg-zinc-700"
+        "text-zinc-400 hover:text-white hover:bg-zinc-700",
       )}
     >
       <LogOut className="w-4 h-4" />

@@ -1,17 +1,26 @@
+import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import { getPortfolioCollection } from "../../../lib/database";
+
 import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
-import { portfolioEntrySchema, formatZodErrors } from "../../../lib/validation";
-import { ObjectId } from "mongodb";
+import { getPortfolioCollection } from "../../../lib/database";
+import { formatZodErrors, portfolioEntrySchema } from "../../../lib/validation";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
-    const body = await request.json();
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || null === body) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
     const {
       date,
       instrument,
@@ -21,7 +30,7 @@ export async function PUT(
       locked,
       averagePrice,
       referencePrice,
-    } = body;
+    } = payload;
 
     if (
       !date ||
@@ -35,7 +44,7 @@ export async function PUT(
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,7 +65,7 @@ export async function PUT(
           error: "Validation failed",
           details: formatZodErrors(validationResult.error),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -67,7 +76,7 @@ export async function PUT(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid portfolio entry ID format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,7 +92,7 @@ export async function PUT(
         {
           error: "Portfolio entry with this date and instrument already exists",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -100,13 +109,13 @@ export async function PUT(
           averagePrice: validatedData.averagePrice,
           referencePrice: validatedData.referencePrice,
         },
-      }
+      },
     );
 
-    if (result.matchedCount === 0) {
+    if (0 === result.matchedCount) {
       return NextResponse.json(
         { error: "Portfolio entry not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -115,14 +124,14 @@ export async function PUT(
     console.error("Error updating portfolio entry:", error);
     return NextResponse.json(
       { error: "Failed to update portfolio entry" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -132,17 +141,17 @@ export async function DELETE(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid portfolio entry ID format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const objectId = new ObjectId(id);
     const result = await portfolioCollection.deleteOne({ _id: objectId });
 
-    if (result.deletedCount === 0) {
+    if (0 === result.deletedCount) {
       return NextResponse.json(
         { error: "Portfolio entry not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -151,7 +160,7 @@ export async function DELETE(
     console.error("Error deleting portfolio entry:", error);
     return NextResponse.json(
       { error: "Failed to delete portfolio entry" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

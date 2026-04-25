@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
+import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import {
-  PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
-  Tooltip,
   Legend,
+  Tooltip,
+  PieChart,
+  ResponsiveContainer,
 } from "recharts";
+
 import { useDeposits } from "../../lib/hooks/use-deposits";
 import { usePortfolioEntries } from "../../lib/hooks/use-portfolio";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 const COLORS = {
   deposits: "#10b981",
@@ -19,6 +20,98 @@ const COLORS = {
   profit: "#f59e0b",
   loss: "#ef4444",
 };
+
+interface PieTooltipPayload {
+  name: string;
+  value: number;
+  payload: {
+    color: string;
+  };
+}
+
+interface SummaryPieTooltipProps {
+  active?: boolean;
+  payload?: PieTooltipPayload[];
+  totalCurrentValue: number;
+}
+
+function SummaryPieTooltip({
+  active,
+  payload,
+  totalCurrentValue,
+}: SummaryPieTooltipProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  const data = payload[0];
+  if (!data) {
+    return null;
+  }
+
+  const percentage =
+    totalCurrentValue > 0
+      ? ((data.value / totalCurrentValue) * 100).toFixed(1)
+      : "0";
+
+  return (
+    <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
+      <p className="text-white font-medium mb-2">{data.name}</p>
+      <p className="text-sm" style={{ color: data.payload.color }}>
+        Current Value:{" "}
+        {data.value.toLocaleString("ro-RO", {
+          style: "currency",
+          currency: "RON",
+        })}
+      </p>
+      <p className="text-sm text-zinc-400">Percentage: {percentage}%</p>
+    </div>
+  );
+}
+
+interface PieLabelProps {
+  cx?: string | number;
+  cy?: string | number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+
+function PieSliceLabel(props: PieLabelProps) {
+  const {
+    cx = 0,
+    cy = 0,
+    midAngle = 0,
+    innerRadius = 0,
+    outerRadius = 0,
+    percent = 0,
+  } = props;
+
+  const cxNum = "string" === typeof cx ? parseFloat(cx) : cx;
+  const cyNum = "string" === typeof cy ? parseFloat(cy) : cy;
+  if (0 === percent) {
+    return null;
+  }
+
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cxNum + radius * Math.cos(-midAngle * RADIAN);
+  const y = cyNum + radius * Math.sin(-midAngle * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      dominantBaseline="central"
+      className="text-sm font-medium"
+      textAnchor={x > cxNum ? "start" : "end"}
+    >
+      {`${(percent * 100).toFixed(1)}%`}
+    </text>
+  );
+}
 
 export default function SummaryTab() {
   const { data: deposits = [], isLoading: depositsLoading } = useDeposits();
@@ -28,28 +121,28 @@ export default function SummaryTab() {
   const summary = useMemo(() => {
     const totalDepositsCurrentValue = deposits.reduce(
       (sum, deposit) => sum + deposit.currentBalance,
-      0
+      0,
     );
 
     const totalDepositsInvested = deposits.reduce(
       (sum, deposit) => sum + deposit.principal,
-      0
+      0,
     );
 
     const dates = [...new Set(portfolioEntries.map((e) => e.date))].sort();
     const latestDate = dates[dates.length - 1];
     const latestPortfolioEntries = portfolioEntries.filter(
-      (e) => e.date === latestDate
+      (e) => e.date === latestDate,
     );
 
     const stocksCurrentValue = latestPortfolioEntries.reduce(
       (sum, entry) => sum + entry.quantity * entry.referencePrice,
-      0
+      0,
     );
 
     const stocksInvestedValue = latestPortfolioEntries.reduce(
       (sum, entry) => sum + entry.quantity * entry.averagePrice,
-      0
+      0,
     );
 
     const totalCurrentValue = totalDepositsCurrentValue + stocksCurrentValue;
@@ -90,96 +183,12 @@ export default function SummaryTab() {
     return data;
   }, [summary]);
 
-  interface TooltipProps {
-    active?: boolean;
-    payload?: Array<{
-      name: string;
-      value: number;
-      payload: {
-        color: string;
-      };
-    }>;
-  }
-
-  const CustomTooltip = ({ active, payload }: TooltipProps) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      if (!data) {
-        return null;
-      }
-
-      const percentage =
-        summary.totalCurrentValue > 0
-          ? ((data.value / summary.totalCurrentValue) * 100).toFixed(1)
-          : 0;
-
-      return (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
-          <p className="text-white font-medium mb-2">{data.name}</p>
-          <p className="text-sm" style={{ color: data.payload.color }}>
-            Current Value:{" "}
-            {data.value.toLocaleString("ro-RO", {
-              style: "currency",
-              currency: "RON",
-            })}
-          </p>
-          <p className="text-sm text-zinc-400">Percentage: {percentage}%</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  interface LabelProps {
-    cx?: string | number;
-    cy?: string | number;
-    midAngle?: number;
-    innerRadius?: number;
-    outerRadius?: number;
-    percent?: number;
-  }
-
-  const CustomLabel = (props: LabelProps) => {
-    const {
-      cx = 0,
-      cy = 0,
-      midAngle = 0,
-      innerRadius = 0,
-      outerRadius = 0,
-      percent = 0,
-    } = props;
-
-    const cxNum = typeof cx === "string" ? parseFloat(cx) : cx ?? 0;
-    const cyNum = typeof cy === "string" ? parseFloat(cy) : cy ?? 0;
-    if (percent === 0) {
-      return null;
-    }
-
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cxNum + radius * Math.cos(-midAngle * RADIAN);
-    const y = cyNum + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor={x > cxNum ? "start" : "end"}
-        dominantBaseline="central"
-        className="text-sm font-medium"
-      >
-        {`${(percent * 100).toFixed(1)}%`}
-      </text>
-    );
-  };
-
   if (depositsLoading || portfolioLoading) {
     return (
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
             <p className="text-zinc-400">Loading summary...</p>
           </div>
         </div>
@@ -326,30 +335,36 @@ export default function SummaryTab() {
           <h3 className="text-lg font-semibold text-white mb-6">
             Current Value Distribution
           </h3>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-96 w-full min-w-0">
+            <ResponsiveContainer height={384} minWidth={0} width="100%">
               <PieChart>
                 <Pie
-                  data={pieChartData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={CustomLabel}
-                  outerRadius={120}
                   fill="#8884d8"
                   dataKey="value"
+                  labelLine={false}
+                  outerRadius={120}
+                  data={pieChartData}
+                  label={PieSliceLabel}
                 >
                   {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell fill={entry.color} key={`cell-${String(index)}`} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip
+                  content={
+                    <SummaryPieTooltip
+                      totalCurrentValue={summary.totalCurrentValue}
+                    />
+                  }
+                />
                 <Legend
                   formatter={(
                     value: string,
-                    entry: { payload?: { value?: number } }
+                    entry: { payload?: { value?: number } },
                   ) => {
-                    const entryValue = entry?.payload?.value ?? 0;
+                    const entryValue = entry.payload?.value ?? 0;
                     return (
                       <span className="text-zinc-300">
                         {value}:{" "}

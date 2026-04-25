@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getTransactionsCollection } from "../../../lib/database";
-import { requireAuth } from "../../../lib/auth";
-import { transactionSchema, formatZodErrors } from "../../../lib/validation";
 import { ObjectId } from "mongodb";
+import { NextRequest, NextResponse } from "next/server";
+
+import { requireAuth } from "../../../lib/auth";
 import { isValidObjectId } from "../../../lib/utils";
+import { getTransactionsCollection } from "../../../lib/database";
+import { formatZodErrors, transactionSchema } from "../../../lib/validation";
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -16,7 +17,7 @@ export async function GET(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,7 +29,7 @@ export async function GET(
     if (!transaction) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -40,24 +41,24 @@ export async function GET(
     console.error("Error fetching transaction:", error);
     return NextResponse.json(
       { error: "Failed to fetch transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
     const { id } = await params;
-    const body = await request.json();
+    const body: unknown = await request.json();
 
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +70,7 @@ export async function PUT(
           error: "Validation failed",
           details: formatZodErrors(validationResult.error),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -84,7 +85,7 @@ export async function PUT(
     if (!existingTransaction) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -111,13 +112,13 @@ export async function PUT(
 
     const result = await transactionsCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData }
+      { $set: updateData },
     );
 
-    if (result.matchedCount === 0) {
+    if (0 === result.matchedCount) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -125,22 +126,29 @@ export async function PUT(
       _id: new ObjectId(id),
     });
 
+    if (!updatedTransaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 },
+      );
+    }
+
     return NextResponse.json({
       ...updatedTransaction,
-      _id: updatedTransaction!._id.toString(),
+      _id: updatedTransaction._id.toString(),
     });
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(
       { error: "Failed to update transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -149,7 +157,7 @@ export async function DELETE(
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -159,10 +167,10 @@ export async function DELETE(
       _id: new ObjectId(id),
     });
 
-    if (result.deletedCount === 0) {
+    if (0 === result.deletedCount) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -171,7 +179,7 @@ export async function DELETE(
     console.error("Error deleting transaction:", error);
     return NextResponse.json(
       { error: "Failed to delete transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,22 +1,22 @@
-export type User = {
+export interface User {
   id: string;
   email: string;
   name: string;
-};
+}
 
-export type LoginCredentials = {
+export interface LoginCredentials {
   email: string;
   password: string;
-};
+}
 
-export type Company = {
+export interface Company {
   _id?: string;
   instrument: string; // e.g. DIGI, H2O
   isin: string; // International Securities Identification Number
   issuer: string; // Company name
-};
+}
 
-export type PortfolioEntry = {
+export interface PortfolioEntry {
   _id?: string;
   date: string; // ISO date string like "2025-10-24"
   currency: "RON";
@@ -27,7 +27,7 @@ export type PortfolioEntry = {
   locked: number;
   averagePrice: number;
   referencePrice: number;
-};
+}
 
 // Client-side calculated fields
 export type PortfolioEntryWithCalculations = PortfolioEntry & {
@@ -37,14 +37,14 @@ export type PortfolioEntryWithCalculations = PortfolioEntry & {
   profitPercent: number; // (profit / purchaseValue) * 100
 };
 
-export type PortfolioSummary = {
+export interface PortfolioSummary {
   totalPurchaseValue: number;
   totalCurrentValue: number;
   totalProfit: number;
   totalProfitPercent: number;
-};
+}
 
-export type Deposit = {
+export interface Deposit {
   _id?: string;
   bank: string; // e.g. "BCR", "BRD", "ING"
   depositName: string; // e.g. "6-month term deposit", "Savings account"
@@ -56,7 +56,7 @@ export type Deposit = {
   earnedInterest: number; // Total interest earned so far
   isActive: boolean; // Whether it's still active or matured
   autoRenew: boolean; // Whether it auto-renews at maturity
-};
+}
 
 // Client-side calculated fields for deposits
 export type DepositWithCalculations = Deposit & {
@@ -66,7 +66,7 @@ export type DepositWithCalculations = Deposit & {
   daysToMaturity?: number; // Days until maturity (if applicable)
 };
 
-export type DepositSummary = {
+export interface DepositSummary {
   totalPrincipal: number;
   totalCurrentBalance: number;
   totalEarnedInterest: number;
@@ -74,9 +74,9 @@ export type DepositSummary = {
   totalReturnPercent: number;
   activeDeposits: number;
   maturedDeposits: number;
-};
+}
 
-export type Transaction = {
+export interface Transaction {
   _id?: string;
   transactionDate: string; // ISO date string like "2025-10-30"
   settlementDate: string; // ISO date string like "2025-11-03"
@@ -97,7 +97,7 @@ export type Transaction = {
   taxWithheld?: number; // Tax withheld (Impozit >=365 RON + Impozit <365 RON), typically for SELL transactions
   market: string; // Market Identifier Code (MIC), e.g. "XBSE" (Bucharest Stock Exchange)
   currency: "RON";
-};
+}
 
 // Client-side calculated fields (not stored in DB)
 export type TransactionWithCalculations = Transaction & {

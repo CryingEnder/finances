@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPortfolioCollection } from "../../lib/database";
+
 import { requireAuth } from "../../lib/auth";
-import { portfolioEntrySchema, formatZodErrors } from "../../lib/validation";
+import { getPortfolioCollection } from "../../lib/database";
+import { formatZodErrors, portfolioEntrySchema } from "../../lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,10 +12,7 @@ export async function GET(request: NextRequest) {
 
     const portfolioCollection = await getPortfolioCollection(user.id);
 
-    let query = {};
-    if (date) {
-      query = { date };
-    }
+    const query = date ? { date } : {};
 
     const entries = await portfolioCollection
       .find(query)
@@ -31,7 +29,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching portfolio entries:", error);
     return NextResponse.json(
       { error: "Failed to fetch portfolio entries" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -39,7 +37,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
-    const body = await request.json();
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || null === body) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
     const {
       date,
       instrument,
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
       locked,
       averagePrice,
       referencePrice,
-    } = body;
+    } = payload;
 
     if (
       !date ||
@@ -63,7 +69,7 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -84,7 +90,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: formatZodErrors(validationResult.error),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -101,7 +107,7 @@ export async function POST(request: NextRequest) {
         {
           error: "Portfolio entry with this date and instrument already exists",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -121,13 +127,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { ...entry, _id: result.insertedId.toString() },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error creating portfolio entry:", error);
     return NextResponse.json(
       { error: "Failed to create portfolio entry" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,12 +21,12 @@ export function isValidObjectId(id: string): boolean {
  * @param maxDecimals - Maximum number of decimal places (default: 4)
  * @returns Formatted string without trailing zeros
  */
-export function formatPrice(value: number, maxDecimals: number = 4): string {
+export function formatPrice(value: number, maxDecimals = 4): string {
   // Round to maxDecimals to avoid floating point precision issues
   const rounded =
     Math.round(value * Math.pow(10, maxDecimals)) / Math.pow(10, maxDecimals);
 
   // Convert to string and remove trailing zeros, but keep at least "0" for zero values
   const formatted = rounded.toString().replace(/\.?0+$/, "");
-  return formatted === "" ? "0" : formatted;
+  return "" === formatted ? "0" : formatted;
 }

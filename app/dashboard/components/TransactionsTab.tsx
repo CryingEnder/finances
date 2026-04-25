@@ -1,36 +1,34 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Button } from "../../components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
+import { useMemo, useState } from "react";
+import { Edit, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+
+import type { Transaction, TransactionWithCalculations } from "../../lib/types";
+
+import { formatPrice } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Button } from "../../components/ui/button";
+import { useCompanies } from "../../lib/hooks/use-companies";
 import {
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectTrigger,
 } from "../../components/ui/select";
-import { Plus, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react";
-import { formatPrice } from "../../lib/utils";
-import type {
-  Transaction,
-  TransactionWithCalculations,
-  Company,
-} from "../../lib/types";
-import { useCompanies } from "../../lib/hooks/use-companies";
+import {
+  Dialog,
+  DialogTitle,
+  DialogHeader,
+  DialogContent,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import {
   useTransactions,
   useCreateTransaction,
-  useUpdateTransaction,
   useDeleteTransaction,
+  useUpdateTransaction,
 } from "../../lib/hooks/use-transactions";
 
 export default function TransactionsTab() {
@@ -83,7 +81,7 @@ export default function TransactionsTab() {
           feesWithoutTax,
         };
       }),
-    [transactions]
+    [transactions],
   );
 
   const handleTransactionSubmit = async (e: React.FormEvent) => {
@@ -107,7 +105,7 @@ export default function TransactionsTab() {
         externalCosts: parseFloat(transactionForm.externalCosts),
         netAmount: parseFloat(transactionForm.netAmount),
         realizedProfit:
-          transactionForm.type === "SELL"
+          "SELL" === transactionForm.type
             ? transactionForm.realizedProfit
               ? parseFloat(transactionForm.realizedProfit)
               : undefined
@@ -135,9 +133,7 @@ export default function TransactionsTab() {
       setIsTransactionDialogOpen(false);
     } catch (error) {
       setTransactionError(
-        String(
-          error instanceof Error ? error.message : "Failed to save transaction"
-        )
+        error instanceof Error ? error.message : "Failed to save transaction",
       );
     }
   };
@@ -150,7 +146,7 @@ export default function TransactionsTab() {
     } catch (error) {
       console.error("Error deleting transaction:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to delete transaction"
+        error instanceof Error ? error.message : "Failed to delete transaction",
       );
     }
   };
@@ -222,7 +218,7 @@ export default function TransactionsTab() {
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
             <p className="text-zinc-400">Loading transactions...</p>
           </div>
         </div>
@@ -231,27 +227,26 @@ export default function TransactionsTab() {
   }
 
   const totalBuyAmount = transactionsWithCalculations
-    .filter((t) => t.type === "BUY")
+    .filter((t) => "BUY" === t.type)
     .reduce((sum, t) => sum + t.netAmount, 0);
   const totalSellAmount = transactionsWithCalculations
-    .filter((t) => t.type === "SELL")
+    .filter((t) => "SELL" === t.type)
     .reduce((sum, t) => sum + t.netAmount, 0);
   const totalRealizedProfit = transactionsWithCalculations
     .filter(
       (t) =>
-        t.type === "SELL" &&
+        "SELL" === t.type &&
         t.realizedProfit !== undefined &&
-        t.realizedProfit !== null &&
-        typeof t.realizedProfit === "number"
+        "number" === typeof t.realizedProfit,
     )
     .reduce((sum, t) => sum + (t.realizedProfit ?? 0), 0);
   const totalFeesWithoutTax = transactionsWithCalculations.reduce(
     (sum, t) => sum + t.feesWithoutTax,
-    0
+    0,
   );
   const totalTax = transactionsWithCalculations.reduce(
     (sum, t) => sum + (t.taxWithheld || 0),
-    0
+    0,
   );
   const totalFees = totalFeesWithoutTax + totalTax;
 
@@ -280,7 +275,12 @@ export default function TransactionsTab() {
                   : "Add New Transaction"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                void handleTransactionSubmit(e);
+              }}
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="type" className="mb-2 block">
@@ -288,9 +288,9 @@ export default function TransactionsTab() {
                   </Label>
                   <Select
                     value={transactionForm.type}
-                    onValueChange={(value: "BUY" | "SELL") =>
-                      setTransactionForm((prev) => ({ ...prev, type: value }))
-                    }
+                    onValueChange={(value: "BUY" | "SELL") => {
+                      setTransactionForm((prev) => ({ ...prev, type: value }));
+                    }}
                   >
                     <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white cursor-pointer">
                       <SelectValue />
@@ -333,39 +333,39 @@ export default function TransactionsTab() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="transactionDate" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="transactionDate">
                     Transaction Date
                   </Label>
                   <Input
-                    id="transactionDate"
+                    required
                     type="date"
+                    id="transactionDate"
                     value={transactionForm.transactionDate}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         transactionDate: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="settlementDate" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="settlementDate">
                     Settlement Date
                   </Label>
                   <Input
-                    id="settlementDate"
+                    required
                     type="date"
+                    id="settlementDate"
                     value={transactionForm.settlementDate}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         settlementDate: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -376,16 +376,16 @@ export default function TransactionsTab() {
                     Symbol
                   </Label>
                   <Input
+                    required
                     id="symbol"
                     value={transactionForm.symbol}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         symbol: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex flex-col justify-end">
@@ -393,17 +393,17 @@ export default function TransactionsTab() {
                     ISIN
                   </Label>
                   <Input
+                    required
                     id="isin"
+                    maxLength={12}
                     value={transactionForm.isin}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         isin: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    maxLength={12}
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex flex-col justify-end">
@@ -411,17 +411,17 @@ export default function TransactionsTab() {
                     Market Identifier Code (MIC)
                   </Label>
                   <Input
+                    required
                     id="market"
+                    placeholder="e.g. XBSE"
                     value={transactionForm.market}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         market: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    placeholder="e.g. XBSE"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -431,16 +431,16 @@ export default function TransactionsTab() {
                   Issuer
                 </Label>
                 <Input
+                  required
                   id="issuer"
                   value={transactionForm.issuer}
-                  onChange={(e) =>
+                  className="bg-zinc-700 border-zinc-600 text-white"
+                  onChange={(e) => {
                     setTransactionForm((prev) => ({
                       ...prev,
                       issuer: e.target.value,
-                    }))
-                  }
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                  required
+                    }));
+                  }}
                 />
               </div>
 
@@ -450,19 +450,19 @@ export default function TransactionsTab() {
                     Quantity
                   </Label>
                   <Input
-                    id="quantity"
-                    type="number"
-                    step="0.0001"
+                    required
                     min="0.0001"
+                    id="quantity"
+                    step="0.0001"
+                    type="number"
                     value={transactionForm.quantity}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         quantity: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -470,19 +470,19 @@ export default function TransactionsTab() {
                     Unit Price
                   </Label>
                   <Input
-                    id="unitPrice"
-                    type="number"
-                    step="0.0001"
+                    required
                     min="0.0001"
+                    step="0.0001"
+                    type="number"
+                    id="unitPrice"
                     value={transactionForm.unitPrice}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         unitPrice: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -493,19 +493,19 @@ export default function TransactionsTab() {
                     Gross Amount
                   </Label>
                   <Input
-                    id="grossAmount"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
+                    id="grossAmount"
                     value={transactionForm.grossAmount}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         grossAmount: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -513,61 +513,61 @@ export default function TransactionsTab() {
                     Net Amount
                   </Label>
                   <Input
-                    id="netAmount"
-                    type="number"
+                    required
                     step="0.01"
+                    type="number"
+                    id="netAmount"
                     value={transactionForm.netAmount}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         netAmount: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col justify-end">
-                  <Label htmlFor="bcrCommission" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="bcrCommission">
                     BCR Commission
                   </Label>
                   <Input
-                    id="bcrCommission"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
+                    id="bcrCommission"
                     value={transactionForm.bcrCommission}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         bcrCommission: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex flex-col justify-end">
-                  <Label htmlFor="settlementCommission" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="settlementCommission">
                     Settlement Commission
                   </Label>
                   <Input
-                    id="settlementCommission"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
+                    id="settlementCommission"
                     value={transactionForm.settlementCommission}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         settlementCommission: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex flex-col justify-end">
@@ -575,80 +575,80 @@ export default function TransactionsTab() {
                     Other Fees
                   </Label>
                   <Input
-                    id="otherFees"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
+                    id="otherFees"
                     value={transactionForm.otherFees}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         otherFees: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div className="flex flex-col justify-end">
-                  <Label htmlFor="externalCosts" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="externalCosts">
                     External Costs
                   </Label>
                   <Input
-                    id="externalCosts"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
+                    id="externalCosts"
                     value={transactionForm.externalCosts}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setTransactionForm((prev) => ({
                         ...prev,
                         externalCosts: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
 
-              {transactionForm.type === "SELL" && (
+              {"SELL" === transactionForm.type && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="realizedProfit" className="mb-2 block">
+                    <Label className="mb-2 block" htmlFor="realizedProfit">
                       Realized Profit (RON) *
                     </Label>
                     <Input
-                      id="realizedProfit"
-                      type="number"
+                      required
                       step="0.01"
+                      type="number"
+                      id="realizedProfit"
                       value={transactionForm.realizedProfit}
-                      onChange={(e) =>
+                      className="bg-zinc-700 border-zinc-600 text-white"
+                      onChange={(e) => {
                         setTransactionForm((prev) => ({
                           ...prev,
                           realizedProfit: e.target.value,
-                        }))
-                      }
-                      className="bg-zinc-700 border-zinc-600 text-white"
-                      required={transactionForm.type === "SELL"}
+                        }));
+                      }}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="realizedProfitCCY" className="mb-2 block">
+                    <Label className="mb-2 block" htmlFor="realizedProfitCCY">
                       Realized Profit (CCY)
                     </Label>
                     <Input
-                      id="realizedProfitCCY"
-                      type="number"
                       step="0.01"
+                      type="number"
+                      id="realizedProfitCCY"
                       value={transactionForm.realizedProfitCCY}
-                      onChange={(e) =>
+                      className="bg-zinc-700 border-zinc-600 text-white"
+                      onChange={(e) => {
                         setTransactionForm((prev) => ({
                           ...prev,
                           realizedProfitCCY: e.target.value,
-                        }))
-                      }
-                      className="bg-zinc-700 border-zinc-600 text-white"
+                        }));
+                      }}
                     />
                   </div>
                 </div>
@@ -665,19 +665,19 @@ export default function TransactionsTab() {
                   </span>
                 </Label>
                 <Input
-                  id="taxWithheld"
-                  type="number"
-                  step="0.01"
                   min="0"
+                  step="0.01"
+                  type="number"
+                  id="taxWithheld"
+                  placeholder="0.00"
                   value={transactionForm.taxWithheld}
-                  onChange={(e) =>
+                  className="bg-zinc-700 border-zinc-600 text-white"
+                  onChange={(e) => {
                     setTransactionForm((prev) => ({
                       ...prev,
                       taxWithheld: e.target.value,
-                    }))
-                  }
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                  placeholder="0.00"
+                    }));
+                  }}
                 />
               </div>
 
@@ -690,25 +690,27 @@ export default function TransactionsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                   disabled={
                     createTransactionMutation.isPending ||
                     updateTransactionMutation.isPending
                   }
-                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                 >
                   {createTransactionMutation.isPending ||
                   updateTransactionMutation.isPending
                     ? "Saving..."
                     : editingTransaction
-                    ? "Update"
-                    : "Add"}{" "}
+                      ? "Update"
+                      : "Add"}{" "}
                   Transaction
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsTransactionDialogOpen(false)}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setIsTransactionDialogOpen(false);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -832,18 +834,18 @@ export default function TransactionsTab() {
                   >
                     <td className="py-3 px-2 text-white">
                       {new Date(
-                        transaction.settlementDate
+                        transaction.settlementDate,
                       ).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-2">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                          transaction.type === "BUY"
+                          "BUY" === transaction.type
                             ? "bg-green-900/30 text-green-400 border border-green-800"
                             : "bg-red-900/30 text-red-400 border border-red-800"
                         }`}
                       >
-                        {transaction.type === "BUY" ? (
+                        {"BUY" === transaction.type ? (
                           <TrendingUp className="w-3 h-3" />
                         ) : (
                           <TrendingDown className="w-3 h-3" />
@@ -893,8 +895,7 @@ export default function TransactionsTab() {
                     <td
                       className={`py-3 px-2 text-right font-medium ${
                         transaction.realizedProfit !== undefined &&
-                        transaction.realizedProfit !== null &&
-                        typeof transaction.realizedProfit === "number"
+                        "number" === typeof transaction.realizedProfit
                           ? transaction.realizedProfit >= 0
                             ? "text-green-400"
                             : "text-red-400"
@@ -902,8 +903,7 @@ export default function TransactionsTab() {
                       }`}
                     >
                       {transaction.realizedProfit !== undefined &&
-                      transaction.realizedProfit !== null &&
-                      typeof transaction.realizedProfit === "number"
+                      "number" === typeof transaction.realizedProfit
                         ? transaction.realizedProfit.toLocaleString("ro-RO", {
                             style: "currency",
                             currency: "RON",
@@ -915,19 +915,21 @@ export default function TransactionsTab() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openEditTransaction(transaction)}
                           className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                          onClick={() => {
+                            openEditTransaction(transaction);
+                          }}
                         >
                           <Edit className="w-3 h-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            handleDeleteTransaction(transaction._id!)
-                          }
                           disabled={deleteTransactionMutation.isPending}
                           className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                          onClick={() => {
+                            void handleDeleteTransaction(transaction._id!);
+                          }}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -951,7 +953,8 @@ export default function TransactionsTab() {
               your stock trading activity.
             </p>
             <p className="text-sm text-zinc-500">
-              Use the "Add Transaction" button above to add a transaction
+              Use the &quot;Add Transaction&quot; button above to add a
+              transaction
             </p>
           </div>
         </div>

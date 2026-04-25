@@ -11,7 +11,7 @@ export const companySchema = z.object({
     .length(12, "ISIN must be exactly 12 characters")
     .regex(
       /^[A-Z0-9]{12}$/,
-      "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)"
+      "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)",
     )
     .transform((val) => val.toUpperCase()),
   issuer: z
@@ -37,7 +37,7 @@ export const portfolioEntrySchema = z
       .length(12, "ISIN must be exactly 12 characters")
       .regex(
         /^[A-Z0-9]{12}$/,
-        "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)"
+        "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)",
       )
       .transform((val) => val.toUpperCase()),
     issuer: z
@@ -102,7 +102,7 @@ export const depositSchema = z
       .string()
       .regex(
         /^\d{4}-\d{2}-\d{2}$/,
-        "Maturity date must be in YYYY-MM-DD format"
+        "Maturity date must be in YYYY-MM-DD format",
       )
       .optional()
       .or(z.literal("")),
@@ -127,7 +127,7 @@ export const depositSchema = z
     {
       message: "Maturity date must be after start date",
       path: ["maturityDate"],
-    }
+    },
   )
   .refine((data) => data.currentBalance >= data.principal, {
     message: "Current balance should not be less than principal amount",
@@ -135,7 +135,7 @@ export const depositSchema = z
   })
   .transform((data) => ({
     ...data,
-    maturityDate: data.maturityDate === "" ? undefined : data.maturityDate,
+    maturityDate: "" === data.maturityDate ? undefined : data.maturityDate,
   }));
 
 export const transactionSchema = z
@@ -145,14 +145,14 @@ export const transactionSchema = z
       .min(1, "Transaction date is required")
       .regex(
         /^\d{4}-\d{2}-\d{2}$/,
-        "Transaction date must be in YYYY-MM-DD format"
+        "Transaction date must be in YYYY-MM-DD format",
       ),
     settlementDate: z
       .string()
       .min(1, "Settlement date is required")
       .regex(
         /^\d{4}-\d{2}-\d{2}$/,
-        "Settlement date must be in YYYY-MM-DD format"
+        "Settlement date must be in YYYY-MM-DD format",
       ),
     type: z.enum(["BUY", "SELL"], {
       message: "Type must be either BUY or SELL",
@@ -167,7 +167,7 @@ export const transactionSchema = z
       .length(12, "ISIN must be exactly 12 characters")
       .regex(
         /^[A-Z0-9]{12}$/,
-        "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)"
+        "ISIN must be 12 alphanumeric characters (e.g., RO1234567890)",
       )
       .transform((val) => val.toUpperCase()),
     issuer: z
@@ -227,7 +227,7 @@ export const transactionSchema = z
   })
   .refine(
     (data) => {
-      if (data.type === "SELL") {
+      if ("SELL" === data.type) {
         return data.realizedProfit !== undefined;
       }
       return true;
@@ -235,7 +235,7 @@ export const transactionSchema = z
     {
       message: "Realized profit is required for SELL transactions",
       path: ["realizedProfit"],
-    }
+    },
   );
 
 export type CompanyInput = z.infer<typeof companySchema>;

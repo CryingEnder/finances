@@ -1,8 +1,10 @@
-import { getCurrentUser } from "./lib/auth";
 import { redirect } from "next/navigation";
-import LoginForm from "./components/LoginForm";
-import { cn } from "./lib/utils";
+
 import Logo from "./components/Logo";
+import LoginForm from "./components/LoginForm";
+
+import { cn } from "./lib/utils";
+import { getCurrentUser } from "./lib/auth";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -14,13 +16,13 @@ export default async function Home() {
     <div
       className={cn(
         "min-h-screen flex items-center justify-center p-4",
-        "bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900"
+        "bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900",
       )}
     >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <Logo withBorder size="xl" />
+            <Logo size="xl" withBorder />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
           <p className="text-zinc-400">Sign in to your account</p>

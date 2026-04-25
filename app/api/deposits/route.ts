@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDepositsCollection } from "../../lib/database";
+
 import { requireAuth } from "../../lib/auth";
+import { getDepositsCollection } from "../../lib/database";
 import { depositSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET(request: NextRequest) {
@@ -11,10 +12,7 @@ export async function GET(request: NextRequest) {
 
     const depositsCollection = await getDepositsCollection(user.id);
 
-    let query = {};
-    if (isActive !== null) {
-      query = { isActive: isActive === "true" };
-    }
+    const query = isActive !== null ? { isActive: "true" === isActive } : {};
 
     const deposits = await depositsCollection
       .find(query)
@@ -39,7 +37,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
-    const body = await request.json();
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || null === body) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
     const {
       bank,
       depositName,
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
       earnedInterest,
       isActive,
       autoRenew,
-    } = body;
+    } = payload;
 
     if (
       !bank ||

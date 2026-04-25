@@ -1,43 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "../../components/ui/button";
+import { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { InfoTooltip } from "../../components/ui/info-tooltip";
-import {
-  Plus,
   Edit,
+  Plus,
   Trash2,
+  BarChart3,
   Building2,
   TrendingUp,
-  BarChart3,
 } from "lucide-react";
+
 import type {
   Deposit,
-  DepositWithCalculations,
   DepositSummary,
+  DepositWithCalculations,
 } from "../../lib/types";
+
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Button } from "../../components/ui/button";
+import { InfoTooltip } from "../../components/ui/info-tooltip";
+import {
+  Dialog,
+  DialogTitle,
+  DialogHeader,
+  DialogContent,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import {
   useDeposits,
   useCreateDeposit,
-  useUpdateDeposit,
   useDeleteDeposit,
+  useUpdateDeposit,
 } from "../../lib/hooks/use-deposits";
+
 import DepositsChart from "./DepositsChart";
 
 export default function DepositsTab() {
   const {
     data: deposits = [],
     isLoading: depositsLoading,
-    error: depositsQueryError,
+    error: _error,
   } = useDeposits();
 
   const createDepositMutation = useCreateDeposit();
@@ -93,22 +96,22 @@ export default function DepositsTab() {
       setIsDepositDialogOpen(false);
     } catch (error) {
       setDepositError(
-        String(
-          error instanceof Error ? error.message : "Failed to save deposit"
-        )
+        error instanceof Error ? error.message : "Failed to save deposit",
       );
     }
   };
 
   const handleDeleteDeposit = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this deposit?")) return;
+    if (!confirm("Are you sure you want to delete this deposit?")) {
+      return;
+    }
 
     try {
       await deleteDepositMutation.mutateAsync(id);
     } catch (error) {
       console.error("Error deleting deposit:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to delete deposit"
+        error instanceof Error ? error.message : "Failed to delete deposit",
       );
     }
   };
@@ -148,13 +151,13 @@ export default function DepositsTab() {
   };
 
   const filteredDeposits = deposits.filter((deposit) => {
-    if (selectedFilter === "all") {
+    if ("all" === selectedFilter) {
       return true;
     }
-    if (selectedFilter === "active") {
+    if ("active" === selectedFilter) {
       return deposit.isActive;
     }
-    if (selectedFilter === "matured") {
+    if ("matured" === selectedFilter) {
       return !deposit.isActive;
     }
     return true;
@@ -165,7 +168,7 @@ export default function DepositsTab() {
       const startDate = new Date(deposit.startDate);
       const currentDate = new Date();
       const daysActive = Math.floor(
-        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
       );
       const totalReturn = deposit.currentBalance - deposit.principal;
       const totalReturnPercent =
@@ -176,7 +179,7 @@ export default function DepositsTab() {
         const maturityDate = new Date(deposit.maturityDate);
         daysToMaturity = Math.floor(
           (maturityDate.getTime() - currentDate.getTime()) /
-            (1000 * 60 * 60 * 24)
+            (1000 * 60 * 60 * 24),
         );
       }
 
@@ -207,7 +210,7 @@ export default function DepositsTab() {
       totalReturnPercent: 0,
       activeDeposits: 0,
       maturedDeposits: 0,
-    }
+    },
   );
 
   summary.totalReturnPercent =
@@ -220,7 +223,7 @@ export default function DepositsTab() {
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
             <p className="text-zinc-400">Loading deposits...</p>
           </div>
         </div>
@@ -251,24 +254,31 @@ export default function DepositsTab() {
                 {editingDeposit ? "Edit Deposit" : "Add New Deposit"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleDepositSubmit} className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                handleDepositSubmit(e).catch(() => {
+                  /* errors surfaced via depositError in handler */
+                });
+              }}
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bank" className="mb-2 block">
                     Bank
                   </Label>
                   <Input
+                    required
                     id="bank"
+                    maxLength={100}
                     value={depositForm.bank}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         bank: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    maxLength={100}
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -276,17 +286,17 @@ export default function DepositsTab() {
                     Deposit Name
                   </Label>
                   <Input
+                    required
+                    maxLength={200}
                     id="depositName"
                     value={depositForm.depositName}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         depositName: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    maxLength={200}
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -301,20 +311,20 @@ export default function DepositsTab() {
                     <InfoTooltip content="Initial amount deposited" />
                   </Label>
                   <Input
-                    id="principal"
-                    type="number"
-                    step="0.01"
+                    required
                     min="0.01"
+                    step="0.01"
+                    type="number"
+                    id="principal"
                     max="10000000"
                     value={depositForm.principal}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         principal: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -326,20 +336,20 @@ export default function DepositsTab() {
                     <InfoTooltip content="Annual interest rate as percentage (e.g., 5.5 for 5.5%)" />
                   </Label>
                   <Input
-                    id="interestRate"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
                     max="100"
+                    step="0.01"
+                    type="number"
+                    id="interestRate"
                     value={depositForm.interestRate}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         interestRate: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -350,34 +360,34 @@ export default function DepositsTab() {
                     Start Date
                   </Label>
                   <Input
-                    id="startDate"
+                    required
                     type="date"
+                    id="startDate"
                     value={depositForm.startDate}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         startDate: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="maturityDate" className="mb-2 block">
+                  <Label className="mb-2 block" htmlFor="maturityDate">
                     Maturity Date (Optional)
                   </Label>
                   <Input
-                    id="maturityDate"
                     type="date"
+                    id="maturityDate"
                     value={depositForm.maturityDate}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         maturityDate: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -392,20 +402,20 @@ export default function DepositsTab() {
                     <InfoTooltip content="Current amount including all earned interest" />
                   </Label>
                   <Input
-                    id="currentBalance"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
                     max="10000000"
+                    id="currentBalance"
                     value={depositForm.currentBalance}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         currentBalance: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -417,20 +427,20 @@ export default function DepositsTab() {
                     <InfoTooltip content="Total interest earned since deposit start" />
                   </Label>
                   <Input
-                    id="earnedInterest"
-                    type="number"
-                    step="0.01"
                     min="0"
+                    required
+                    step="0.01"
+                    type="number"
                     max="10000000"
+                    id="earnedInterest"
                     value={depositForm.earnedInterest}
-                    onChange={(e) =>
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         earnedInterest: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    required
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -438,16 +448,16 @@ export default function DepositsTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center space-x-2">
                   <input
-                    type="checkbox"
                     id="isActive"
+                    type="checkbox"
                     checked={depositForm.isActive}
-                    onChange={(e) =>
+                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         isActive: e.target.checked,
-                      }))
-                    }
-                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                      }));
+                    }}
                   />
                   <Label htmlFor="isActive" className="text-sm">
                     Active Deposit
@@ -455,16 +465,16 @@ export default function DepositsTab() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <input
-                    type="checkbox"
                     id="autoRenew"
+                    type="checkbox"
                     checked={depositForm.autoRenew}
-                    onChange={(e) =>
+                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                    onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
                         autoRenew: e.target.checked,
-                      }))
-                    }
-                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                      }));
+                    }}
                   />
                   <Label
                     htmlFor="autoRenew"
@@ -485,25 +495,27 @@ export default function DepositsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
+                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
                   disabled={
                     createDepositMutation.isPending ||
                     updateDepositMutation.isPending
                   }
-                  className="bg-green-600 hover:bg-green-700 cursor-pointer"
                 >
                   {createDepositMutation.isPending ||
                   updateDepositMutation.isPending
                     ? "Saving..."
                     : editingDeposit
-                    ? "Update"
-                    : "Add"}{" "}
+                      ? "Update"
+                      : "Add"}{" "}
                   Deposit
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsDepositDialogOpen(false)}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setIsDepositDialogOpen(false);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -514,7 +526,9 @@ export default function DepositsTab() {
         {deposits.length > 0 && (
           <Button
             variant={showChart ? "default" : "outline"}
-            onClick={() => setShowChart(!showChart)}
+            onClick={() => {
+              setShowChart(!showChart);
+            }}
             className={`cursor-pointer ${
               showChart
                 ? "bg-green-600 hover:bg-green-700 text-white"
@@ -528,7 +542,7 @@ export default function DepositsTab() {
       </div>
 
       {/* No Data Message */}
-      {deposits.length === 0 && (
+      {0 === deposits.length && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <Building2 className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
@@ -539,7 +553,7 @@ export default function DepositsTab() {
               Start tracking your deposits by adding your first deposit entry.
             </p>
             <p className="text-sm text-zinc-500">
-              Use the "Add Deposit" button above to get started.
+              Use the &quot;Add Deposit&quot; button above to get started.
             </p>
           </div>
         </div>
@@ -553,11 +567,13 @@ export default function DepositsTab() {
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
                 <Button
-                  variant={selectedFilter === "all" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedFilter("all")}
+                  variant={"all" === selectedFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedFilter("all");
+                  }}
                   className={`cursor-pointer ${
-                    selectedFilter === "all"
+                    "all" === selectedFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
@@ -565,11 +581,13 @@ export default function DepositsTab() {
                   All ({deposits.length})
                 </Button>
                 <Button
-                  variant={selectedFilter === "active" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedFilter("active")}
+                  variant={"active" === selectedFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedFilter("active");
+                  }}
                   className={`cursor-pointer ${
-                    selectedFilter === "active"
+                    "active" === selectedFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
@@ -577,11 +595,13 @@ export default function DepositsTab() {
                   Active ({summary.activeDeposits})
                 </Button>
                 <Button
-                  variant={selectedFilter === "matured" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedFilter("matured")}
+                  variant={"matured" === selectedFilter ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedFilter("matured");
+                  }}
                   className={`cursor-pointer ${
-                    selectedFilter === "matured"
+                    "matured" === selectedFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
@@ -595,8 +615,8 @@ export default function DepositsTab() {
           {/* Chart */}
           {showChart && (
             <DepositsChart
-              deposits={depositsWithCalculations}
               summary={summary}
+              deposits={depositsWithCalculations}
             />
           )}
 
@@ -759,17 +779,23 @@ export default function DepositsTab() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => openEditDeposit(deposit)}
                               className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                              onClick={() => {
+                                openEditDeposit(deposit);
+                              }}
                             >
                               <Edit className="w-3 h-3" />
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleDeleteDeposit(deposit._id!)}
                               disabled={deleteDepositMutation.isPending}
                               className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                              onClick={() => {
+                                handleDeleteDeposit(deposit._id!).catch(() => {
+                                  /* handled in handleDeleteDeposit */
+                                });
+                              }}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>

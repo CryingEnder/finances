@@ -1,11 +1,13 @@
-import { MongoClient, Db, Collection, ObjectId } from "mongodb";
+import { Db, ObjectId, Collection, MongoClient } from "mongodb";
+
 import type {
   User,
   Company,
-  PortfolioEntry,
   Deposit,
   Transaction,
+  PortfolioEntry,
 } from "./types";
+
 import { DATABASE_CONFIG } from "./config";
 
 type DatabaseCompany = Omit<Company, "_id" | "userId"> & { _id?: ObjectId };
@@ -17,20 +19,30 @@ export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
   _id?: ObjectId;
 };
 
-let client: MongoClient;
-let globalDb: Db;
+let client: MongoClient | null = null;
+let globalDb: Db | null = null;
 
-export async function connectToGlobalDatabase(): Promise<Db> {
-  if (globalDb) {
-    return globalDb;
-  }
-
+const getDatabaseConfig = (): { uri: string; dbName: string } => {
   const uri = DATABASE_CONFIG.MONGODB_URI;
   const dbName = DATABASE_CONFIG.MONGODB_DB_NAME;
 
   if (!uri) {
     throw new Error("MONGODB_URI environment variable is not set");
   }
+
+  if (!dbName) {
+    throw new Error("MONGODB_DB_NAME environment variable is not set");
+  }
+
+  return { uri, dbName };
+};
+
+export async function connectToGlobalDatabase(): Promise<Db> {
+  if (globalDb) {
+    return globalDb;
+  }
+
+  const { uri, dbName } = getDatabaseConfig();
 
   try {
     client = new MongoClient(uri);
@@ -44,11 +56,7 @@ export async function connectToGlobalDatabase(): Promise<Db> {
 }
 
 export async function connectToUserDatabase(userId: string): Promise<Db> {
-  const uri = DATABASE_CONFIG.MONGODB_URI;
-
-  if (!uri) {
-    throw new Error("MONGODB_URI environment variable is not set");
-  }
+  const { uri, dbName } = getDatabaseConfig();
 
   try {
     if (!client) {
@@ -56,7 +64,7 @@ export async function connectToUserDatabase(userId: string): Promise<Db> {
       await client.connect();
     }
 
-    const userDbName = `${DATABASE_CONFIG.MONGODB_DB_NAME}_user_${userId}`;
+    const userDbName = `${dbName}_user_${userId}`;
     return client.db(userDbName);
   } catch (error) {
     console.error("Failed to connect to user database:", error);
@@ -72,28 +80,28 @@ export async function getUsersCollection(): Promise<
 }
 
 export async function getCompaniesCollection(
-  userId: string
+  userId: string,
 ): Promise<Collection<DatabaseCompany>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseCompany>("companies");
 }
 
 export async function getPortfolioCollection(
-  userId: string
+  userId: string,
 ): Promise<Collection<DatabasePortfolioEntry>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabasePortfolioEntry>("portfolio");
 }
 
 export async function getDepositsCollection(
-  userId: string
+  userId: string,
 ): Promise<Collection<DatabaseDeposit>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseDeposit>("deposits");
 }
 
 export async function getTransactionsCollection(
-  userId: string
+  userId: string,
 ): Promise<Collection<DatabaseTransaction>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseTransaction>("transactions");

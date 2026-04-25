@@ -1,12 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import {
-  authenticateUser,
   generateJWT,
   setAuthCookie,
+  authenticateUser,
   removeAuthCookie,
 } from "../lib/auth";
-import { revalidatePath } from "next/cache";
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string;
@@ -36,7 +37,7 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   try {
     await removeAuthCookie();
-  } catch (error) {
+  } catch {
     // Silence
   }
 
