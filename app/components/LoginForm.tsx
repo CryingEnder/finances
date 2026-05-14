@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Eye, Lock, Mail, EyeOff, Loader2 } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { cn } from "../lib/utils";
 import { loginAction } from "../actions/auth";
 
 export default function LoginForm() {
+  const t = useTranslations("Login");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,16 +22,18 @@ export default function LoginForm() {
     try {
       const result = await loginAction(formData);
 
-      if (result.error) {
-        setError(result.error);
+      if ("errorCode" in result) {
+        setError(
+          "missingFields" === result.errorCode
+            ? t("errors.missingFields")
+            : t("errors.invalidCredentials"),
+        );
         return;
       }
 
-      if (result.success) {
-        router.push("/dashboard");
-      }
+      router.push("/dashboard");
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("errors.unexpected"));
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +54,7 @@ export default function LoginForm() {
             required
             name="email"
             type="email"
-            placeholder="Email address"
+            placeholder={t("emailPlaceholder")}
             className="w-full pl-10 pr-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
         </div>
@@ -60,7 +64,7 @@ export default function LoginForm() {
           <input
             required
             name="password"
-            placeholder="Password"
+            placeholder={t("passwordPlaceholder")}
             type={showPassword ? "text" : "password"}
             className="w-full pl-10 pr-12 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
@@ -93,18 +97,16 @@ export default function LoginForm() {
         {isLoading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            Signing in...
+            {t("signingIn")}
           </>
         ) : (
-          "Sign In"
+          t("signIn")
         )}
       </button>
 
       {process.env.NODE_ENV !== "production" && (
         <div className="text-center">
-          <p className="text-zinc-400 text-sm">
-            Demo credentials: admin@example.com / password123
-          </p>
+          <p className="text-zinc-400 text-sm">{t("demoCredentials")}</p>
         </div>
       )}
     </form>

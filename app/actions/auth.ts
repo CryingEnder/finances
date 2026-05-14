@@ -9,13 +9,19 @@ import {
   removeAuthCookie,
 } from "../lib/auth";
 
-export async function loginAction(formData: FormData) {
+export type LoginActionResult =
+  | { success: true }
+  | { success?: false; errorCode: "missingFields" | "invalidCredentials" };
+
+export async function loginAction(
+  formData: FormData,
+): Promise<LoginActionResult> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   if (!email || !password) {
     return {
-      error: "Email and password are required",
+      errorCode: "missingFields",
     };
   }
 
@@ -23,7 +29,7 @@ export async function loginAction(formData: FormData) {
 
   if (!user) {
     return {
-      error: "Invalid email or password",
+      errorCode: "invalidCredentials",
     };
   }
 

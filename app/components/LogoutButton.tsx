@@ -1,12 +1,14 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { cn } from "../lib/utils";
 import { logoutAction } from "../actions/auth";
 
 export default function LogoutButton() {
+  const t = useTranslations("Logout");
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -30,7 +32,7 @@ export default function LogoutButton() {
       )}
     >
       <LogOut className="w-4 h-4" />
-      Logout
+      {t("label")}
     </button>
   );
 }

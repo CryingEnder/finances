@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Edit, Plus, Coins, Trash2 } from "lucide-react";
 
 import type { Dividend } from "../../lib/types";
@@ -9,6 +10,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useCompanies } from "../../lib/hooks/use-companies";
+import { numberFormatLocale } from "../../lib/number-locale";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -60,6 +62,11 @@ function defaultYearFromAvailable(
 }
 
 export default function DividendsTab() {
+  const t = useTranslations("Dividends");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   const { data: dividends = [], isLoading } = useDividends();
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
   const createMutation = useCreateDividend();
@@ -155,18 +162,18 @@ export default function DividendsTab() {
 
     try {
       if (Number.isNaN(year) || Number.isNaN(amount)) {
-        setFormError("Year and amount must be valid numbers");
+        setFormError(t("errYearAmount"));
         return;
       }
 
       const company = companies.find((c) => c.isin === formIsin);
       if (!company) {
-        setFormError("Select a company from the list");
+        setFormError(t("errSelectCompany"));
         return;
       }
 
       if (!pickerYears.includes(year)) {
-        setFormError("Selected year is outside the allowed range.");
+        setFormError(t("errYearRange"));
         return;
       }
 
@@ -193,9 +200,7 @@ export default function DividendsTab() {
       setFormError("");
       setDialogOpen(false);
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err.message : "Failed to save dividend",
-      );
+      setFormError(err instanceof Error ? err.message : t("failedSave"));
     }
   };
 
@@ -209,9 +214,7 @@ export default function DividendsTab() {
       setDeleteTargetId(null);
     } catch (err) {
       console.error(err);
-      setNoticeMessage(
-        err instanceof Error ? err.message : "Failed to delete dividend entry",
-      );
+      setNoticeMessage(err instanceof Error ? err.message : t("failedDelete"));
       setDeleteTargetId(null);
     }
   };
@@ -222,7 +225,7 @@ export default function DividendsTab() {
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
-            <p className="text-zinc-400">Loading dividends...</p>
+            <p className="text-zinc-400">{t("loading")}</p>
           </div>
         </div>
       </div>
@@ -252,13 +255,13 @@ export default function DividendsTab() {
               }}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Dividends
+              {t("addButton")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editing ? "Edit Dividend Entry" : "Add Dividend Entry"}
+                {editing ? t("editEntry") : t("addEntry")}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -269,14 +272,14 @@ export default function DividendsTab() {
             >
               <div>
                 <Label htmlFor="div-company" className="mb-2 block">
-                  Company
+                  {tc("company")}
                 </Label>
                 <Select value={formIsin} onValueChange={handleCompanySelect}>
                   <SelectTrigger
                     id="div-company"
                     className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full"
                   >
-                    <SelectValue placeholder="Select company" />
+                    <SelectValue placeholder={tc("selectCompany")} />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-700 border-zinc-600 max-h-64">
                     {companies.length > 0 ? (
@@ -291,7 +294,7 @@ export default function DividendsTab() {
                       ))
                     ) : (
                       <div className="px-2 py-1.5 text-sm text-zinc-400">
-                        No companies yet — add them from the Portfolio tab
+                        {t("noCompaniesHint")}
                       </div>
                     )}
                   </SelectContent>
@@ -300,14 +303,14 @@ export default function DividendsTab() {
 
               <div>
                 <Label htmlFor="div-year" className="mb-2 block">
-                  Year
+                  {t("year")}
                 </Label>
                 <Select value={formYear} onValueChange={setFormYear}>
                   <SelectTrigger
                     id="div-year"
                     className="bg-zinc-700 border-zinc-600 text-white cursor-pointer"
                   >
-                    <SelectValue placeholder="Select year" />
+                    <SelectValue placeholder={tc("selectYear")} />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-700 border-zinc-600 max-h-64">
                     {pickerYears.map((y) => (
@@ -325,7 +328,7 @@ export default function DividendsTab() {
 
               <div>
                 <Label htmlFor="div-amount" className="mb-2 block">
-                  Total amount (RON)
+                  {t("totalAmountRon")}
                 </Label>
                 <Input
                   min="0"
@@ -343,13 +346,13 @@ export default function DividendsTab() {
 
               <div>
                 <Label htmlFor="div-notes" className="mb-2 block">
-                  Notes (optional)
+                  {t("notesOptional")}
                 </Label>
                 <Input
                   id="div-notes"
                   maxLength={500}
                   value={formNotes}
-                  placeholder="e.g. broker statement reference"
+                  placeholder={t("notesPlaceholder")}
                   className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) => {
                     setFormNotes(e.target.value);
@@ -370,10 +373,10 @@ export default function DividendsTab() {
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending
-                    ? "Saving..."
+                    ? t("saving")
                     : editing
-                      ? "Update"
-                      : "Add"}
+                      ? t("saveUpdate")
+                      : t("saveAdd")}
                 </Button>
                 <Button
                   type="button"
@@ -383,7 +386,7 @@ export default function DividendsTab() {
                     setDialogOpen(false);
                   }}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -396,16 +399,15 @@ export default function DividendsTab() {
           <div className="text-center">
             <Coins className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
             <h3 className="text-xl font-semibold text-white mb-3">
-              No Dividends Yet
+              {t("emptyTitle")}
             </h3>
             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-              Record dividends per company and year (for example from your
-              year-end broker summary). Companies come from your Portfolio list.
+              {t("emptyBody")}
             </p>
             <p className="text-sm text-zinc-500">
               {0 === companies.length
-                ? "Add companies from the Portfolio tab first, then record dividends per company and year."
-                : 'Use "Add Dividends" above to create your first entry.'}
+                ? t("emptyHintNoCompanies")
+                : t("emptyHintAdd")}
             </p>
           </div>
         </div>
@@ -417,7 +419,7 @@ export default function DividendsTab() {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="flex-1 min-w-[200px]">
                 <Label className="text-zinc-300 mb-2 block">
-                  Filter by year
+                  {t("filterYear")}
                 </Label>
                 <Select
                   value={resolvedFilterYear}
@@ -428,7 +430,7 @@ export default function DividendsTab() {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-700 border-zinc-600 max-h-64">
                     <SelectItem value="all" className="font-semibold">
-                      All years ({dividends.length})
+                      {t("allYearsCount", { count: dividends.length })}
                     </SelectItem>
                     {filterYearOptions.map((y) => (
                       <SelectItem
@@ -448,16 +450,16 @@ export default function DividendsTab() {
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Coins className="w-5 h-5 text-green-400" />
-              Summary
+              {t("summary")}
             </h3>
             <div className="text-sm">
               <p className="text-zinc-400">
                 {"all" === resolvedFilterYear
-                  ? "Total (all years)"
-                  : `Total for ${resolvedFilterYear}`}
+                  ? t("totalAllYears")
+                  : t("totalForYear", { year: resolvedFilterYear })}
               </p>
               <p className="text-green-400 font-medium text-lg">
-                {filteredTotal.toLocaleString("ro-RO", {
+                {filteredTotal.toLocaleString(nf, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -467,7 +469,7 @@ export default function DividendsTab() {
 
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
-              Dividend entries
+              {t("entriesHeading")}
             </h3>
             {filtered.length > 0 ? (
               <div className="overflow-x-auto">
@@ -475,25 +477,25 @@ export default function DividendsTab() {
                   <thead>
                     <tr className="border-b border-zinc-700">
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Instrument
+                        {tc("instrument")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        ISIN
+                        {tc("isin")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Issuer
+                        {tc("issuer")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Year
+                        {t("colYear")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Amount
+                        {t("colAmount")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Notes
+                        {t("colNotes")}
                       </th>
                       <th className="text-center py-3 px-2 text-zinc-300">
-                        Actions
+                        {tc("actions")}
                       </th>
                     </tr>
                   </thead>
@@ -511,13 +513,13 @@ export default function DividendsTab() {
                           {row.year}
                         </td>
                         <td className="py-3 px-2 text-green-400 text-right font-medium">
-                          {row.amount.toLocaleString("ro-RO", {
+                          {row.amount.toLocaleString(nf, {
                             style: "currency",
                             currency: "RON",
                           })}
                         </td>
                         <td className="py-3 px-2 text-zinc-300 max-w-md truncate">
-                          {row.notes ?? "—"}
+                          {row.notes ?? tc("emDash")}
                         </td>
                         <td className="py-3 px-2 text-center">
                           <div className="flex gap-1 justify-center">
@@ -551,7 +553,7 @@ export default function DividendsTab() {
               </div>
             ) : (
               <div className="text-zinc-400 text-center py-8">
-                <p>No entries for the selected year.</p>
+                <p>{t("noEntriesYear")}</p>
               </div>
             )}
           </div>
@@ -559,11 +561,11 @@ export default function DividendsTab() {
       )}
 
       <ConfirmDialog
+        title={t("deleteTitle")}
         open={deleteTargetId !== null}
-        title="Delete dividend entry?"
         onConfirm={confirmDeleteDividend}
+        description={t("deleteDescription")}
         isConfirming={deleteMutation.isPending}
-        description="Are you sure you want to delete this dividend entry?"
         onOpenChange={(open) => {
           if (!open) setDeleteTargetId(null);
         }}

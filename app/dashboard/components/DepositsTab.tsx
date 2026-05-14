@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Edit,
   Plus,
@@ -19,6 +20,7 @@ import type {
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { numberFormatLocale } from "../../lib/number-locale";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
 import {
   NoticeDialog,
@@ -41,6 +43,11 @@ import {
 import DepositsChart from "./DepositsChart";
 
 export default function DepositsTab() {
+  const t = useTranslations("Deposits");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   const {
     data: deposits = [],
     isLoading: depositsLoading,
@@ -104,9 +111,7 @@ export default function DepositsTab() {
       resetDepositForm();
       setIsDepositDialogOpen(false);
     } catch (error) {
-      setDepositError(
-        error instanceof Error ? error.message : "Failed to save deposit",
-      );
+      setDepositError(error instanceof Error ? error.message : t("failedSave"));
     }
   };
 
@@ -121,7 +126,7 @@ export default function DepositsTab() {
     } catch (error) {
       console.error("Error deleting deposit:", error);
       setNoticeMessage(
-        error instanceof Error ? error.message : "Failed to delete deposit",
+        error instanceof Error ? error.message : t("failedDelete"),
       );
       setDeleteDepositId(null);
     }
@@ -256,7 +261,7 @@ export default function DepositsTab() {
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
-            <p className="text-zinc-400">Loading term deposits...</p>
+            <p className="text-zinc-400">{t("loading")}</p>
           </div>
         </div>
       </div>
@@ -276,13 +281,13 @@ export default function DepositsTab() {
               className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Term Deposit
+              {t("addTermDeposit")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editingDeposit ? "Edit Term Deposit" : "Add New Term Deposit"}
+                {editingDeposit ? t("editTermDeposit") : t("addNewTermDeposit")}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -296,7 +301,7 @@ export default function DepositsTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bank" className="mb-2 block">
-                    Bank
+                    {t("bank")}
                   </Label>
                   <Input
                     required
@@ -314,7 +319,7 @@ export default function DepositsTab() {
                 </div>
                 <div>
                   <Label htmlFor="depositName" className="mb-2 block">
-                    Term Deposit Name
+                    {t("termDepositName")}
                   </Label>
                   <Input
                     required
@@ -338,8 +343,8 @@ export default function DepositsTab() {
                     htmlFor="termMonths"
                     className="mb-2 flex items-center gap-2"
                   >
-                    Term (Months)
-                    <InfoTooltip content="Fixed term duration in months (e.g., 3, 6, 12)" />
+                    {t("termMonths")}
+                    <InfoTooltip content={t("termMonthsTooltip")} />
                   </Label>
                   <Input
                     min="1"
@@ -366,8 +371,8 @@ export default function DepositsTab() {
                     htmlFor="principal"
                     className="mb-2 flex items-center gap-2"
                   >
-                    Principal Amount
-                    <InfoTooltip content="Initial amount deposited" />
+                    {t("principalAmount")}
+                    <InfoTooltip content={t("principalTooltip")} />
                   </Label>
                   <Input
                     required
@@ -391,8 +396,8 @@ export default function DepositsTab() {
                     htmlFor="interestRate"
                     className="mb-2 flex items-center gap-2"
                   >
-                    Interest Rate (%)
-                    <InfoTooltip content="Annual interest rate as percentage (e.g., 5.5 for 5.5%)" />
+                    {t("interestRate")}
+                    <InfoTooltip content={t("interestRateTooltip")} />
                   </Label>
                   <Input
                     min="0"
@@ -416,7 +421,7 @@ export default function DepositsTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="startDate" className="mb-2 block">
-                    Start Date
+                    {t("startDate")}
                   </Label>
                   <Input
                     required
@@ -434,7 +439,7 @@ export default function DepositsTab() {
                 </div>
                 <div>
                   <Label className="mb-2 block" htmlFor="maturityDate">
-                    Maturity Date (Optional)
+                    {t("maturityDateOptional")}
                   </Label>
                   <Input
                     type="date"
@@ -457,8 +462,8 @@ export default function DepositsTab() {
                     htmlFor="currentBalance"
                     className="mb-2 flex items-center gap-2"
                   >
-                    Current Balance
-                    <InfoTooltip content="Current amount including all earned interest" />
+                    {t("currentBalance")}
+                    <InfoTooltip content={t("currentBalanceTooltip")} />
                   </Label>
                   <Input
                     min="0"
@@ -482,8 +487,8 @@ export default function DepositsTab() {
                     htmlFor="earnedInterest"
                     className="mb-2 flex items-center gap-2"
                   >
-                    Earned Interest
-                    <InfoTooltip content="Total interest earned since deposit start" />
+                    {t("earnedInterest")}
+                    <InfoTooltip content={t("earnedInterestTooltip")} />
                   </Label>
                   <Input
                     min="0"
@@ -519,7 +524,7 @@ export default function DepositsTab() {
                     }}
                   />
                   <Label htmlFor="isActive" className="text-sm">
-                    Active Term Deposit
+                    {t("activeTermDeposit")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -539,8 +544,8 @@ export default function DepositsTab() {
                     htmlFor="autoRenew"
                     className="text-sm flex items-center gap-2"
                   >
-                    Auto Renew
-                    <InfoTooltip content="Whether this deposit automatically renews at maturity" />
+                    {t("autoRenew")}
+                    <InfoTooltip content={t("autoRenewTooltip")} />
                   </Label>
                 </div>
               </div>
@@ -562,11 +567,10 @@ export default function DepositsTab() {
                 >
                   {createDepositMutation.isPending ||
                   updateDepositMutation.isPending
-                    ? "Saving..."
+                    ? t("saving")
                     : editingDeposit
-                      ? "Update"
-                      : "Add"}{" "}
-                  Term Deposit
+                      ? t("saveUpdate")
+                      : t("saveAdd")}
                 </Button>
                 <Button
                   type="button"
@@ -576,7 +580,7 @@ export default function DepositsTab() {
                     setIsDepositDialogOpen(false);
                   }}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -595,7 +599,7 @@ export default function DepositsTab() {
             }`}
           >
             <BarChart3 className="w-4 h-4 mr-2" />
-            {showChart ? "Hide Chart" : "Show Chart"}
+            {showChart ? t("hideChart") : t("showChart")}
           </Button>
         )}
       </div>
@@ -605,14 +609,12 @@ export default function DepositsTab() {
           <div className="text-center">
             <Building2 className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
             <h3 className="text-xl font-semibold text-white mb-3">
-              No Term Deposits Yet
+              {t("emptyTitle")}
             </h3>
             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-              Start tracking your term deposits by adding your first entry.
+              {t("emptyBody")}
             </p>
-            <p className="text-sm text-zinc-500">
-              Use the &quot;Add Term Deposit&quot; button above to get started.
-            </p>
+            <p className="text-sm text-zinc-500">{t("emptyHint")}</p>
           </div>
         </div>
       )}
@@ -634,7 +636,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  All ({deposits.length})
+                  {t("filterAllCount", { count: deposits.length })}
                 </Button>
                 <Button
                   size="sm"
@@ -648,7 +650,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  Active ({summary.activeDeposits})
+                  {t("filterActiveCount", { count: summary.activeDeposits })}
                 </Button>
                 <Button
                   size="sm"
@@ -662,7 +664,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  Matured ({summary.maturedDeposits})
+                  {t("filterMaturedCount", { count: summary.maturedDeposits })}
                 </Button>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -678,7 +680,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  All Terms
+                  {t("allTerms")}
                 </Button>
                 <Button
                   size="sm"
@@ -694,7 +696,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  0-3 months
+                  {t("termShort")}
                 </Button>
                 <Button
                   size="sm"
@@ -710,7 +712,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  4-6 months
+                  {t("termMedium")}
                 </Button>
                 <Button
                   size="sm"
@@ -726,7 +728,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  7-12 months
+                  {t("termLong")}
                 </Button>
                 <Button
                   size="sm"
@@ -742,7 +744,7 @@ export default function DepositsTab() {
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
-                  12+ months
+                  {t("termXlong")}
                 </Button>
               </div>
             </div>
@@ -758,38 +760,38 @@ export default function DepositsTab() {
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
-              Term Deposit Summary
+              {t("summaryHeading")}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <p className="text-zinc-400">Total Principal</p>
+                <p className="text-zinc-400">{t("totalPrincipal")}</p>
                 <p className="text-white font-medium">
-                  {summary.totalPrincipal.toLocaleString("ro-RO", {
+                  {summary.totalPrincipal.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
                 </p>
               </div>
               <div>
-                <p className="text-zinc-400">Total Current Balance</p>
+                <p className="text-zinc-400">{t("totalCurrentBalance")}</p>
                 <p className="text-white font-medium">
-                  {summary.totalCurrentBalance.toLocaleString("ro-RO", {
+                  {summary.totalCurrentBalance.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
                 </p>
               </div>
               <div>
-                <p className="text-zinc-400">Total Earned Interest</p>
+                <p className="text-zinc-400">{t("totalEarnedInterest")}</p>
                 <p className="text-green-400 font-medium">
-                  {summary.totalEarnedInterest.toLocaleString("ro-RO", {
+                  {summary.totalEarnedInterest.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
                 </p>
               </div>
               <div>
-                <p className="text-zinc-400">Total Return %</p>
+                <p className="text-zinc-400">{t("totalReturnPercent")}</p>
                 <p
                   className={`font-medium ${
                     summary.totalReturnPercent >= 0
@@ -805,7 +807,7 @@ export default function DepositsTab() {
 
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
-              Term Deposits
+              {t("tableHeading")}
             </h3>
             {depositsWithCalculations.length > 0 ? (
               <div className="overflow-x-auto">
@@ -813,37 +815,37 @@ export default function DepositsTab() {
                   <thead>
                     <tr className="border-b border-zinc-700">
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Bank
+                        {t("bank")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        Deposit Name
+                        {t("colDepositName")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Term
+                        {t("colTerm")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Principal
+                        {t("colPrincipal")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Interest Rate
+                        {t("colInterestRate")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Current Balance
+                        {t("currentBalance")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Earned Interest
+                        {t("earnedInterest")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Total Return
+                        {t("colReturn")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
-                        Return %
+                        {t("colReturnPct")}
                       </th>
                       <th className="text-center py-3 px-2 text-zinc-300">
-                        Status
+                        {t("colStatus")}
                       </th>
                       <th className="text-center py-3 px-2 text-zinc-300">
-                        Actions
+                        {tc("actions")}
                       </th>
                     </tr>
                   </thead>
@@ -863,7 +865,7 @@ export default function DepositsTab() {
                           {deposit.termMonths}m
                         </td>
                         <td className="py-3 px-2 text-white text-right">
-                          {deposit.principal.toLocaleString("ro-RO", {
+                          {deposit.principal.toLocaleString(nf, {
                             style: "currency",
                             currency: "RON",
                           })}
@@ -872,13 +874,13 @@ export default function DepositsTab() {
                           {deposit.interestRate.toFixed(2)}%
                         </td>
                         <td className="py-3 px-2 text-white text-right">
-                          {deposit.currentBalance.toLocaleString("ro-RO", {
+                          {deposit.currentBalance.toLocaleString(nf, {
                             style: "currency",
                             currency: "RON",
                           })}
                         </td>
                         <td className="py-3 px-2 text-green-400 text-right">
-                          {deposit.earnedInterest.toLocaleString("ro-RO", {
+                          {deposit.earnedInterest.toLocaleString(nf, {
                             style: "currency",
                             currency: "RON",
                           })}
@@ -890,7 +892,7 @@ export default function DepositsTab() {
                               : "text-red-400"
                           }`}
                         >
-                          {deposit.totalReturn.toLocaleString("ro-RO", {
+                          {deposit.totalReturn.toLocaleString(nf, {
                             style: "currency",
                             currency: "RON",
                           })}
@@ -912,7 +914,9 @@ export default function DepositsTab() {
                                 : "bg-zinc-700 text-zinc-300"
                             }`}
                           >
-                            {deposit.isActive ? "Active" : "Matured"}
+                            {deposit.isActive
+                              ? t("statusActive")
+                              : t("statusMatured")}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center">
@@ -947,7 +951,7 @@ export default function DepositsTab() {
               </div>
             ) : (
               <div className="text-zinc-400 text-center py-8">
-                <p>No term deposits found for the selected filters.</p>
+                <p>{t("noFiltered")}</p>
               </div>
             )}
           </div>
@@ -955,11 +959,11 @@ export default function DepositsTab() {
       )}
 
       <ConfirmDialog
-        title="Delete deposit?"
+        title={t("deleteTitle")}
         open={deleteDepositId !== null}
         onConfirm={confirmDeleteDeposit}
+        description={t("deleteDescription")}
         isConfirming={deleteDepositMutation.isPending}
-        description="Are you sure you want to delete this deposit?"
         onOpenChange={(open) => {
           if (!open) setDeleteDepositId(null);
         }}

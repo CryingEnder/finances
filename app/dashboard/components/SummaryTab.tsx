@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Coins, TrendingUp } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Pie,
   Cell,
@@ -13,6 +14,7 @@ import {
 
 import { useDeposits } from "../../lib/hooks/use-deposits";
 import { useDividends } from "../../lib/hooks/use-dividends";
+import { numberFormatLocale } from "../../lib/number-locale";
 import { usePortfolioEntries } from "../../lib/hooks/use-portfolio";
 
 interface SummaryPieRow {
@@ -58,6 +60,10 @@ function SummaryPieTooltip({
   totalValue,
   valueLabel,
 }: SummaryPieTooltipProps) {
+  const tc = useTranslations("Common");
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   if (!active || !payload?.length) {
     return null;
   }
@@ -75,12 +81,14 @@ function SummaryPieTooltip({
       <p className="text-white font-medium mb-2">{data.name}</p>
       <p className="text-sm" style={{ color: data.payload.color }}>
         {valueLabel}:{" "}
-        {data.value.toLocaleString("ro-RO", {
+        {data.value.toLocaleString(nf, {
           style: "currency",
           currency: "RON",
         })}
       </p>
-      <p className="text-sm text-zinc-400">Percentage: {percentage}%</p>
+      <p className="text-sm text-zinc-400">
+        {tc("percentage")}: {percentage}%
+      </p>
     </div>
   );
 }
@@ -137,6 +145,9 @@ function SummaryVerticalLegend(props: {
   }[];
 }) {
   const { payload } = props;
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   if (!payload?.length) {
     return null;
   }
@@ -169,7 +180,7 @@ function SummaryVerticalLegend(props: {
             />
             <span className="min-w-0 leading-snug">
               {label}:{" "}
-              {amount.toLocaleString("ro-RO", {
+              {amount.toLocaleString(nf, {
                 style: "currency",
                 currency: "RON",
               })}
@@ -187,13 +198,15 @@ function SummaryDistributionPie({
   totalValue,
   title,
 }: SummaryDistributionPieProps) {
+  const t = useTranslations("Summary");
+
   if (0 === data.length || totalValue <= 0) {
     return (
       <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
         <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-zinc-700 py-12">
           <p className="text-sm text-zinc-500 text-center px-4">
-            Nothing to show for this view yet.
+            {t("pieNothing")}
           </p>
         </div>
       </div>
@@ -240,6 +253,10 @@ function SummaryDistributionPie({
 }
 
 export default function SummaryTab() {
+  const t = useTranslations("Summary");
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   const { data: deposits = [], isLoading: depositsLoading } = useDeposits();
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
     usePortfolioEntries();
@@ -307,22 +324,22 @@ export default function SummaryTab() {
   const pieBasisData = useMemo((): SummaryPieRow[] => {
     return [
       {
-        name: "Term deposits (principal)",
+        name: t("pieTermDepositsPrincipal"),
         value: summary.totalDepositsInvested,
         color: COLORS.deposits,
       },
       {
-        name: "Stocks (cost)",
+        name: t("pieStocksCost"),
         value: summary.stocksInvestedValue,
         color: COLORS.stocks,
       },
     ].filter((item) => item.value > 0);
-  }, [summary]);
+  }, [summary, t]);
 
   const pieWealthData = useMemo((): SummaryPieRow[] => {
     const rows: SummaryPieRow[] = [
       {
-        name: "Term deposits (with interest)",
+        name: t("pieTermDepositsWithInterest"),
         value: summary.totalDepositsCurrentValue,
         color: COLORS.deposits,
       },
@@ -330,12 +347,12 @@ export default function SummaryTab() {
     if (summary.stocksCurrentValue > 0 && totalDividends > 0) {
       rows.push(
         {
-          name: "Stocks (market value)",
+          name: t("pieStocksMarket"),
           value: summary.stocksCurrentValue,
           color: COLORS.stocks,
         },
         {
-          name: "Dividends (cumulative)",
+          name: t("pieDividendsCumulative"),
           value: totalDividends,
           color: COLORS.dividends,
         },
@@ -343,21 +360,21 @@ export default function SummaryTab() {
     } else {
       if (summary.stocksCurrentValue > 0) {
         rows.push({
-          name: "Stocks (market value)",
+          name: t("pieStocksMarket"),
           value: summary.stocksCurrentValue,
           color: COLORS.stocks,
         });
       }
       if (totalDividends > 0) {
         rows.push({
-          name: "Dividends (cumulative)",
+          name: t("pieDividendsCumulative"),
           value: totalDividends,
           color: COLORS.dividends,
         });
       }
     }
     return rows.filter((item) => item.value > 0);
-  }, [summary, totalDividends]);
+  }, [summary, totalDividends, t]);
 
   const pieBasisTotal = useMemo(
     () => pieBasisData.reduce((s, r) => s + r.value, 0),
@@ -375,7 +392,7 @@ export default function SummaryTab() {
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
-            <p className="text-zinc-400">Loading summary...</p>
+            <p className="text-zinc-400">{t("loading")}</p>
           </div>
         </div>
       </div>
@@ -391,25 +408,25 @@ export default function SummaryTab() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-400 text-sm">Term Deposits</p>
+              <p className="text-zinc-400 text-sm">{t("termDeposits")}</p>
               <TrendingUp className="w-5 h-5 text-green-400" />
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.totalDepositsCurrentValue.toLocaleString("ro-RO", {
+              {summary.totalDepositsCurrentValue.toLocaleString(nf, {
                 style: "currency",
                 currency: "RON",
               })}
             </p>
             <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
               <p>
-                Principal:{" "}
-                {summary.totalDepositsInvested.toLocaleString("ro-RO", {
+                {t("principalLabel")}{" "}
+                {summary.totalDepositsInvested.toLocaleString(nf, {
                   style: "currency",
                   currency: "RON",
                 })}
               </p>
               <p>
-                Profit:{" "}
+                {t("profitLabel")}{" "}
                 <span
                   className={
                     summary.depositsProfit >= 0
@@ -418,7 +435,7 @@ export default function SummaryTab() {
                   }
                 >
                   {summary.depositsProfit >= 0 ? "+" : ""}
-                  {summary.depositsProfit.toLocaleString("ro-RO", {
+                  {summary.depositsProfit.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -429,25 +446,25 @@ export default function SummaryTab() {
 
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-400 text-sm">Stocks</p>
+              <p className="text-zinc-400 text-sm">{t("stocks")}</p>
               <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.stocksCurrentValue.toLocaleString("ro-RO", {
+              {summary.stocksCurrentValue.toLocaleString(nf, {
                 style: "currency",
                 currency: "RON",
               })}
             </p>
             <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
               <p>
-                Invested:{" "}
-                {summary.stocksInvestedValue.toLocaleString("ro-RO", {
+                {t("investedLabel")}{" "}
+                {summary.stocksInvestedValue.toLocaleString(nf, {
                   style: "currency",
                   currency: "RON",
                 })}
               </p>
               <p>
-                Unrealized:{" "}
+                {t("unrealizedLabel")}{" "}
                 <span
                   className={
                     summary.stocksUnrealizedProfit >= 0
@@ -456,7 +473,7 @@ export default function SummaryTab() {
                   }
                 >
                   {summary.stocksUnrealizedProfit >= 0 ? "+" : ""}
-                  {summary.stocksUnrealizedProfit.toLocaleString("ro-RO", {
+                  {summary.stocksUnrealizedProfit.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -471,21 +488,23 @@ export default function SummaryTab() {
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-zinc-400 text-sm">Total Current Value</p>
+                  <p className="text-zinc-400 text-sm">
+                    {t("totalCurrentValue")}
+                  </p>
                   <span className="rounded border border-zinc-600 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-400">
                     RON
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-white">
-                  {summary.totalCurrentValue.toLocaleString("ro-RO", {
+                  {summary.totalCurrentValue.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
                 </p>
                 {summary.totalInvested > 0 && (
                   <p className="mt-1 text-sm text-zinc-400">
-                    Invested:{" "}
-                    {summary.totalInvested.toLocaleString("ro-RO", {
+                    {t("investedLabel")}{" "}
+                    {summary.totalInvested.toLocaleString(nf, {
                       style: "currency",
                       currency: "RON",
                     })}
@@ -493,15 +512,17 @@ export default function SummaryTab() {
                 )}
               </div>
               <div className="border-t border-zinc-700/80 pt-3">
-                <p className="mb-2 text-sm text-zinc-400">Dividends</p>
+                <p className="mb-2 text-sm text-zinc-400">{t("dividends")}</p>
                 <p className="text-2xl font-bold text-white">
-                  {totalDividends.toLocaleString("ro-RO", {
+                  {totalDividends.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
                 </p>
                 {0 === dividends.length && (
-                  <p className="mt-1 text-sm text-zinc-400">No records yet.</p>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {t("noRecordsYet")}
+                  </p>
                 )}
               </div>
             </div>
@@ -509,7 +530,7 @@ export default function SummaryTab() {
 
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-400 text-sm">Total Profit</p>
+              <p className="text-zinc-400 text-sm">{t("totalProfit")}</p>
               <span className="rounded border border-zinc-600 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-400">
                 RON
               </span>
@@ -517,7 +538,7 @@ export default function SummaryTab() {
             <div className="space-y-4">
               <div>
                 <p className="mb-1 text-xs text-zinc-500">
-                  Excluding dividends
+                  {t("excludingDividends")}
                 </p>
                 <p
                   className={`text-2xl font-bold ${
@@ -525,7 +546,7 @@ export default function SummaryTab() {
                   }`}
                 >
                   {summary.totalProfit >= 0 ? "+" : ""}
-                  {summary.totalProfit.toLocaleString("ro-RO", {
+                  {summary.totalProfit.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -536,13 +557,13 @@ export default function SummaryTab() {
                       (summary.totalProfit / summary.totalInvested) *
                       100
                     ).toFixed(2)}
-                    % return
+                    {t("pctReturn")}
                   </p>
                 )}
               </div>
               <div className="border-t border-zinc-700/80 pt-3">
                 <p className="mb-1 text-xs text-zinc-500">
-                  Including dividends
+                  {t("includingDividends")}
                 </p>
                 <p
                   className={`text-2xl font-bold ${
@@ -552,7 +573,7 @@ export default function SummaryTab() {
                   }`}
                 >
                   {totalProfitWithDividends >= 0 ? "+" : ""}
-                  {totalProfitWithDividends.toLocaleString("ro-RO", {
+                  {totalProfitWithDividends.toLocaleString(nf, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -563,7 +584,7 @@ export default function SummaryTab() {
                       (totalProfitWithDividends / summary.totalInvested) *
                       100
                     ).toFixed(2)}
-                    % return
+                    {t("pctReturn")}
                   </p>
                 )}
               </div>
@@ -577,15 +598,15 @@ export default function SummaryTab() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <SummaryDistributionPie
               data={pieBasisData}
-              tooltipValueLabel="Amount"
               totalValue={pieBasisTotal}
-              title="Invested Capital Allocation"
+              title={t("pieInvestedTitle")}
+              tooltipValueLabel={t("amount")}
             />
             <SummaryDistributionPie
               data={pieWealthData}
-              tooltipValueLabel="Amount"
+              title={t("pieWealthTitle")}
               totalValue={pieWealthTotal}
-              title="Current Portfolio Composition"
+              tooltipValueLabel={t("amount")}
             />
           </div>
         </div>
@@ -594,11 +615,10 @@ export default function SummaryTab() {
           <div className="text-center">
             <Coins className="mx-auto mb-6 h-16 w-16 text-zinc-500 opacity-50" />
             <h3 className="text-xl font-semibold text-white mb-3">
-              No Investments Yet
+              {t("emptyTitle")}
             </h3>
             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-              Start tracking your investments by adding deposits and stock
-              transactions to see your portfolio summary here.
+              {t("emptyBody")}
             </p>
           </div>
         </div>

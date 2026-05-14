@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Edit, Plus, Trash2, Building2 } from "lucide-react";
 
 import type {
@@ -14,6 +15,7 @@ import { formatPrice } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { numberFormatLocale } from "../../lib/number-locale";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -50,6 +52,11 @@ type PendingStockDelete =
   | { kind: "portfolio"; id: string };
 
 export default function StocksTab() {
+  const t = useTranslations("Stocks");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
+  const nf = numberFormatLocale(locale);
+
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
     usePortfolioEntries();
@@ -117,7 +124,7 @@ export default function StocksTab() {
       setIsCompanyDialogOpen(false);
     } catch (error) {
       setCompanyError(
-        error instanceof Error ? error.message : "Failed to save company",
+        error instanceof Error ? error.message : t("failedSaveCompany"),
       );
     }
   };
@@ -156,9 +163,7 @@ export default function StocksTab() {
       setIsPortfolioDialogOpen(false);
     } catch (error) {
       setPortfolioError(
-        error instanceof Error
-          ? error.message
-          : "Failed to save portfolio entry",
+        error instanceof Error ? error.message : t("failedSavePortfolio"),
       );
     }
   };
@@ -181,26 +186,28 @@ export default function StocksTab() {
         error instanceof Error
           ? error.message
           : "company" === kind
-            ? "Failed to delete company"
-            : "Failed to delete portfolio entry",
+            ? t("failedDeleteCompany")
+            : t("failedDeletePortfolio"),
       );
       setPendingDelete(null);
     }
   };
 
-  const deleteConfirmCopy =
-    "company" === pendingDelete?.kind
-      ? {
-          title: "Delete company?",
-          description: "Are you sure you want to delete this company?",
-        }
-      : "portfolio" === pendingDelete?.kind
-        ? {
-            title: "Delete portfolio entry?",
-            description:
-              "Are you sure you want to delete this portfolio entry?",
-          }
-        : { title: "", description: "" };
+  const deleteConfirmCopy = useMemo(() => {
+    if ("company" === pendingDelete?.kind) {
+      return {
+        title: t("deleteCompanyTitle"),
+        description: t("deleteCompanyDescription"),
+      };
+    }
+    if ("portfolio" === pendingDelete?.kind) {
+      return {
+        title: t("deletePortfolioTitle"),
+        description: t("deletePortfolioDescription"),
+      };
+    }
+    return { title: "", description: "" };
+  }, [pendingDelete, t]);
 
   const isStockDeleteConfirming =
     "company" === pendingDelete?.kind
@@ -311,7 +318,9 @@ export default function StocksTab() {
         className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
       >
         <h3 className="text-lg font-semibold text-white mb-4">
-          Portfolio Status - {new Date(date).toLocaleDateString()}
+          {t("portfolioStatus", {
+            date: new Date(date).toLocaleDateString(nf),
+          })}
         </h3>
 
         {dateEntriesWithCalculations.length > 0 ? (
@@ -321,38 +330,40 @@ export default function StocksTab() {
                 <thead>
                   <tr className="border-b border-zinc-700">
                     <th className="text-left py-3 px-2 text-zinc-300">
-                      Instrument
+                      {tc("instrument")}
                     </th>
-                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
                     <th className="text-left py-3 px-2 text-zinc-300">
-                      Issuer
+                      {tc("isin")}
+                    </th>
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      {tc("issuer")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Quantity
+                      {tc("quantity")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Locked
+                      {tc("locked")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Avg Price
+                      {tc("avgPrice")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Ref Price
+                      {tc("refPrice")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Purchase Value
+                      {tc("purchaseValue")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Current Value
+                      {tc("currentValue")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Profit
+                      {tc("profit")}
                     </th>
                     <th className="text-right py-3 px-2 text-zinc-300">
-                      Profit %
+                      {tc("profitPercent")}
                     </th>
                     <th className="text-center py-3 px-2 text-zinc-300">
-                      Actions
+                      {tc("actions")}
                     </th>
                   </tr>
                 </thead>
@@ -379,13 +390,13 @@ export default function StocksTab() {
                         {formatPrice(entry.referencePrice)}
                       </td>
                       <td className="py-3 px-2 text-white text-right">
-                        {entry.purchaseValue.toLocaleString("ro-RO", {
+                        {entry.purchaseValue.toLocaleString(nf, {
                           style: "currency",
                           currency: "RON",
                         })}
                       </td>
                       <td className="py-3 px-2 text-white text-right">
-                        {entry.currentValue.toLocaleString("ro-RO", {
+                        {entry.currentValue.toLocaleString(nf, {
                           style: "currency",
                           currency: "RON",
                         })}
@@ -395,7 +406,7 @@ export default function StocksTab() {
                           entry.profit >= 0 ? "text-green-400" : "text-red-400"
                         }`}
                       >
-                        {entry.profit.toLocaleString("ro-RO", {
+                        {entry.profit.toLocaleString(nf, {
                           style: "currency",
                           currency: "RON",
                         })}
@@ -446,25 +457,25 @@ export default function StocksTab() {
             <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-zinc-400">Total Purchase Value</p>
+                  <p className="text-zinc-400">{t("totalPurchaseValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
+                    {dateSummary.totalPurchaseValue.toLocaleString(nf, {
                       style: "currency",
                       currency: "RON",
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-zinc-400">Total Current Value</p>
+                  <p className="text-zinc-400">{t("totalCurrentValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
+                    {dateSummary.totalCurrentValue.toLocaleString(nf, {
                       style: "currency",
                       currency: "RON",
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-zinc-400">Total Profit</p>
+                  <p className="text-zinc-400">{t("totalProfit")}</p>
                   <p
                     className={`font-medium ${
                       dateSummary.totalProfit >= 0
@@ -472,14 +483,14 @@ export default function StocksTab() {
                         : "text-red-400"
                     }`}
                   >
-                    {dateSummary.totalProfit.toLocaleString("ro-RO", {
+                    {dateSummary.totalProfit.toLocaleString(nf, {
                       style: "currency",
                       currency: "RON",
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-zinc-400">Total Profit %</p>
+                  <p className="text-zinc-400">{t("totalProfitPercent")}</p>
                   <p
                     className={`font-medium ${
                       dateSummary.totalProfitPercent >= 0
@@ -495,11 +506,8 @@ export default function StocksTab() {
           </>
         ) : (
           <div className="text-zinc-400 text-center py-8">
-            <p>No portfolio entries found for this date.</p>
-            <p className="text-sm">
-              Add your first portfolio entry using the &quot;Add Portfolio
-              Status&quot; button above.
-            </p>
+            <p>{t("emptyDateTitle")}</p>
+            <p className="text-sm">{t("emptyDateHint")}</p>
           </div>
         )}
       </div>
@@ -512,7 +520,7 @@ export default function StocksTab() {
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
-            <p className="text-zinc-400">Loading data...</p>
+            <p className="text-zinc-400">{tc("loadingData")}</p>
           </div>
         </div>
       </div>
@@ -532,13 +540,13 @@ export default function StocksTab() {
               className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Companies
+              {t("addCompanies")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white">
             <DialogHeader>
               <DialogTitle>
-                {editingCompany ? "Edit Company" : "Add New Company"}
+                {editingCompany ? t("editCompany") : t("addNewCompany")}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -549,7 +557,7 @@ export default function StocksTab() {
             >
               <div>
                 <Label htmlFor="instrument" className="mb-2 block">
-                  Instrument
+                  {tc("instrument")}
                 </Label>
                 <Input
                   required
@@ -567,7 +575,7 @@ export default function StocksTab() {
               </div>
               <div>
                 <Label htmlFor="isin" className="mb-2 block">
-                  ISIN
+                  {tc("isin")}
                 </Label>
                 <Input
                   required
@@ -584,7 +592,7 @@ export default function StocksTab() {
               </div>
               <div>
                 <Label htmlFor="issuer" className="mb-2 block">
-                  Issuer
+                  {tc("issuer")}
                 </Label>
                 <Input
                   required
@@ -617,11 +625,10 @@ export default function StocksTab() {
                 >
                   {createCompanyMutation.isPending ||
                   updateCompanyMutation.isPending
-                    ? "Saving..."
+                    ? t("savingCompany")
                     : editingCompany
-                      ? "Update"
-                      : "Add"}{" "}
-                  Company
+                      ? t("saveCompanyUpdate")
+                      : t("saveCompanyAdd")}
                 </Button>
                 <Button
                   type="button"
@@ -631,7 +638,7 @@ export default function StocksTab() {
                     setIsCompanyDialogOpen(false);
                   }}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -648,15 +655,15 @@ export default function StocksTab() {
               className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Portfolio Status
+              {t("addPortfolioStatus")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {editingPortfolio
-                  ? "Edit Portfolio Entry"
-                  : "Add New Portfolio Entry"}
+                  ? t("editPortfolioEntry")
+                  : t("addNewPortfolioEntry")}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -668,7 +675,7 @@ export default function StocksTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="date" className="mb-2 block">
-                    Date
+                    {tc("date")}
                   </Label>
                   <Input
                     required
@@ -686,13 +693,13 @@ export default function StocksTab() {
                 </div>
                 <div className="min-w-0">
                   <Label htmlFor="company" className="mb-2 block">
-                    Company
+                    {tc("company")}
                   </Label>
                   <Select onValueChange={handleCompanySelect}>
                     <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full">
                       <SelectValue
                         className="truncate"
-                        placeholder="Select company"
+                        placeholder={tc("selectCompany")}
                       />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-700 border-zinc-600 min-w-[200px] max-w-[400px]">
@@ -710,7 +717,7 @@ export default function StocksTab() {
                         ))
                       ) : (
                         <div className="px-2 py-1.5 text-sm text-zinc-400">
-                          No companies available
+                          {tc("noCompaniesAvailable")}
                         </div>
                       )}
                     </SelectContent>
@@ -721,7 +728,7 @@ export default function StocksTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="quantity" className="mb-2 block">
-                    Quantity
+                    {tc("quantity")}
                   </Label>
                   <Input
                     min="0"
@@ -742,7 +749,7 @@ export default function StocksTab() {
                 </div>
                 <div>
                   <Label htmlFor="locked" className="mb-2 block">
-                    Locked
+                    {tc("locked")}
                   </Label>
                   <Input
                     min="0"
@@ -767,7 +774,7 @@ export default function StocksTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="mb-2 block" htmlFor="averagePrice">
-                    Average Price
+                    {tc("avgPrice")}
                   </Label>
                   <Input
                     required
@@ -788,7 +795,7 @@ export default function StocksTab() {
                 </div>
                 <div>
                   <Label className="mb-2 block" htmlFor="referencePrice">
-                    Reference Price
+                    {tc("refPrice")}
                   </Label>
                   <Input
                     required
@@ -826,11 +833,10 @@ export default function StocksTab() {
                 >
                   {createPortfolioMutation.isPending ||
                   updatePortfolioMutation.isPending
-                    ? "Saving..."
+                    ? t("savingEntry")
                     : editingPortfolio
-                      ? "Update"
-                      : "Add"}{" "}
-                  Entry
+                      ? t("saveEntryUpdate")
+                      : t("saveEntryAdd")}
                 </Button>
                 <Button
                   type="button"
@@ -840,7 +846,7 @@ export default function StocksTab() {
                     setIsPortfolioDialogOpen(false);
                   }}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
               </div>
             </form>
@@ -855,16 +861,13 @@ export default function StocksTab() {
             <div className="text-center">
               <Building2 className="w-16 h-16 mx-auto mb-6 text-zinc-500 opacity-50" />
               <h3 className="text-xl font-semibold text-white mb-3">
-                Welcome to Finance Manager
+                {t("welcomeTitle")}
               </h3>
               <p className="text-zinc-400 mb-6 max-w-md mx-auto">
-                Get started by adding your first company and portfolio entries
-                to track your investments.
+                {t("welcomeBody")}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <p className="text-sm text-zinc-500">
-                  Use the buttons above to add companies and portfolio data
-                </p>
+                <p className="text-sm text-zinc-500">{t("welcomeHint")}</p>
               </div>
             </div>
           </div>
@@ -876,7 +879,7 @@ export default function StocksTab() {
             {availableDates.length > 0 ? (
               <div className="flex-1">
                 <Label htmlFor="date-select" className="text-white font-medium">
-                  Select Portfolio Date:
+                  {t("selectPortfolioDate")}
                 </Label>
                 <Select value={selectedDate} onValueChange={setSelectedDate}>
                   <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white mt-2 cursor-pointer">
@@ -884,11 +887,11 @@ export default function StocksTab() {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-700 border-zinc-600">
                     <SelectItem value="all" className="font-semibold">
-                      📅 All Dates
+                      {t("allDatesSelect")}
                     </SelectItem>
                     {availableDates.map((date) => (
                       <SelectItem key={date} value={date}>
-                        {new Date(date).toLocaleDateString()}
+                        {new Date(date).toLocaleDateString(nf)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -896,9 +899,7 @@ export default function StocksTab() {
               </div>
             ) : (
               <div className="flex-1">
-                <p className="text-zinc-400 text-sm">
-                  No portfolio entries yet.
-                </p>
+                <p className="text-zinc-400 text-sm">{t("noPortfolioYet")}</p>
               </div>
             )}
 
@@ -916,7 +917,9 @@ export default function StocksTab() {
                       : "bg-blue-600 hover:bg-blue-700 text-white"
                   }`}
                 >
-                  {showCompanies ? "👁️ Hide Companies" : "👁️ Show Companies"}
+                  {showCompanies
+                    ? `👁️ ${t("hideCompanies")}`
+                    : `👁️ ${t("showCompanies")}`}
                 </Button>
               </div>
             )}
@@ -926,21 +929,25 @@ export default function StocksTab() {
 
       {showCompanies && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Companies</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            {t("companiesHeading")}
+          </h3>
           {companies.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-700">
                     <th className="text-left py-3 px-2 text-zinc-300">
-                      Instrument
+                      {tc("instrument")}
                     </th>
-                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
                     <th className="text-left py-3 px-2 text-zinc-300">
-                      Issuer
+                      {tc("isin")}
+                    </th>
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      {tc("issuer")}
                     </th>
                     <th className="text-center py-3 px-2 text-zinc-300">
-                      Actions
+                      {tc("actions")}
                     </th>
                   </tr>
                 </thead>
@@ -995,11 +1002,8 @@ export default function StocksTab() {
           ) : (
             <div className="text-zinc-400 text-center py-8">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No companies found.</p>
-              <p className="text-sm">
-                Add your first company using the &quot;Add Companies&quot;
-                button above.
-              </p>
+              <p>{t("noCompaniesTitle")}</p>
+              <p className="text-sm">{t("noCompaniesHint")}</p>
             </div>
           )}
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,11 +27,15 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Yes",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   isConfirming = false,
 }: ConfirmDialogProps) {
+  const t = useTranslations("Common");
+  const resolvedConfirm = confirmLabel ?? t("yes");
+  const resolvedCancel = cancelLabel ?? t("cancel");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -53,7 +59,7 @@ export function ConfirmDialog({
             }}
             className="cursor-pointer border-0 bg-red-600 text-white hover:bg-red-700"
           >
-            {cancelLabel}
+            {resolvedCancel}
           </Button>
           <Button
             type="button"
@@ -63,7 +69,7 @@ export function ConfirmDialog({
             }}
             className="cursor-pointer bg-green-600 text-white hover:bg-green-700"
           >
-            {confirmLabel}
+            {resolvedConfirm}
           </Button>
         </div>
       </DialogContent>
@@ -82,10 +88,14 @@ export interface NoticeDialogProps {
 export function NoticeDialog({
   open,
   onOpenChange,
-  title = "Something went wrong",
+  title,
   message,
-  okLabel = "OK",
+  okLabel,
 }: NoticeDialogProps) {
+  const t = useTranslations("Common");
+  const resolvedTitle = title ?? t("somethingWrong");
+  const resolvedOk = okLabel ?? t("ok");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -93,7 +103,7 @@ export function NoticeDialog({
         className="bg-zinc-800 border-zinc-700 text-white sm:max-w-md"
       >
         <DialogHeader>
-          <DialogTitle className="text-white">{title}</DialogTitle>
+          <DialogTitle className="text-white">{resolvedTitle}</DialogTitle>
           <DialogDescription className="text-zinc-300">
             {message}
           </DialogDescription>
@@ -106,7 +116,7 @@ export function NoticeDialog({
             }}
             className="cursor-pointer bg-green-600 text-white hover:bg-green-700"
           >
-            {okLabel}
+            {resolvedOk}
           </Button>
         </div>
       </DialogContent>

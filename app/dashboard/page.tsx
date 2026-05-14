@@ -1,4 +1,5 @@
 import { requireAuth } from "../lib/auth";
+
 import DashboardContent from "./components/DashboardContent";
 
 export default async function Dashboard() {
