@@ -4,6 +4,7 @@ import type {
   User,
   Company,
   Deposit,
+  Dividend,
   Transaction,
   PortfolioEntry,
 } from "./types";
@@ -12,6 +13,9 @@ import { DATABASE_CONFIG } from "./config";
 
 type DatabaseCompany = Omit<Company, "_id" | "userId"> & { _id?: ObjectId };
 type DatabasePortfolioEntry = Omit<PortfolioEntry, "_id" | "userId"> & {
+  _id?: ObjectId;
+};
+export type DatabaseDividend = Omit<Dividend, "_id" | "userId"> & {
   _id?: ObjectId;
 };
 type DatabaseDeposit = Omit<Deposit, "_id" | "userId"> & { _id?: ObjectId };
@@ -98,6 +102,13 @@ export async function getDepositsCollection(
 ): Promise<Collection<DatabaseDeposit>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseDeposit>("deposits");
+}
+
+export async function getDividendsCollection(
+  userId: string,
+): Promise<Collection<DatabaseDividend>> {
+  const database = await connectToUserDatabase(userId);
+  return database.collection<DatabaseDividend>("dividends");
 }
 
 export async function getTransactionsCollection(

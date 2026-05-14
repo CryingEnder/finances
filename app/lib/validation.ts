@@ -74,6 +74,26 @@ export function formatZodErrors(error: z.ZodError) {
   }));
 }
 
+export const dividendSchema = companySchema
+  .pick({ instrument: true, isin: true, issuer: true })
+  .extend({
+    year: z
+      .number()
+      .int("Year must be a whole number")
+      .min(1990, "Year must be 1990 or later")
+      .max(2100, "Year must be 2100 or earlier"),
+    amount: z
+      .number()
+      .min(0, "Amount must be 0 or greater")
+      .max(100000000, "Amount cannot exceed 100,000,000 RON"),
+    notes: z
+      .string()
+      .max(500, "Notes must be 500 characters or less")
+      .trim()
+      .optional()
+      .transform((val) => ("" === val ? undefined : val)),
+  });
+
 export const depositSchema = z
   .object({
     bank: z
@@ -244,6 +264,7 @@ export const transactionSchema = z
   );
 
 export type CompanyInput = z.infer<typeof companySchema>;
+export type DividendInput = z.infer<typeof dividendSchema>;
 export type PortfolioEntryInput = z.infer<typeof portfolioEntrySchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
 export type TransactionInput = z.infer<typeof transactionSchema>;

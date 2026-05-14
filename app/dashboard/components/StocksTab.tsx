@@ -15,6 +15,10 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import {
+  NoticeDialog,
+  ConfirmDialog,
+} from "../../components/ui/confirm-dialog";
+import {
   Select,
   SelectItem,
   SelectValue,
@@ -41,15 +45,14 @@ import {
   useUpdatePortfolioEntry,
 } from "../../lib/hooks/use-portfolio";
 
+type PendingStockDelete =
+  | { kind: "company"; id: string }
+  | { kind: "portfolio"; id: string };
+
 export default function StocksTab() {
-  const {
-    data: companies = [],
-    isLoading: companiesLoading,
-  } = useCompanies();
-  const {
-    data: portfolioEntries = [],
-    isLoading: portfolioLoading,
-  } = usePortfolioEntries();
+  const { data: companies = [], isLoading: companiesLoading } = useCompanies();
+  const { data: portfolioEntries = [], isLoading: portfolioLoading } =
+    usePortfolioEntries();
 
   const createCompanyMutation = useCreateCompany();
   const updateCompanyMutation = useUpdateCompany();
@@ -85,6 +88,10 @@ export default function StocksTab() {
     referencePrice: "",
   });
   const [portfolioError, setPortfolioError] = useState<string>("");
+  const [pendingDelete, setPendingDelete] = useState<PendingStockDelete | null>(
+    null,
+  );
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const availableDates = useMemo(() => {
     return [...new Set(portfolioEntries.map((entry) => entry.date))]
@@ -110,7 +117,7 @@ export default function StocksTab() {
       setIsCompanyDialogOpen(false);
     } catch (error) {
       setCompanyError(
-        error instanceof Error ? error.message : "Failed to save company"
+        error instanceof Error ? error.message : "Failed to save company",
       );
     }
   };
@@ -149,40 +156,56 @@ export default function StocksTab() {
       setIsPortfolioDialogOpen(false);
     } catch (error) {
       setPortfolioError(
-        error instanceof Error ? error.message : "Failed to save portfolio entry"
-      );
-    }
-  };
-
-  const handleDeleteCompany = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this company?")) return;
-
-    try {
-      await deleteCompanyMutation.mutateAsync(id);
-    } catch (error) {
-      console.error("Error deleting company:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to delete company"
-      );
-    }
-  };
-
-  const handleDeletePortfolio = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this portfolio entry?"))
-      return;
-
-    try {
-      await deletePortfolioMutation.mutateAsync(id);
-    } catch (error) {
-      console.error("Error deleting portfolio entry:", error);
-      alert(
         error instanceof Error
           ? error.message
-          : "Failed to delete portfolio entry"
+          : "Failed to save portfolio entry",
       );
     }
   };
 
+  const confirmPendingDelete = async () => {
+    if (!pendingDelete) return;
+    const kind = pendingDelete.kind;
+    try {
+      if ("company" === kind) {
+        await deleteCompanyMutation.mutateAsync(pendingDelete.id);
+      } else {
+        await deletePortfolioMutation.mutateAsync(pendingDelete.id);
+      }
+      setPendingDelete(null);
+    } catch (error) {
+      console.error(error);
+      setNoticeMessage(
+        error instanceof Error
+          ? error.message
+          : "company" === kind
+            ? "Failed to delete company"
+            : "Failed to delete portfolio entry",
+      );
+      setPendingDelete(null);
+    }
+  };
+
+  const deleteConfirmCopy =
+    "company" === pendingDelete?.kind
+      ? {
+          title: "Delete company?",
+          description: "Are you sure you want to delete this company?",
+        }
+      : "portfolio" === pendingDelete?.kind
+        ? {
+            title: "Delete portfolio entry?",
+            description:
+              "Are you sure you want to delete this portfolio entry?",
+          }
+        : { title: "", description: "" };
+
+  const isStockDeleteConfirming =
+    "company" === pendingDelete?.kind
+      ? deleteCompanyMutation.isPending
+      : "portfolio" === pendingDelete?.kind
+        ? deletePortfolioMutation.isPending
+        : false;
   const resetCompanyForm = () => {
     setCompanyForm({ instrument: "", isin: "", issuer: "" });
     setEditingCompany(null);
@@ -242,250 +265,244 @@ export default function StocksTab() {
   };
 
   const renderPortfolioTable = (date: string) => {
-      const dateEntries = portfolioEntries.filter(
-        (entry) => entry.date === date
-      );
-      const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
-        dateEntries.map((entry) => {
-          const purchaseValue = entry.quantity * entry.averagePrice;
-          const currentValue = entry.quantity * entry.referencePrice;
-          const profit = currentValue - purchaseValue;
-          const profitPercent =
-            purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
+    const dateEntries = portfolioEntries.filter((entry) => entry.date === date);
+    const dateEntriesWithCalculations: PortfolioEntryWithCalculations[] =
+      dateEntries.map((entry) => {
+        const purchaseValue = entry.quantity * entry.averagePrice;
+        const currentValue = entry.quantity * entry.referencePrice;
+        const profit = currentValue - purchaseValue;
+        const profitPercent =
+          purchaseValue > 0 ? (profit / purchaseValue) * 100 : 0;
 
-          return {
-            ...entry,
-            purchaseValue,
-            currentValue,
-            profit,
-            profitPercent,
-          };
-        });
+        return {
+          ...entry,
+          purchaseValue,
+          currentValue,
+          profit,
+          profitPercent,
+        };
+      });
 
-      const dateSummary: PortfolioSummary = dateEntriesWithCalculations.reduce(
-        (acc, entry) => ({
-          totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
-          totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
-          totalProfit: acc.totalProfit + entry.profit,
-          totalProfitPercent: 0,
-        }),
-        {
-          totalPurchaseValue: 0,
-          totalCurrentValue: 0,
-          totalProfit: 0,
-          totalProfitPercent: 0,
-        }
-      );
+    const dateSummary: PortfolioSummary = dateEntriesWithCalculations.reduce(
+      (acc, entry) => ({
+        totalPurchaseValue: acc.totalPurchaseValue + entry.purchaseValue,
+        totalCurrentValue: acc.totalCurrentValue + entry.currentValue,
+        totalProfit: acc.totalProfit + entry.profit,
+        totalProfitPercent: 0,
+      }),
+      {
+        totalPurchaseValue: 0,
+        totalCurrentValue: 0,
+        totalProfit: 0,
+        totalProfitPercent: 0,
+      },
+    );
 
-      dateSummary.totalProfitPercent =
-        dateSummary.totalPurchaseValue > 0
-          ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
-          : 0;
+    dateSummary.totalProfitPercent =
+      dateSummary.totalPurchaseValue > 0
+        ? (dateSummary.totalProfit / dateSummary.totalPurchaseValue) * 100
+        : 0;
 
-      return (
-        <div
-          key={date}
-          className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
-        >
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Portfolio Status - {new Date(date).toLocaleDateString()}
-          </h3>
+    return (
+      <div
+        key={date}
+        className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 mb-6"
+      >
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Portfolio Status - {new Date(date).toLocaleDateString()}
+        </h3>
 
-          {dateEntriesWithCalculations.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-700">
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        Instrument
-                      </th>
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        ISIN
-                      </th>
-                      <th className="text-left py-3 px-2 text-zinc-300">
-                        Issuer
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Quantity
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Locked
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Avg Price
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Ref Price
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Purchase Value
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Current Value
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Profit
-                      </th>
-                      <th className="text-right py-3 px-2 text-zinc-300">
-                        Profit %
-                      </th>
-                      <th className="text-center py-3 px-2 text-zinc-300">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dateEntriesWithCalculations.map((entry) => (
-                      <tr
-                        key={entry._id}
-                        className="border-b border-zinc-700/50"
+        {dateEntriesWithCalculations.length > 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-700">
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Instrument
+                    </th>
+                    <th className="text-left py-3 px-2 text-zinc-300">ISIN</th>
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      Issuer
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Quantity
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Locked
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Avg Price
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Ref Price
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Purchase Value
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Current Value
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Profit
+                    </th>
+                    <th className="text-right py-3 px-2 text-zinc-300">
+                      Profit %
+                    </th>
+                    <th className="text-center py-3 px-2 text-zinc-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dateEntriesWithCalculations.map((entry) => (
+                    <tr key={entry._id} className="border-b border-zinc-700/50">
+                      <td className="py-3 px-2 text-white font-medium">
+                        {entry.instrument}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">{entry.isin}</td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {entry.issuer}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.quantity.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.locked.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {formatPrice(entry.averagePrice)}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {formatPrice(entry.referencePrice)}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.purchaseValue.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {entry.currentValue.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td
+                        className={`py-3 px-2 text-right font-medium ${
+                          entry.profit >= 0 ? "text-green-400" : "text-red-400"
+                        }`}
                       >
-                        <td className="py-3 px-2 text-white font-medium">
-                          {entry.instrument}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-300">
-                          {entry.isin}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-300">
-                          {entry.issuer}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.quantity.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.locked.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {formatPrice(entry.averagePrice)}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {formatPrice(entry.referencePrice)}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.purchaseValue.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td className="py-3 px-2 text-white text-right">
-                          {entry.currentValue.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td
-                          className={`py-3 px-2 text-right font-medium ${
-                            entry.profit >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {entry.profit.toLocaleString("ro-RO", {
-                            style: "currency",
-                            currency: "RON",
-                          })}
-                        </td>
-                        <td
-                          className={`py-3 px-2 text-right font-medium ${
-                            entry.profitPercent >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {entry.profitPercent.toFixed(2)}%
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => { openEditPortfolio(entry); }}
-                              className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={deletePortfolioMutation.isPending}
-                              className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
-                              onClick={() => {
-                                void handleDeletePortfolio(entry._id!);
-                              }}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        {entry.profit.toLocaleString("ro-RO", {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td
+                        className={`py-3 px-2 text-right font-medium ${
+                          entry.profitPercent >= 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {entry.profitPercent.toFixed(2)}%
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                            onClick={() => {
+                              openEditPortfolio(entry);
+                            }}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={deletePortfolioMutation.isPending}
+                            className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                            onClick={() => {
+                              setPendingDelete({
+                                kind: "portfolio",
+                                id: entry._id!,
+                              });
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Summary */}
-              <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-zinc-400">Total Purchase Value</p>
-                    <p className="text-white font-medium">
-                      {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-zinc-400">Total Current Value</p>
-                    <p className="text-white font-medium">
-                      {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-zinc-400">Total Profit</p>
-                    <p
-                      className={`font-medium ${
-                        dateSummary.totalProfit >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {dateSummary.totalProfit.toLocaleString("ro-RO", {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-zinc-400">Total Profit %</p>
-                    <p
-                      className={`font-medium ${
-                        dateSummary.totalProfitPercent >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {dateSummary.totalProfitPercent.toFixed(2)}%
-                    </p>
-                  </div>
+            {/* Summary */}
+            <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-zinc-400">Total Purchase Value</p>
+                  <p className="text-white font-medium">
+                    {dateSummary.totalPurchaseValue.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Current Value</p>
+                  <p className="text-white font-medium">
+                    {dateSummary.totalCurrentValue.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Profit</p>
+                  <p
+                    className={`font-medium ${
+                      dateSummary.totalProfit >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {dateSummary.totalProfit.toLocaleString("ro-RO", {
+                      style: "currency",
+                      currency: "RON",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Total Profit %</p>
+                  <p
+                    className={`font-medium ${
+                      dateSummary.totalProfitPercent >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {dateSummary.totalProfitPercent.toFixed(2)}%
+                  </p>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="text-zinc-400 text-center py-8">
-              <p>No portfolio entries found for this date.</p>
-              <p className="text-sm">
-                Add your first portfolio entry using the &quot;Add Portfolio Status&quot;
-                button above.
-              </p>
             </div>
-          )}
-        </div>
-      );
+          </>
+        ) : (
+          <div className="text-zinc-400 text-center py-8">
+            <p>No portfolio entries found for this date.</p>
+            <p className="text-sm">
+              Add your first portfolio entry using the &quot;Add Portfolio
+              Status&quot; button above.
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (companiesLoading || portfolioLoading) {
@@ -540,12 +557,12 @@ export default function StocksTab() {
                   maxLength={100}
                   value={companyForm.instrument}
                   className="bg-zinc-700 border-zinc-600 text-white"
-                  onChange={(e) =>
-                    { setCompanyForm((prev) => ({
+                  onChange={(e) => {
+                    setCompanyForm((prev) => ({
                       ...prev,
                       instrument: e.target.value,
-                    })); }
-                  }
+                    }));
+                  }}
                 />
               </div>
               <div>
@@ -557,12 +574,12 @@ export default function StocksTab() {
                   id="isin"
                   value={companyForm.isin}
                   className="bg-zinc-700 border-zinc-600 text-white"
-                  onChange={(e) =>
-                    { setCompanyForm((prev) => ({
+                  onChange={(e) => {
+                    setCompanyForm((prev) => ({
                       ...prev,
                       isin: e.target.value,
-                    })); }
-                  }
+                    }));
+                  }}
                 />
               </div>
               <div>
@@ -574,12 +591,12 @@ export default function StocksTab() {
                   id="issuer"
                   value={companyForm.issuer}
                   className="bg-zinc-700 border-zinc-600 text-white"
-                  onChange={(e) =>
-                    { setCompanyForm((prev) => ({
+                  onChange={(e) => {
+                    setCompanyForm((prev) => ({
                       ...prev,
                       issuer: e.target.value,
-                    })); }
-                  }
+                    }));
+                  }}
                 />
               </div>
 
@@ -602,15 +619,17 @@ export default function StocksTab() {
                   updateCompanyMutation.isPending
                     ? "Saving..."
                     : editingCompany
-                    ? "Update"
-                    : "Add"}{" "}
+                      ? "Update"
+                      : "Add"}{" "}
                   Company
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => { setIsCompanyDialogOpen(false); }}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setIsCompanyDialogOpen(false);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -657,12 +676,12 @@ export default function StocksTab() {
                     type="date"
                     value={portfolioForm.date}
                     className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                    onChange={(e) =>
-                      { setPortfolioForm((prev) => ({
+                    onChange={(e) => {
+                      setPortfolioForm((prev) => ({
                         ...prev,
                         date: e.target.value,
-                      })); }
-                    }
+                      }));
+                    }}
                   />
                 </div>
                 <div className="min-w-0">
@@ -713,12 +732,12 @@ export default function StocksTab() {
                     max="1000000000"
                     value={portfolioForm.quantity}
                     className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) =>
-                      { setPortfolioForm((prev) => ({
+                    onChange={(e) => {
+                      setPortfolioForm((prev) => ({
                         ...prev,
                         quantity: e.target.value,
-                      })); }
-                    }
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -735,12 +754,12 @@ export default function StocksTab() {
                     max="1000000000"
                     value={portfolioForm.locked}
                     className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) =>
-                      { setPortfolioForm((prev) => ({
+                    onChange={(e) => {
+                      setPortfolioForm((prev) => ({
                         ...prev,
                         locked: e.target.value,
-                      })); }
-                    }
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -759,12 +778,12 @@ export default function StocksTab() {
                     id="averagePrice"
                     value={portfolioForm.averagePrice}
                     className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) =>
-                      { setPortfolioForm((prev) => ({
+                    onChange={(e) => {
+                      setPortfolioForm((prev) => ({
                         ...prev,
                         averagePrice: e.target.value,
-                      })); }
-                    }
+                      }));
+                    }}
                   />
                 </div>
                 <div>
@@ -780,12 +799,12 @@ export default function StocksTab() {
                     id="referencePrice"
                     value={portfolioForm.referencePrice}
                     className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) =>
-                      { setPortfolioForm((prev) => ({
+                    onChange={(e) => {
+                      setPortfolioForm((prev) => ({
                         ...prev,
                         referencePrice: e.target.value,
-                      })); }
-                    }
+                      }));
+                    }}
                   />
                 </div>
               </div>
@@ -809,15 +828,17 @@ export default function StocksTab() {
                   updatePortfolioMutation.isPending
                     ? "Saving..."
                     : editingPortfolio
-                    ? "Update"
-                    : "Add"}{" "}
+                      ? "Update"
+                      : "Add"}{" "}
                   Entry
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => { setIsPortfolioDialogOpen(false); }}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setIsPortfolioDialogOpen(false);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -888,7 +909,9 @@ export default function StocksTab() {
                 <Button
                   size="sm"
                   variant={showCompanies ? "outline" : "default"}
-                  onClick={() => { setShowCompanies(!showCompanies); }}
+                  onClick={() => {
+                    setShowCompanies(!showCompanies);
+                  }}
                   className={`cursor-pointer ${
                     showCompanies
                       ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
@@ -944,8 +967,10 @@ export default function StocksTab() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => { openEditCompany(company); }}
                             className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                            onClick={() => {
+                              openEditCompany(company);
+                            }}
                           >
                             <Edit className="w-3 h-3" />
                           </Button>
@@ -955,7 +980,10 @@ export default function StocksTab() {
                             disabled={deleteCompanyMutation.isPending}
                             className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                             onClick={() => {
-                              void handleDeleteCompany(company._id!);
+                              setPendingDelete({
+                                kind: "company",
+                                id: company._id!,
+                              });
                             }}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -972,7 +1000,8 @@ export default function StocksTab() {
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No companies found.</p>
               <p className="text-sm">
-                Add your first company using the &quot;Add Companies&quot; button above.
+                Add your first company using the &quot;Add Companies&quot;
+                button above.
               </p>
             </div>
           )}
@@ -984,6 +1013,24 @@ export default function StocksTab() {
         ("all" === selectedDate
           ? availableDates.map((date) => renderPortfolioTable(date))
           : renderPortfolioTable(selectedDate))}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={deleteConfirmCopy.title}
+        onConfirm={confirmPendingDelete}
+        isConfirming={isStockDeleteConfirming}
+        description={deleteConfirmCopy.description}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      />
+      <NoticeDialog
+        message={noticeMessage ?? ""}
+        open={noticeMessage !== null}
+        onOpenChange={(open) => {
+          if (!open) setNoticeMessage(null);
+        }}
+      />
     </div>
   );
 }

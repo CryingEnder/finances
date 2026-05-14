@@ -11,6 +11,10 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import {
+  NoticeDialog,
+  ConfirmDialog,
+} from "../../components/ui/confirm-dialog";
+import {
   Select,
   SelectItem,
   SelectValue,
@@ -64,6 +68,10 @@ export default function TransactionsTab() {
     market: "",
   });
   const [transactionError, setTransactionError] = useState<string>("");
+  const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(
+    null,
+  );
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const transactionsWithCalculations: TransactionWithCalculations[] = useMemo(
     () =>
@@ -138,16 +146,18 @@ export default function TransactionsTab() {
     }
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this transaction?")) return;
-
+  const confirmDeleteTransaction = async () => {
+    if (!deleteTransactionId) return;
+    const id = deleteTransactionId;
     try {
       await deleteTransactionMutation.mutateAsync(id);
+      setDeleteTransactionId(null);
     } catch (error) {
       console.error("Error deleting transaction:", error);
-      alert(
+      setNoticeMessage(
         error instanceof Error ? error.message : "Failed to delete transaction",
       );
+      setDeleteTransactionId(null);
     }
   };
 
@@ -218,7 +228,7 @@ export default function TransactionsTab() {
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
             <p className="text-zinc-400">Loading transactions...</p>
           </div>
         </div>
@@ -261,7 +271,7 @@ export default function TransactionsTab() {
           <DialogTrigger asChild>
             <Button
               onClick={resetTransactionForm}
-              className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Transaction
@@ -690,7 +700,7 @@ export default function TransactionsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
                   disabled={
                     createTransactionMutation.isPending ||
                     updateTransactionMutation.isPending
@@ -928,7 +938,7 @@ export default function TransactionsTab() {
                           disabled={deleteTransactionMutation.isPending}
                           className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                           onClick={() => {
-                            void handleDeleteTransaction(transaction._id!);
+                            setDeleteTransactionId(transaction._id!);
                           }}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -959,6 +969,24 @@ export default function TransactionsTab() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        title="Delete transaction?"
+        open={deleteTransactionId !== null}
+        onConfirm={confirmDeleteTransaction}
+        isConfirming={deleteTransactionMutation.isPending}
+        description="Are you sure you want to delete this transaction?"
+        onOpenChange={(open) => {
+          if (!open) setDeleteTransactionId(null);
+        }}
+      />
+      <NoticeDialog
+        message={noticeMessage ?? ""}
+        open={noticeMessage !== null}
+        onOpenChange={(open) => {
+          if (!open) setNoticeMessage(null);
+        }}
+      />
     </div>
   );
 }

@@ -21,6 +21,10 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
 import {
+  NoticeDialog,
+  ConfirmDialog,
+} from "../../components/ui/confirm-dialog";
+import {
   Dialog,
   DialogTitle,
   DialogHeader,
@@ -66,6 +70,8 @@ export default function DepositsTab() {
     autoRenew: false,
   });
   const [depositError, setDepositError] = useState<string>("");
+  const [deleteDepositId, setDeleteDepositId] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,18 +110,18 @@ export default function DepositsTab() {
     }
   };
 
-  const handleDeleteDeposit = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this deposit?")) {
-      return;
-    }
-
+  const confirmDeleteDeposit = async () => {
+    if (!deleteDepositId) return;
+    const id = deleteDepositId;
     try {
       await deleteDepositMutation.mutateAsync(id);
+      setDeleteDepositId(null);
     } catch (error) {
       console.error("Error deleting deposit:", error);
-      alert(
+      setNoticeMessage(
         error instanceof Error ? error.message : "Failed to delete deposit",
       );
+      setDeleteDepositId(null);
     }
   };
 
@@ -678,10 +684,12 @@ export default function DepositsTab() {
                 </Button>
                 <Button
                   size="sm"
-                  variant={"short" === selectedTermFilter ? "default" : "outline"}
                   onClick={() => {
                     setSelectedTermFilter("short");
                   }}
+                  variant={
+                    "short" === selectedTermFilter ? "default" : "outline"
+                  }
                   className={`cursor-pointer ${
                     "short" === selectedTermFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
@@ -692,10 +700,12 @@ export default function DepositsTab() {
                 </Button>
                 <Button
                   size="sm"
-                  variant={"medium" === selectedTermFilter ? "default" : "outline"}
                   onClick={() => {
                     setSelectedTermFilter("medium");
                   }}
+                  variant={
+                    "medium" === selectedTermFilter ? "default" : "outline"
+                  }
                   className={`cursor-pointer ${
                     "medium" === selectedTermFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
@@ -706,10 +716,12 @@ export default function DepositsTab() {
                 </Button>
                 <Button
                   size="sm"
-                  variant={"long" === selectedTermFilter ? "default" : "outline"}
                   onClick={() => {
                     setSelectedTermFilter("long");
                   }}
+                  variant={
+                    "long" === selectedTermFilter ? "default" : "outline"
+                  }
                   className={`cursor-pointer ${
                     "long" === selectedTermFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
@@ -720,10 +732,12 @@ export default function DepositsTab() {
                 </Button>
                 <Button
                   size="sm"
-                  variant={"xlong" === selectedTermFilter ? "default" : "outline"}
                   onClick={() => {
                     setSelectedTermFilter("xlong");
                   }}
+                  variant={
+                    "xlong" === selectedTermFilter ? "default" : "outline"
+                  }
                   className={`cursor-pointer ${
                     "xlong" === selectedTermFilter
                       ? "bg-green-600 hover:bg-green-700 text-white"
@@ -924,9 +938,7 @@ export default function DepositsTab() {
                               disabled={deleteDepositMutation.isPending}
                               className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
                               onClick={() => {
-                                handleDeleteDeposit(deposit._id!).catch(() => {
-                                  /* handled in handleDeleteDeposit */
-                                });
+                                setDeleteDepositId(deposit._id!);
                               }}
                             >
                               <Trash2 className="w-3 h-3" />
@@ -946,6 +958,24 @@ export default function DepositsTab() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        title="Delete deposit?"
+        open={deleteDepositId !== null}
+        onConfirm={confirmDeleteDeposit}
+        isConfirming={deleteDepositMutation.isPending}
+        description="Are you sure you want to delete this deposit?"
+        onOpenChange={(open) => {
+          if (!open) setDeleteDepositId(null);
+        }}
+      />
+      <NoticeDialog
+        message={noticeMessage ?? ""}
+        open={noticeMessage !== null}
+        onOpenChange={(open) => {
+          if (!open) setNoticeMessage(null);
+        }}
+      />
     </div>
   );
 }

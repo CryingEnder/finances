@@ -44,6 +44,16 @@ export interface PortfolioSummary {
   totalProfitPercent: number;
 }
 
+export interface Dividend {
+  _id?: string;
+  instrument: string;
+  isin: string;
+  issuer: string;
+  year: number;
+  amount: number;
+  notes?: string;
+}
+
 export interface Deposit {
   _id?: string;
   bank: string; // e.g. "BCR", "BRD", "ING"

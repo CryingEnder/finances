@@ -20,7 +20,11 @@ import {
 const StocksTab = lazy(() => import("./StocksTab"));
 const DepositsTab = lazy(() => import("./DepositsTab"));
 const TransactionsTab = lazy(() => import("./TransactionsTab"));
+const DividendsTab = lazy(() => import("./DividendsTab"));
 const SummaryTab = lazy(() => import("./SummaryTab"));
+
+const dashboardTabTriggerClass =
+  "data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex h-auto min-h-11 w-full min-w-0 items-center justify-center whitespace-normal px-2 py-2 text-center text-sm transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white sm:px-3";
 
 interface DashboardContentProps {
   userName: string;
@@ -65,30 +69,30 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             <p className="text-zinc-400">Manage your financial portfolio</p>
           </div>
 
-          <Tabs className="w-full" defaultValue="stocks">
-            <TabsList className="grid w-full grid-cols-4 bg-zinc-800/50 border border-zinc-700 h-12 space-x-1">
-              <TabsTrigger
-                value="stocks"
-                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
-              >
+          <Tabs defaultValue="stocks" className="flex w-full flex-col gap-0">
+            <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 gap-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-1 min-h-12 lg:grid-cols-5">
+              <TabsTrigger value="stocks" className={dashboardTabTriggerClass}>
                 Portfolio
               </TabsTrigger>
               <TabsTrigger
                 value="transactions"
-                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+                className={dashboardTabTriggerClass}
               >
                 Transactions
               </TabsTrigger>
               <TabsTrigger
                 value="deposits"
-                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+                className={dashboardTabTriggerClass}
               >
                 Term Deposits
               </TabsTrigger>
               <TabsTrigger
-                value="summary"
-                className="data-[state=active]:bg-zinc-700 data-[state=active]:text-white text-zinc-400 cursor-pointer flex items-center justify-center transition-colors duration-200 hover:bg-zinc-700/50 hover:text-white"
+                value="dividends"
+                className={dashboardTabTriggerClass}
               >
+                Dividends
+              </TabsTrigger>
+              <TabsTrigger value="summary" className={dashboardTabTriggerClass}>
                 Summary
               </TabsTrigger>
             </TabsList>
@@ -135,6 +139,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 }
               >
                 <DepositsTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent className="mt-6" value="dividends">
+              <Suspense
+                fallback={
+                  <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4" />
+                      <p className="text-zinc-400">Loading dividends...</p>
+                    </div>
+                  </div>
+                }
+              >
+                <DividendsTab />
               </Suspense>
             </TabsContent>
 
