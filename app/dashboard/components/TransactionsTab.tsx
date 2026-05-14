@@ -147,7 +147,9 @@ export default function TransactionsTab() {
   };
 
   const confirmDeleteTransaction = async () => {
-    if (!deleteTransactionId) return;
+    if (!deleteTransactionId) {
+      return;
+    }
     const id = deleteTransactionId;
     try {
       await deleteTransactionMutation.mutateAsync(id);
@@ -262,7 +264,6 @@ export default function TransactionsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Action Button */}
       <div className="flex gap-4">
         <Dialog
           open={isTransactionDialogOpen}
@@ -730,7 +731,6 @@ export default function TransactionsTab() {
         </Dialog>
       </div>
 
-      {/* Summary */}
       {transactionsWithCalculations.length > 0 && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Summary</h3>
@@ -801,7 +801,6 @@ export default function TransactionsTab() {
         </div>
       )}
 
-      {/* Transactions Table */}
       {transactionsWithCalculations.length > 0 ? (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">

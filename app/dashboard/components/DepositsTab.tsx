@@ -111,7 +111,9 @@ export default function DepositsTab() {
   };
 
   const confirmDeleteDeposit = async () => {
-    if (!deleteDepositId) return;
+    if (!deleteDepositId) {
+      return;
+    }
     const id = deleteDepositId;
     try {
       await deleteDepositMutation.mutateAsync(id);
@@ -263,7 +265,6 @@ export default function DepositsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons */}
       <div className="flex gap-4 justify-between items-center">
         <Dialog
           open={isDepositDialogOpen}
@@ -599,7 +600,6 @@ export default function DepositsTab() {
         )}
       </div>
 
-      {/* No Data Message */}
       {0 === deposits.length && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
@@ -617,10 +617,8 @@ export default function DepositsTab() {
         </div>
       )}
 
-      {/* Filter and Summary */}
       {deposits.length > 0 && (
         <>
-          {/* Filters */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
             <div className="flex flex-col gap-3">
               <div className="flex gap-2">
@@ -750,7 +748,6 @@ export default function DepositsTab() {
             </div>
           </div>
 
-          {/* Chart */}
           {showChart && (
             <DepositsChart
               summary={summary}
@@ -758,7 +755,6 @@ export default function DepositsTab() {
             />
           )}
 
-          {/* Summary */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
@@ -807,7 +803,6 @@ export default function DepositsTab() {
             </div>
           </div>
 
-          {/* Term Deposits Table */}
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
               Term Deposits

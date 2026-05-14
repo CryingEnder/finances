@@ -164,7 +164,9 @@ export default function StocksTab() {
   };
 
   const confirmPendingDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete) {
+      return;
+    }
     const kind = pendingDelete.kind;
     try {
       if ("company" === kind) {
@@ -441,7 +443,6 @@ export default function StocksTab() {
               </table>
             </div>
 
-            {/* Summary */}
             <div className="mt-6 p-4 bg-zinc-700/30 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -520,7 +521,6 @@ export default function StocksTab() {
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons */}
       <div className="flex gap-4">
         <Dialog
           open={isCompanyDialogOpen}
@@ -848,7 +848,6 @@ export default function StocksTab() {
         </Dialog>
       </div>
 
-      {/* No Data Message */}
       {0 === companies.length &&
         0 === portfolioEntries.length &&
         !showCompanies && (
@@ -871,7 +870,6 @@ export default function StocksTab() {
           </div>
         )}
 
-      {/* Date Selector and Companies Toggle */}
       {(companies.length > 0 || portfolioEntries.length > 0) && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
           <div className="flex items-center justify-between">
@@ -926,7 +924,6 @@ export default function StocksTab() {
         </div>
       )}
 
-      {/* Companies Management */}
       {showCompanies && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Companies</h3>
@@ -1008,7 +1005,6 @@ export default function StocksTab() {
         </div>
       )}
 
-      {/* Portfolio Tables */}
       {selectedDate &&
         ("all" === selectedDate
           ? availableDates.map((date) => renderPortfolioTable(date))

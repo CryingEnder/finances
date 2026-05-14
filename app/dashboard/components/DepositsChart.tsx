@@ -158,7 +158,6 @@ export default function DepositsChart({
         </ResponsiveContainer>
       </div>
 
-      {/* Custom Legend */}
       <div className="flex justify-center gap-6">
         <div className="flex items-center gap-2">
           <div
@@ -183,7 +182,6 @@ export default function DepositsChart({
         </div>
       </div>
 
-      {/* Summary Stats */}
       <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <div className="text-center">
           <p className="text-zinc-400">Total Term Deposits</p>

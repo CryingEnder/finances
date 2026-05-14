@@ -93,9 +93,13 @@ export default function DividendsTab() {
   }, [dividends]);
 
   const resolvedFilterYear = useMemo(() => {
-    if ("all" === selectedYear) return "all";
+    if ("all" === selectedYear) {
+      return "all";
+    }
     const y = parseInt(selectedYear, 10);
-    if (Number.isNaN(y) || !filterYearOptions.includes(y)) return "all";
+    if (Number.isNaN(y) || !filterYearOptions.includes(y)) {
+      return "all";
+    }
     return selectedYear;
   }, [filterYearOptions, selectedYear]);
 
@@ -196,7 +200,9 @@ export default function DividendsTab() {
   };
 
   const confirmDeleteDividend = async () => {
-    if (!deleteTargetId) return;
+    if (!deleteTargetId) {
+      return;
+    }
     const id = deleteTargetId;
     try {
       await deleteMutation.mutateAsync(id);
