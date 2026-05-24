@@ -33,7 +33,7 @@ function DepositsBarTooltipInner({
 }) {
   const t = useTranslations("DepositsChart");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   if (!active || !payload?.length) {
     return null;
@@ -58,7 +58,7 @@ function DepositsBarTooltipInner({
             style={{ color: entry.color }}
           >
             {readableLabel}:{" "}
-            {entry.value.toLocaleString(nf, {
+            {entry.value.toLocaleString(numberFormat, {
               style: "currency",
               currency: "RON",
             })}
@@ -80,7 +80,7 @@ export default function DepositsChart({
 }: DepositsChartProps) {
   const t = useTranslations("DepositsChart");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const barChartData = deposits.map((deposit) => ({
     name: `${deposit.bank} - ${deposit.depositName}`.substring(0, 20),
@@ -134,7 +134,7 @@ export default function DepositsChart({
               fontSize={12}
               stroke="#9ca3af"
               tickFormatter={(value) =>
-                Number(value).toLocaleString(nf, {
+                Number(value).toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                   minimumFractionDigits: 0,
@@ -211,7 +211,7 @@ export default function DepositsChart({
         <div className="text-center">
           <p className="text-zinc-400">{t("summaryTotalPrincipal")}</p>
           <p className="text-white font-medium">
-            {summary.totalPrincipal.toLocaleString(nf, {
+            {summary.totalPrincipal.toLocaleString(numberFormat, {
               style: "currency",
               currency: "RON",
             })}
@@ -220,7 +220,7 @@ export default function DepositsChart({
         <div className="text-center">
           <p className="text-zinc-400">{t("totalEarned")}</p>
           <p className="text-green-400 font-medium">
-            {summary.totalEarnedInterest.toLocaleString(nf, {
+            {summary.totalEarnedInterest.toLocaleString(numberFormat, {
               style: "currency",
               currency: "RON",
             })}

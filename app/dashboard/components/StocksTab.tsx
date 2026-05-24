@@ -15,6 +15,7 @@ import { formatPrice } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { formatDisplayDate } from "../../lib/dates";
 import { numberFormatLocale } from "../../lib/number-locale";
 import {
   NoticeDialog,
@@ -55,7 +56,7 @@ export default function StocksTab() {
   const t = useTranslations("Stocks");
   const tc = useTranslations("Common");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
@@ -319,7 +320,7 @@ export default function StocksTab() {
       >
         <h3 className="text-lg font-semibold text-white mb-4">
           {t("portfolioStatus", {
-            date: new Date(date).toLocaleDateString(nf),
+            date: formatDisplayDate(date),
           })}
         </h3>
 
@@ -390,13 +391,13 @@ export default function StocksTab() {
                         {formatPrice(entry.referencePrice)}
                       </td>
                       <td className="py-3 px-2 text-white text-right">
-                        {entry.purchaseValue.toLocaleString(nf, {
+                        {entry.purchaseValue.toLocaleString(numberFormat, {
                           style: "currency",
                           currency: "RON",
                         })}
                       </td>
                       <td className="py-3 px-2 text-white text-right">
-                        {entry.currentValue.toLocaleString(nf, {
+                        {entry.currentValue.toLocaleString(numberFormat, {
                           style: "currency",
                           currency: "RON",
                         })}
@@ -406,7 +407,7 @@ export default function StocksTab() {
                           entry.profit >= 0 ? "text-green-400" : "text-red-400"
                         }`}
                       >
-                        {entry.profit.toLocaleString(nf, {
+                        {entry.profit.toLocaleString(numberFormat, {
                           style: "currency",
                           currency: "RON",
                         })}
@@ -459,7 +460,7 @@ export default function StocksTab() {
                 <div>
                   <p className="text-zinc-400">{t("totalPurchaseValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalPurchaseValue.toLocaleString(nf, {
+                    {dateSummary.totalPurchaseValue.toLocaleString(numberFormat, {
                       style: "currency",
                       currency: "RON",
                     })}
@@ -468,7 +469,7 @@ export default function StocksTab() {
                 <div>
                   <p className="text-zinc-400">{t("totalCurrentValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalCurrentValue.toLocaleString(nf, {
+                    {dateSummary.totalCurrentValue.toLocaleString(numberFormat, {
                       style: "currency",
                       currency: "RON",
                     })}
@@ -483,7 +484,7 @@ export default function StocksTab() {
                         : "text-red-400"
                     }`}
                   >
-                    {dateSummary.totalProfit.toLocaleString(nf, {
+                    {dateSummary.totalProfit.toLocaleString(numberFormat, {
                       style: "currency",
                       currency: "RON",
                     })}
@@ -891,7 +892,7 @@ export default function StocksTab() {
                     </SelectItem>
                     {availableDates.map((date) => (
                       <SelectItem key={date} value={date}>
-                        {new Date(date).toLocaleDateString(nf)}
+                        {formatDisplayDate(date)}
                       </SelectItem>
                     ))}
                   </SelectContent>

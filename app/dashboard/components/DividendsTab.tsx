@@ -16,6 +16,11 @@ import {
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
 import {
+  getIsoYear,
+  todayIsoDate,
+  formatDisplayDate,
+} from "../../lib/dates";
+import {
   Select,
   SelectItem,
   SelectValue,
@@ -36,36 +41,11 @@ import {
   useUpdateDividend,
 } from "../../lib/hooks/use-dividends";
 
-const MIN_YEAR = 1990;
-const MAX_YEAR = 2100;
-
-function yearRangeInclusive(end: number): number[] {
-  const out: number[] = [];
-  for (let y = MIN_YEAR; y <= end; y += 1) {
-    out.push(y);
-  }
-  return out;
-}
-
-/** Prefer current calendar year when it appears in `available`; otherwise latest year in the list. */
-function defaultYearFromAvailable(
-  available: number[],
-  calendarYear: number,
-): string {
-  if (0 === available.length) {
-    return "";
-  }
-  if (available.includes(calendarYear)) {
-    return String(calendarYear);
-  }
-  return String(available[available.length - 1]);
-}
-
 export default function DividendsTab() {
   const t = useTranslations("Dividends");
   const tc = useTranslations("Common");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const { data: dividends = [], isLoading } = useDividends();
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
@@ -77,23 +57,15 @@ export default function DividendsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Dividend | null>(null);
   const [formIsin, setFormIsin] = useState<string>("");
-  const [formYear, setFormYear] = useState<string>("");
+  const [formDate, setFormDate] = useState<string>("");
   const [formAmount, setFormAmount] = useState<string>("");
   const [formNotes, setFormNotes] = useState<string>("");
   const [formError, setFormError] = useState<string>("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const currentCalendarYear = new Date().getFullYear();
-  const maxPickerYear = Math.min(MAX_YEAR, currentCalendarYear + 1);
-
-  const pickerYears = useMemo(
-    () => yearRangeInclusive(maxPickerYear),
-    [maxPickerYear],
-  );
-
   const filterYearOptions = useMemo(() => {
-    const years = [...new Set(dividends.map((d) => d.year))].sort(
+    const years = [...new Set(dividends.map((d) => getIsoYear(d.date)))].sort(
       (a, b) => b - a,
     );
     return years;
@@ -115,7 +87,7 @@ export default function DividendsTab() {
       return dividends;
     }
     const y = parseInt(resolvedFilterYear, 10);
-    return dividends.filter((d) => d.year === y);
+    return dividends.filter((d) => getIsoYear(d.date) === y);
   }, [dividends, resolvedFilterYear]);
 
   const filteredTotal = useMemo(
@@ -127,8 +99,7 @@ export default function DividendsTab() {
     setEditing(null);
     setFormError("");
     setFormIsin("");
-    const allYears = yearRangeInclusive(maxPickerYear);
-    setFormYear(defaultYearFromAvailable(allYears, currentCalendarYear));
+    setFormDate(todayIsoDate());
     setFormAmount("");
     setFormNotes("");
   };
@@ -136,33 +107,22 @@ export default function DividendsTab() {
   const openEdit = (row: Dividend) => {
     setEditing(row);
     setFormIsin(row.isin);
-    setFormYear(String(row.year));
+    setFormDate(row.date);
     setFormAmount(String(row.amount));
     setFormNotes(row.notes ?? "");
     setFormError("");
     setDialogOpen(true);
   };
 
-  const handleCompanySelect = (isin: string) => {
-    setFormIsin(isin);
-    setFormError("");
-    const currentY = parseInt(formYear, 10);
-    if (!Number.isNaN(currentY) && pickerYears.includes(currentY)) {
-      return;
-    }
-    setFormYear(defaultYearFromAvailable(pickerYears, currentCalendarYear));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
-    const year = parseInt(formYear, 10);
     const amount = parseFloat(formAmount);
 
     try {
-      if (Number.isNaN(year) || Number.isNaN(amount)) {
-        setFormError(t("errYearAmount"));
+      if (!formDate || Number.isNaN(amount)) {
+        setFormError(t("errDateAmount"));
         return;
       }
 
@@ -172,29 +132,27 @@ export default function DividendsTab() {
         return;
       }
 
-      if (!pickerYears.includes(year)) {
-        setFormError(t("errYearRange"));
-        return;
-      }
-
       const payload: Omit<Dividend, "_id"> = {
         instrument: company.instrument,
         isin: company.isin,
         issuer: company.issuer,
-        year,
+        date: formDate,
         amount,
-        ...(formNotes.trim().length > 0 ? { notes: formNotes.trim() } : {}),
       };
 
+      if (formNotes.trim().length > 0) {
+        payload.notes = formNotes.trim();
+      }
+
       if (editing) {
-        await updateMutation.mutateAsync({ ...editing, ...payload });
+        await updateMutation.mutateAsync({ ...payload, _id: editing._id });
       } else {
         await createMutation.mutateAsync(payload);
       }
 
       setEditing(null);
       setFormIsin("");
-      setFormYear("");
+      setFormDate("");
       setFormAmount("");
       setFormNotes("");
       setFormError("");
@@ -274,7 +232,13 @@ export default function DividendsTab() {
                 <Label htmlFor="div-company" className="mb-2 block">
                   {tc("company")}
                 </Label>
-                <Select value={formIsin} onValueChange={handleCompanySelect}>
+                <Select
+                  value={formIsin}
+                  onValueChange={(isin) => {
+                    setFormIsin(isin);
+                    setFormError("");
+                  }}
+                >
                   <SelectTrigger
                     id="div-company"
                     className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full"
@@ -302,28 +266,19 @@ export default function DividendsTab() {
               </div>
 
               <div>
-                <Label htmlFor="div-year" className="mb-2 block">
-                  {t("year")}
+                <Label htmlFor="div-date" className="mb-2 block">
+                  {tc("date")}
                 </Label>
-                <Select value={formYear} onValueChange={setFormYear}>
-                  <SelectTrigger
-                    id="div-year"
-                    className="bg-zinc-700 border-zinc-600 text-white cursor-pointer"
-                  >
-                    <SelectValue placeholder={tc("selectYear")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-700 border-zinc-600 max-h-64">
-                    {pickerYears.map((y) => (
-                      <SelectItem
-                        key={y}
-                        value={String(y)}
-                        className="cursor-pointer"
-                      >
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  required
+                  type="date"
+                  id="div-date"
+                  value={formDate}
+                  onChange={(e) => {
+                    setFormDate(e.target.value);
+                  }}
+                  className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                />
               </div>
 
               <div>
@@ -369,7 +324,8 @@ export default function DividendsTab() {
                   disabled={
                     createMutation.isPending ||
                     updateMutation.isPending ||
-                    !formIsin
+                    !formIsin ||
+                    !formDate
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending
@@ -459,7 +415,7 @@ export default function DividendsTab() {
                   : t("totalForYear", { year: resolvedFilterYear })}
               </p>
               <p className="text-green-400 font-medium text-lg">
-                {filteredTotal.toLocaleString(nf, {
+                {filteredTotal.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -486,7 +442,7 @@ export default function DividendsTab() {
                         {tc("issuer")}
                       </th>
                       <th className="text-left py-3 px-2 text-zinc-300">
-                        {t("colYear")}
+                        {tc("date")}
                       </th>
                       <th className="text-right py-3 px-2 text-zinc-300">
                         {t("colAmount")}
@@ -510,10 +466,10 @@ export default function DividendsTab() {
                           {row.issuer}
                         </td>
                         <td className="py-3 px-2 text-white font-medium">
-                          {row.year}
+                          {formatDisplayDate(row.date)}
                         </td>
                         <td className="py-3 px-2 text-green-400 text-right font-medium">
-                          {row.amount.toLocaleString(nf, {
+                          {row.amount.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })}

@@ -24,10 +24,10 @@ export async function PUT(
     }
 
     const payload = body as Record<string, unknown>;
-    const { year, amount, instrument, isin, issuer, notes: notesRaw } = payload;
+    const { date, amount, instrument, isin, issuer, notes: notesRaw } = payload;
 
     if (
-      year === undefined ||
+      date === undefined ||
       amount === undefined ||
       !instrument ||
       !isin ||
@@ -50,7 +50,7 @@ export async function PUT(
       instrument,
       isin,
       issuer,
-      year: Number(year),
+      date: "string" === typeof date ? date : "",
       amount: Number(amount),
       notes,
     });
@@ -82,7 +82,7 @@ export async function PUT(
       instrument: validated.instrument,
       isin: validated.isin,
       issuer: validated.issuer,
-      year: validated.year,
+      date: validated.date,
       amount: validated.amount,
     };
     if (undefined !== validated.notes && validated.notes.length > 0) {
@@ -119,7 +119,7 @@ export async function PUT(
       instrument: updated.instrument,
       isin: updated.isin,
       issuer: updated.issuer,
-      year: updated.year,
+      date: updated.date,
       amount: updated.amount,
       ...(updated.notes &&
       "string" === typeof updated.notes &&

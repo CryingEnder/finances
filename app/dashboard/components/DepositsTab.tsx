@@ -23,6 +23,10 @@ import { Button } from "../../components/ui/button";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
 import {
+  daysSinceIsoDate,
+  daysUntilIsoDate,
+} from "../../lib/dates";
+import {
   NoticeDialog,
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
@@ -46,7 +50,7 @@ export default function DepositsTab() {
   const t = useTranslations("Deposits");
   const tc = useTranslations("Common");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const {
     data: deposits = [],
@@ -202,22 +206,14 @@ export default function DepositsTab() {
 
   const depositsWithCalculations: DepositWithCalculations[] =
     filteredDeposits.map((deposit) => {
-      const startDate = new Date(deposit.startDate);
-      const currentDate = new Date();
-      const daysActive = Math.floor(
-        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
+      const daysActive = daysSinceIsoDate(deposit.startDate);
       const totalReturn = deposit.currentBalance - deposit.principal;
       const totalReturnPercent =
         deposit.principal > 0 ? (totalReturn / deposit.principal) * 100 : 0;
 
       let daysToMaturity: number | undefined;
       if (deposit.maturityDate) {
-        const maturityDate = new Date(deposit.maturityDate);
-        daysToMaturity = Math.floor(
-          (maturityDate.getTime() - currentDate.getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
+        daysToMaturity = daysUntilIsoDate(deposit.maturityDate);
       }
 
       return {
@@ -766,7 +762,7 @@ export default function DepositsTab() {
               <div>
                 <p className="text-zinc-400">{t("totalPrincipal")}</p>
                 <p className="text-white font-medium">
-                  {summary.totalPrincipal.toLocaleString(nf, {
+                  {summary.totalPrincipal.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -775,7 +771,7 @@ export default function DepositsTab() {
               <div>
                 <p className="text-zinc-400">{t("totalCurrentBalance")}</p>
                 <p className="text-white font-medium">
-                  {summary.totalCurrentBalance.toLocaleString(nf, {
+                  {summary.totalCurrentBalance.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -784,7 +780,7 @@ export default function DepositsTab() {
               <div>
                 <p className="text-zinc-400">{t("totalEarnedInterest")}</p>
                 <p className="text-green-400 font-medium">
-                  {summary.totalEarnedInterest.toLocaleString(nf, {
+                  {summary.totalEarnedInterest.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -865,7 +861,7 @@ export default function DepositsTab() {
                           {deposit.termMonths}m
                         </td>
                         <td className="py-3 px-2 text-white text-right">
-                          {deposit.principal.toLocaleString(nf, {
+                          {deposit.principal.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })}
@@ -874,13 +870,13 @@ export default function DepositsTab() {
                           {deposit.interestRate.toFixed(2)}%
                         </td>
                         <td className="py-3 px-2 text-white text-right">
-                          {deposit.currentBalance.toLocaleString(nf, {
+                          {deposit.currentBalance.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })}
                         </td>
                         <td className="py-3 px-2 text-green-400 text-right">
-                          {deposit.earnedInterest.toLocaleString(nf, {
+                          {deposit.earnedInterest.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })}
@@ -892,7 +888,7 @@ export default function DepositsTab() {
                               : "text-red-400"
                           }`}
                         >
-                          {deposit.totalReturn.toLocaleString(nf, {
+                          {deposit.totalReturn.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })}

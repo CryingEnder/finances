@@ -10,6 +10,7 @@ import { formatPrice } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { formatDisplayDate } from "../../lib/dates";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
 import {
@@ -41,7 +42,7 @@ export default function TransactionsTab() {
   const t = useTranslations("Transactions");
   const tc = useTranslations("Common");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const { data: companies = [], isLoading: companiesLoading } = useCompanies();
   const { data: transactions = [], isLoading: transactionsLoading } =
@@ -743,7 +744,7 @@ export default function TransactionsTab() {
             <div>
               <p className="text-zinc-400">{t("totalBuyAmount")}</p>
               <p className="text-white font-medium">
-                {totalBuyAmount.toLocaleString(nf, {
+                {totalBuyAmount.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -752,7 +753,7 @@ export default function TransactionsTab() {
             <div>
               <p className="text-zinc-400">{t("totalSellAmount")}</p>
               <p className="text-white font-medium">
-                {totalSellAmount.toLocaleString(nf, {
+                {totalSellAmount.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -765,7 +766,7 @@ export default function TransactionsTab() {
                   totalRealizedProfit >= 0 ? "text-green-400" : "text-red-400"
                 }`}
               >
-                {totalRealizedProfit.toLocaleString(nf, {
+                {totalRealizedProfit.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -774,7 +775,7 @@ export default function TransactionsTab() {
             <div>
               <p className="text-zinc-400">{t("totalFeesExclTax")}</p>
               <p className="text-white font-medium">
-                {totalFeesWithoutTax.toLocaleString(nf, {
+                {totalFeesWithoutTax.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -783,7 +784,7 @@ export default function TransactionsTab() {
             <div>
               <p className="text-zinc-400">{t("totalTaxWithheld")}</p>
               <p className="text-white font-medium">
-                {totalTax.toLocaleString(nf, {
+                {totalTax.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -794,7 +795,7 @@ export default function TransactionsTab() {
             <div className="flex items-center justify-between">
               <p className="text-zinc-400 font-medium">{t("totalCosts")}</p>
               <p className="text-white font-semibold text-lg">
-                {totalFees.toLocaleString(nf, {
+                {totalFees.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -861,9 +862,7 @@ export default function TransactionsTab() {
                     className="border-b border-zinc-700/50"
                   >
                     <td className="py-3 px-2 text-white">
-                      {new Date(
-                        transaction.settlementDate,
-                      ).toLocaleDateString(nf)}
+                      {formatDisplayDate(transaction.settlementDate)}
                     </td>
                     <td className="py-3 px-2">
                       <span
@@ -897,25 +896,25 @@ export default function TransactionsTab() {
                       {formatPrice(transaction.unitPrice)}
                     </td>
                     <td className="py-3 px-2 text-white text-right">
-                      {transaction.grossAmount.toLocaleString(nf, {
+                      {transaction.grossAmount.toLocaleString(numberFormat, {
                         style: "currency",
                         currency: "RON",
                       })}
                     </td>
                     <td className="py-3 px-2 text-white text-right">
-                      {transaction.netAmount.toLocaleString(nf, {
+                      {transaction.netAmount.toLocaleString(numberFormat, {
                         style: "currency",
                         currency: "RON",
                       })}
                     </td>
                     <td className="py-3 px-2 text-zinc-300 text-right">
-                      {transaction.feesWithoutTax.toLocaleString(nf, {
+                      {transaction.feesWithoutTax.toLocaleString(numberFormat, {
                         style: "currency",
                         currency: "RON",
                       })}
                     </td>
                     <td className="py-3 px-2 text-zinc-300 text-right">
-                      {(transaction.taxWithheld || 0).toLocaleString(nf, {
+                      {(transaction.taxWithheld || 0).toLocaleString(numberFormat, {
                         style: "currency",
                         currency: "RON",
                       })}
@@ -932,7 +931,7 @@ export default function TransactionsTab() {
                     >
                       {transaction.realizedProfit !== undefined &&
                       "number" === typeof transaction.realizedProfit
-                        ? transaction.realizedProfit.toLocaleString(nf, {
+                        ? transaction.realizedProfit.toLocaleString(numberFormat, {
                             style: "currency",
                             currency: "RON",
                           })

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isIsoDateAfter } from "./dates";
+
 export const companySchema = z.object({
   instrument: z
     .string()
@@ -77,11 +79,10 @@ export function formatZodErrors(error: z.ZodError) {
 export const dividendSchema = companySchema
   .pick({ instrument: true, isin: true, issuer: true })
   .extend({
-    year: z
-      .number()
-      .int("Year must be a whole number")
-      .min(1990, "Year must be 1990 or later")
-      .max(2100, "Year must be 2100 or earlier"),
+    date: z
+      .string()
+      .min(1, "Date is required")
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
     amount: z
       .number()
       .min(0, "Amount must be 0 or greater")
@@ -145,7 +146,7 @@ export const depositSchema = z
   .refine(
     (data) => {
       if (data.maturityDate && data.maturityDate !== "") {
-        return new Date(data.maturityDate) > new Date(data.startDate);
+        return isIsoDateAfter(data.maturityDate, data.startDate);
       }
       return true;
     },

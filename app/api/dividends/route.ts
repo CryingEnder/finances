@@ -11,12 +11,21 @@ export async function GET() {
 
     const dividends = await dividendsCollection
       .find({})
-      .sort({ year: -1, isin: 1 })
+      .sort({ date: -1, isin: 1 })
       .toArray();
 
     const serialized = dividends.map((row) => ({
-      ...row,
       _id: row._id.toString(),
+      instrument: row.instrument,
+      isin: row.isin,
+      issuer: row.issuer,
+      date: row.date,
+      amount: row.amount,
+      ...(row.notes &&
+      "string" === typeof row.notes &&
+      row.notes.length > 0
+        ? { notes: row.notes }
+        : {}),
     }));
 
     return NextResponse.json(serialized);
@@ -41,10 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = body as Record<string, unknown>;
-    const { year, amount, instrument, isin, issuer, notes: notesRaw } = payload;
+    const { date, amount, instrument, isin, issuer, notes: notesRaw } = payload;
 
     if (
-      year === undefined ||
+      date === undefined ||
       amount === undefined ||
       !instrument ||
       !isin ||
@@ -67,7 +76,7 @@ export async function POST(request: NextRequest) {
       instrument,
       isin,
       issuer,
-      year: Number(year),
+      date: "string" === typeof date ? date : "",
       amount: Number(amount),
       notes,
     });
@@ -89,7 +98,7 @@ export async function POST(request: NextRequest) {
       instrument: validated.instrument,
       isin: validated.isin,
       issuer: validated.issuer,
-      year: validated.year,
+      date: validated.date,
       amount: validated.amount,
       ...(undefined !== validated.notes ? { notes: validated.notes } : {}),
     };

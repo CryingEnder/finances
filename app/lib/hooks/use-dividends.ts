@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Dividend } from "../types";
 
+import { isIsoDateString } from "../dates";
+
 export const dividendsKeys = {
   all: ["dividends"] as const,
   lists: () => [...dividendsKeys.all, "list"] as const,
@@ -18,16 +20,17 @@ const parseDividend = (value: unknown): Dividend => {
   }
 
   const payload = value as Record<string, unknown>;
-  const year = payload.year;
   const amount = payload.amount;
   const instrument = payload.instrument;
   const isin = payload.isin;
   const issuer = payload.issuer;
   const notes = payload.notes;
   const id = payload._id;
+  const dateRaw = payload.date;
 
   if (
-    "number" !== typeof year ||
+    "string" !== typeof dateRaw ||
+    !isIsoDateString(dateRaw) ||
     "number" !== typeof amount ||
     "string" !== typeof instrument ||
     "string" !== typeof isin ||
@@ -49,7 +52,7 @@ const parseDividend = (value: unknown): Dividend => {
     instrument,
     isin,
     issuer,
-    year,
+    date: dateRaw,
     amount,
     ...(undefined !== notes && notes.length > 0 ? { notes } : {}),
   };

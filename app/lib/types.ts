@@ -49,7 +49,7 @@ export interface Dividend {
   instrument: string;
   isin: string;
   issuer: string;
-  year: number;
+  date: string;
   amount: number;
   notes?: string;
 }

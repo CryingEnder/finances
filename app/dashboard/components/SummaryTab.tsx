@@ -62,7 +62,7 @@ function SummaryPieTooltip({
 }: SummaryPieTooltipProps) {
   const tc = useTranslations("Common");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   if (!active || !payload?.length) {
     return null;
@@ -81,7 +81,7 @@ function SummaryPieTooltip({
       <p className="text-white font-medium mb-2">{data.name}</p>
       <p className="text-sm" style={{ color: data.payload.color }}>
         {valueLabel}:{" "}
-        {data.value.toLocaleString(nf, {
+        {data.value.toLocaleString(numberFormat, {
           style: "currency",
           currency: "RON",
         })}
@@ -146,7 +146,7 @@ function SummaryVerticalLegend(props: {
 }) {
   const { payload } = props;
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   if (!payload?.length) {
     return null;
@@ -180,7 +180,7 @@ function SummaryVerticalLegend(props: {
             />
             <span className="min-w-0 leading-snug">
               {label}:{" "}
-              {amount.toLocaleString(nf, {
+              {amount.toLocaleString(numberFormat, {
                 style: "currency",
                 currency: "RON",
               })}
@@ -255,7 +255,7 @@ function SummaryDistributionPie({
 export default function SummaryTab() {
   const t = useTranslations("Summary");
   const locale = useLocale();
-  const nf = numberFormatLocale(locale);
+  const numberFormat = numberFormatLocale(locale);
 
   const { data: deposits = [], isLoading: depositsLoading } = useDeposits();
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
@@ -412,7 +412,7 @@ export default function SummaryTab() {
               <TrendingUp className="w-5 h-5 text-green-400" />
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.totalDepositsCurrentValue.toLocaleString(nf, {
+              {summary.totalDepositsCurrentValue.toLocaleString(numberFormat, {
                 style: "currency",
                 currency: "RON",
               })}
@@ -420,7 +420,7 @@ export default function SummaryTab() {
             <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
               <p>
                 {t("principalLabel")}{" "}
-                {summary.totalDepositsInvested.toLocaleString(nf, {
+                {summary.totalDepositsInvested.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -435,7 +435,7 @@ export default function SummaryTab() {
                   }
                 >
                   {summary.depositsProfit >= 0 ? "+" : ""}
-                  {summary.depositsProfit.toLocaleString(nf, {
+                  {summary.depositsProfit.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -450,7 +450,7 @@ export default function SummaryTab() {
               <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.stocksCurrentValue.toLocaleString(nf, {
+              {summary.stocksCurrentValue.toLocaleString(numberFormat, {
                 style: "currency",
                 currency: "RON",
               })}
@@ -458,7 +458,7 @@ export default function SummaryTab() {
             <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
               <p>
                 {t("investedLabel")}{" "}
-                {summary.stocksInvestedValue.toLocaleString(nf, {
+                {summary.stocksInvestedValue.toLocaleString(numberFormat, {
                   style: "currency",
                   currency: "RON",
                 })}
@@ -473,7 +473,7 @@ export default function SummaryTab() {
                   }
                 >
                   {summary.stocksUnrealizedProfit >= 0 ? "+" : ""}
-                  {summary.stocksUnrealizedProfit.toLocaleString(nf, {
+                  {summary.stocksUnrealizedProfit.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -496,7 +496,7 @@ export default function SummaryTab() {
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-white">
-                  {summary.totalCurrentValue.toLocaleString(nf, {
+                  {summary.totalCurrentValue.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -504,7 +504,7 @@ export default function SummaryTab() {
                 {summary.totalInvested > 0 && (
                   <p className="mt-1 text-sm text-zinc-400">
                     {t("investedLabel")}{" "}
-                    {summary.totalInvested.toLocaleString(nf, {
+                    {summary.totalInvested.toLocaleString(numberFormat, {
                       style: "currency",
                       currency: "RON",
                     })}
@@ -514,7 +514,7 @@ export default function SummaryTab() {
               <div className="border-t border-zinc-700/80 pt-3">
                 <p className="mb-2 text-sm text-zinc-400">{t("dividends")}</p>
                 <p className="text-2xl font-bold text-white">
-                  {totalDividends.toLocaleString(nf, {
+                  {totalDividends.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -546,7 +546,7 @@ export default function SummaryTab() {
                   }`}
                 >
                   {summary.totalProfit >= 0 ? "+" : ""}
-                  {summary.totalProfit.toLocaleString(nf, {
+                  {summary.totalProfit.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
@@ -573,7 +573,7 @@ export default function SummaryTab() {
                   }`}
                 >
                   {totalProfitWithDividends >= 0 ? "+" : ""}
-                  {totalProfitWithDividends.toLocaleString(nf, {
+                  {totalProfitWithDividends.toLocaleString(numberFormat, {
                     style: "currency",
                     currency: "RON",
                   })}
