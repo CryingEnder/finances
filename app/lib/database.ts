@@ -1,6 +1,7 @@
 import { Db, ObjectId, Collection, MongoClient } from "mongodb";
 
 import type {
+  Etf,
   User,
   Company,
   Deposit,
@@ -22,6 +23,7 @@ type DatabaseDeposit = Omit<Deposit, "_id" | "userId"> & { _id?: ObjectId };
 export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
   _id?: ObjectId;
 };
+type DatabaseEtf = Omit<Etf, "_id" | "userId"> & { _id?: ObjectId };
 
 let client: MongoClient | null = null;
 let globalDb: Db | null = null;
@@ -116,4 +118,11 @@ export async function getTransactionsCollection(
 ): Promise<Collection<DatabaseTransaction>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseTransaction>("transactions");
+}
+
+export async function getEtfsCollection(
+  userId: string,
+): Promise<Collection<DatabaseEtf>> {
+  const database = await connectToUserDatabase(userId);
+  return database.collection<DatabaseEtf>("etfs");
 }

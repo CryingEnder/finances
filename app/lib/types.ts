@@ -115,3 +115,32 @@ export type TransactionWithCalculations = Transaction & {
   totalFees: number; // bcrCommission + settlementCommission + otherFees + externalCosts + taxWithheld
   feesWithoutTax: number; // bcrCommission + settlementCommission + otherFees + externalCosts (excluding tax)
 };
+
+export type EtfCurrency = "EUR" | "USD" | "RON";
+
+export const ETF_CURRENCIES: EtfCurrency[] = ["EUR", "USD", "RON"];
+
+export interface Etf {
+  _id?: string;
+  symbol: string; // e.g. IS3N.DE
+  label: string; // e.g. Core MSCI EM IMI
+  volume: number;
+  actualPrice: number;
+  openingPrice: number;
+  currency: EtfCurrency;
+  date?: string; // ISO date YYYY-MM-DD when the position was recorded
+}
+
+export type EtfWithCalculations = Etf & {
+  value: number; // volume * actualPrice
+  purchaseCost: number; // volume * openingPrice
+  profitNet: number; // value - purchaseCost
+  profitNetPercent: number; // (profitNet / purchaseCost) * 100
+};
+
+export interface EtfSummary {
+  totalValue: number;
+  totalPurchaseCost: number;
+  totalProfitNet: number;
+  totalProfitNetPercent: number;
+}

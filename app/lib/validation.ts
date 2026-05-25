@@ -264,8 +264,48 @@ export const transactionSchema = z
     },
   );
 
+export const etfSchema = z.object({
+  symbol: z
+    .string()
+    .min(1, "Symbol is required")
+    .max(30, "Symbol must be 30 characters or less")
+    .regex(
+      /^[A-Za-z0-9][A-Za-z0-9._-]*$/,
+      "Symbol must start with a letter or digit and contain only letters, digits, dots, underscores, or hyphens",
+    )
+    .trim()
+    .transform((val) => val.toUpperCase()),
+  label: z
+    .string()
+    .min(1, "Label is required")
+    .max(200, "Label must be 200 characters or less")
+    .trim(),
+  volume: z
+    .number()
+    .min(0.0001, "Volume must be greater than 0")
+    .max(1000000000, "Volume cannot exceed 1 billion units"),
+  actualPrice: z
+    .number()
+    .min(0.0001, "Actual price must be greater than 0")
+    .max(1000000, "Actual price cannot exceed 1,000,000"),
+  openingPrice: z
+    .number()
+    .min(0.0001, "Opening price must be greater than 0")
+    .max(1000000, "Opening price cannot exceed 1,000,000"),
+  currency: z.enum(["EUR", "USD", "RON"], {
+    message: "Currency must be EUR, USD, or RON",
+  }),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .optional()
+    .or(z.literal(""))
+    .transform((val) => ("" === val ? undefined : val)),
+});
+
 export type CompanyInput = z.infer<typeof companySchema>;
 export type DividendInput = z.infer<typeof dividendSchema>;
 export type PortfolioEntryInput = z.infer<typeof portfolioEntrySchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
 export type TransactionInput = z.infer<typeof transactionSchema>;
+export type EtfInput = z.infer<typeof etfSchema>;
