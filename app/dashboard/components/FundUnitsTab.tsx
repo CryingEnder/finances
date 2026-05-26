@@ -5,11 +5,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { Edit, Plus, Trash2, Landmark } from "lucide-react";
 
 import type {
+  Currency,
   FundUnit,
   FundUnitSummary,
   FundUnitWithCalculations,
 } from "../../lib/types";
 
+import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
@@ -20,6 +22,13 @@ import {
   NoticeDialog,
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+  SelectContent,
+  SelectTrigger,
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogTitle,
@@ -72,6 +81,19 @@ function summarize(rows: FundUnitWithCalculations[]): FundUnitSummary {
   return summary;
 }
 
+function currencyLabel(
+  currency: Currency,
+  t: ReturnType<typeof useTranslations<"FundUnits">>,
+): string {
+  if ("EUR" === currency) {
+    return t("currencyEUR");
+  }
+  if ("USD" === currency) {
+    return t("currencyUSD");
+  }
+  return t("currencyRON");
+}
+
 export default function FundUnitsTab() {
   const t = useTranslations("FundUnits");
   const tc = useTranslations("Common");
@@ -91,6 +113,7 @@ export default function FundUnitsTab() {
   const [formTotalValue, setFormTotalValue] = useState("");
   const [formProfit, setFormProfit] = useState("");
   const [formBondsPercent, setFormBondsPercent] = useState("");
+  const [formCurrency, setFormCurrency] = useState<Currency>("EUR");
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -100,10 +123,17 @@ export default function FundUnitsTab() {
     [fundUnits],
   );
 
-  const summary = useMemo(
-    () => summarize(fundUnitsWithCalculations),
-    [fundUnitsWithCalculations],
-  );
+  const byCurrency = useMemo(() => {
+    const grouped: Record<Currency, FundUnitWithCalculations[]> = {
+      EUR: [],
+      USD: [],
+      RON: [],
+    };
+    for (const fundUnit of fundUnitsWithCalculations) {
+      grouped[fundUnit.currency].push(fundUnit);
+    }
+    return grouped;
+  }, [fundUnitsWithCalculations]);
 
   const formStocksPercent = useMemo(() => {
     const bonds = parseFloat(formBondsPercent);
@@ -122,6 +152,7 @@ export default function FundUnitsTab() {
     setFormTotalValue("");
     setFormProfit("");
     setFormBondsPercent("");
+    setFormCurrency("EUR");
   };
 
   const openEdit = (row: FundUnit) => {
@@ -131,6 +162,7 @@ export default function FundUnitsTab() {
     setFormTotalValue(String(row.totalValue));
     setFormProfit(String(row.profit));
     setFormBondsPercent(String(row.bondsPercent));
+    setFormCurrency(row.currency);
     setFormError("");
     setDialogOpen(true);
   };
@@ -166,6 +198,7 @@ export default function FundUnitsTab() {
       totalValue,
       profit,
       bondsPercent,
+      currency: formCurrency,
     };
 
     try {
@@ -418,6 +451,31 @@ export default function FundUnitsTab() {
                 ) : null}
               </div>
               <div>
+                <Label className="mb-2 block" htmlFor="fundUnitCurrency">
+                  {t("currency")}
+                </Label>
+                <Select
+                  value={formCurrency}
+                  onValueChange={(value) => {
+                    setFormCurrency(value as Currency);
+                  }}
+                >
+                  <SelectTrigger
+                    id="fundUnitCurrency"
+                    className="bg-zinc-700 border-zinc-600 text-white w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {currencyLabel(c, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="mb-2 block" htmlFor="fundUnitOpenedDate">
                   {t("openedDateOptional")}
                 </Label>
@@ -533,10 +591,29 @@ export default function FundUnitsTab() {
       </div>
 
       {fundUnitsWithCalculations.length > 0 ? (
-        <section className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-          {renderSummaryCards(summary)}
-          {renderTable(fundUnitsWithCalculations)}
-        </section>
+        <div className="space-y-8">
+          {CURRENCIES.map((currency) => {
+            const rows = byCurrency[currency];
+            if (0 === rows.length) {
+              return null;
+            }
+
+            const currencySummary = summarize(rows);
+
+            return (
+              <section
+                key={currency}
+                className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6"
+              >
+                <h3 className="text-lg font-semibold text-white pb-4 mb-4 border-b border-zinc-700">
+                  {currencyLabel(currency, t)}
+                </h3>
+                {renderSummaryCards(currencySummary)}
+                {renderTable(rows)}
+              </section>
+            );
+          })}
+        </div>
       ) : (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">

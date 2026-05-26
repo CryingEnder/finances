@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { Etf, EtfCurrency } from "../types";
+import type { Etf } from "../types";
 
+import { resolveCurrency } from "../currency";
 import { API_ERROR_CODES } from "../api-error-codes";
 import { ApiRequestError } from "../api-request-error";
 
@@ -46,11 +47,6 @@ const parseEtf = (value: unknown): Etf => {
     throwInvalidPayload();
   }
 
-  const resolvedCurrency: EtfCurrency =
-    "EUR" === currency || "USD" === currency || "RON" === currency
-      ? currency
-      : "EUR";
-
   return {
     _id: id,
     symbol,
@@ -58,7 +54,7 @@ const parseEtf = (value: unknown): Etf => {
     volume,
     actualPrice,
     openingPrice,
-    currency: resolvedCurrency,
+    currency: resolveCurrency(currency, "EUR"),
     date: "string" === typeof date && date.length > 0 ? date : undefined,
   };
 };

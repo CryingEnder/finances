@@ -343,6 +343,9 @@ export const fundUnitSchema = z
       .number()
       .min(0, "Bonds percentage must be 0 or greater")
       .max(100, "Bonds percentage cannot exceed 100%"),
+    currency: z.enum(["EUR", "USD", "RON"], {
+      message: "Currency must be EUR, USD, or RON",
+    }),
   })
   .refine((data) => data.totalValue - data.profit >= 0, {
     message: "Invested amount cannot be negative",
@@ -361,6 +364,7 @@ export interface FundUnitComparableFields {
   totalValue: number;
   profit: number;
   bondsPercent: number;
+  currency: "EUR" | "USD" | "RON";
 }
 
 export function fundUnitHasChanges(
@@ -372,7 +376,8 @@ export function fundUnitHasChanges(
     (existing.openedDate ?? "") !== (updated.openedDate ?? "") ||
     existing.totalValue !== updated.totalValue ||
     existing.profit !== updated.profit ||
-    existing.bondsPercent !== updated.bondsPercent
+    existing.bondsPercent !== updated.bondsPercent ||
+    existing.currency !== updated.currency
   );
 }
 

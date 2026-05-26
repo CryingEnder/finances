@@ -116,9 +116,7 @@ export type TransactionWithCalculations = Transaction & {
   feesWithoutTax: number; // bcrCommission + settlementCommission + otherFees + externalCosts (excluding tax)
 };
 
-export type EtfCurrency = "EUR" | "USD" | "RON";
-
-export const ETF_CURRENCIES: EtfCurrency[] = ["EUR", "USD", "RON"];
+export type Currency = "EUR" | "USD" | "RON";
 
 export interface Etf {
   _id?: string;
@@ -127,7 +125,7 @@ export interface Etf {
   volume: number;
   actualPrice: number;
   openingPrice: number;
-  currency: EtfCurrency;
+  currency: Currency;
   date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
 }
 
@@ -152,6 +150,7 @@ export interface FundUnit {
   totalValue: number; // current value including profit
   profit: number;
   bondsPercent: number; // bonds allocation percentage (0-100)
+  currency: Currency;
   date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
 }
 

@@ -6,13 +6,13 @@ import { Edit, Plus, Trash2, LineChart } from "lucide-react";
 
 import type {
   Etf,
+  Currency,
   EtfSummary,
-  EtfCurrency,
   EtfWithCalculations,
 } from "../../lib/types";
 
 import { formatPrice } from "../../lib/utils";
-import { ETF_CURRENCIES } from "../../lib/types";
+import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
@@ -85,7 +85,7 @@ function summarize(rows: EtfWithCalculations[]): EtfSummary {
 }
 
 function currencyLabel(
-  currency: EtfCurrency,
+  currency: Currency,
   t: ReturnType<typeof useTranslations<"Etfs">>,
 ): string {
   if ("EUR" === currency) {
@@ -116,7 +116,7 @@ export default function EtfsTab() {
   const [formVolume, setFormVolume] = useState("");
   const [formActualPrice, setFormActualPrice] = useState("");
   const [formOpeningPrice, setFormOpeningPrice] = useState("");
-  const [formCurrency, setFormCurrency] = useState<EtfCurrency>("EUR");
+  const [formCurrency, setFormCurrency] = useState<Currency>("EUR");
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -127,7 +127,7 @@ export default function EtfsTab() {
   );
 
   const byCurrency = useMemo(() => {
-    const grouped: Record<EtfCurrency, EtfWithCalculations[]> = {
+    const grouped: Record<Currency, EtfWithCalculations[]> = {
       EUR: [],
       USD: [],
       RON: [],
@@ -465,7 +465,7 @@ export default function EtfsTab() {
                 <Select
                   value={formCurrency}
                   onValueChange={(value) => {
-                    setFormCurrency(value as EtfCurrency);
+                    setFormCurrency(value as Currency);
                   }}
                 >
                   <SelectTrigger
@@ -475,7 +475,7 @@ export default function EtfsTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                    {ETF_CURRENCIES.map((c) => (
+                    {CURRENCIES.map((c) => (
                       <SelectItem key={c} value={c}>
                         {currencyLabel(c, t)}
                       </SelectItem>
@@ -573,7 +573,7 @@ export default function EtfsTab() {
 
       {etfsWithCalculations.length > 0 ? (
         <div className="space-y-8">
-          {ETF_CURRENCIES.map((currency) => {
+          {CURRENCIES.map((currency) => {
             const rows = byCurrency[currency];
             if (0 === rows.length) {
               return null;

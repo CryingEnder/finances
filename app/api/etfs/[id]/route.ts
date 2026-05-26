@@ -5,6 +5,7 @@ import { requireAuth } from "../../../lib/auth";
 import { todayIsoDate } from "../../../lib/dates";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { resolveCurrency } from "../../../lib/currency";
 import { getEtfsCollection } from "../../../lib/database";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import {
@@ -71,7 +72,15 @@ export async function PUT(
       return apiError(API_ERROR_CODES.etfNotFound, 404);
     }
 
-    if (!etfHasChanges(currentEtf, validatedData)) {
+    if (
+      !etfHasChanges(
+        {
+          ...currentEtf,
+          currency: resolveCurrency(currentEtf.currency, "EUR"),
+        },
+        validatedData,
+      )
+    ) {
       return apiError(API_ERROR_CODES.noChangesToSave, 400);
     }
 

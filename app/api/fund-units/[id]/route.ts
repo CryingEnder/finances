@@ -5,29 +5,14 @@ import { requireAuth } from "../../../lib/auth";
 import { todayIsoDate } from "../../../lib/dates";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { resolveCurrency } from "../../../lib/currency";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getFundUnitsCollection } from "../../../lib/database";
 import {
   fundUnitSchema,
   formatZodErrors,
   fundUnitHasChanges,
-  type FundUnitComparableFields,
 } from "../../../lib/validation";
-
-type FundUnitDbShape = Omit<FundUnitComparableFields, "bondsPercent"> & {
-  bondsPercent?: number;
-  obligatiuniPercent?: number;
-};
-
-function toComparableFields(fundUnit: FundUnitDbShape): FundUnitComparableFields {
-  return {
-    name: fundUnit.name,
-    openedDate: fundUnit.openedDate,
-    totalValue: fundUnit.totalValue,
-    profit: fundUnit.profit,
-    bondsPercent: fundUnit.bondsPercent ?? fundUnit.obligatiuniPercent ?? 0,
-  };
-}
 
 export async function PUT(
   request: NextRequest,
@@ -41,15 +26,15 @@ export async function PUT(
     }
 
     const payload = body as Record<string, unknown>;
-    const { name, openedDate, totalValue, profit, bondsPercent } = payload;
-    const resolvedBondsPercent =
-      bondsPercent ?? payload.obligatiuniPercent;
+    const { name, openedDate, totalValue, profit, bondsPercent, currency } =
+      payload;
 
     if (
       !name ||
       totalValue === undefined ||
       profit === undefined ||
-      resolvedBondsPercent === undefined
+      bondsPercent === undefined ||
+      !currency
     ) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
@@ -59,7 +44,8 @@ export async function PUT(
       openedDate,
       totalValue: Number(totalValue),
       profit: Number(profit),
-      bondsPercent: Number(resolvedBondsPercent),
+      bondsPercent: Number(bondsPercent),
+      currency,
     });
 
     if (!validationResult.success) {
@@ -80,17 +66,28 @@ export async function PUT(
 
     const objectId = new ObjectId(id);
 
-    const currentFundUnit = await fundUnitsCollection.findOne({ _id: objectId });
+    const currentFundUnit = await fundUnitsCollection.findOne({
+      _id: objectId,
+    });
     if (!currentFundUnit) {
       return apiError(API_ERROR_CODES.fundUnitNotFound, 404);
     }
 
-    if (!fundUnitHasChanges(toComparableFields(currentFundUnit), validatedData)) {
+    if (
+      !fundUnitHasChanges(
+        {
+          ...currentFundUnit,
+          currency: resolveCurrency(currentFundUnit.currency),
+        },
+        validatedData,
+      )
+    ) {
       return apiError(API_ERROR_CODES.noChangesToSave, 400);
     }
 
     const duplicateName = await fundUnitsCollection.findOne({
       name: validatedData.name,
+      currency: validatedData.currency,
       _id: { $ne: objectId },
     });
     if (duplicateName) {
@@ -106,6 +103,7 @@ export async function PUT(
           totalValue: validatedData.totalValue,
           profit: validatedData.profit,
           bondsPercent: validatedData.bondsPercent,
+          currency: validatedData.currency,
           date: todayIsoDate(),
         },
       },
@@ -115,7 +113,9 @@ export async function PUT(
       return apiError(API_ERROR_CODES.fundUnitNotFound, 404);
     }
 
-    const updatedFundUnit = await fundUnitsCollection.findOne({ _id: objectId });
+    const updatedFundUnit = await fundUnitsCollection.findOne({
+      _id: objectId,
+    });
     if (!updatedFundUnit) {
       return apiError(API_ERROR_CODES.fundUnitNotFound, 404);
     }

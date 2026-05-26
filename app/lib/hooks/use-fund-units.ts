@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { FundUnit } from "../types";
 
+import { resolveCurrency } from "../currency";
 import { API_ERROR_CODES } from "../api-error-codes";
 import { ApiRequestError } from "../api-request-error";
 
@@ -26,7 +27,8 @@ const parseFundUnit = (value: unknown): FundUnit => {
   const name = payload.name;
   const totalValue = payload.totalValue;
   const profit = payload.profit;
-  const bondsPercent = payload.bondsPercent ?? payload.obligatiuniPercent;
+  const bondsPercent = payload.bondsPercent;
+  const currency = payload.currency;
   const openedDate = payload.openedDate;
   const date = payload.date;
   const id = payload._id;
@@ -50,6 +52,7 @@ const parseFundUnit = (value: unknown): FundUnit => {
     totalValue,
     profit,
     bondsPercent,
+    currency: resolveCurrency(currency),
     openedDate:
       "string" === typeof openedDate && openedDate.length > 0
         ? openedDate
@@ -94,12 +97,14 @@ const fundUnitRequestBody = ({
   totalValue,
   profit,
   bondsPercent,
+  currency,
 }: Omit<FundUnit, "_id" | "date">) => ({
   name,
   openedDate,
   totalValue,
   profit,
   bondsPercent,
+  currency,
 });
 
 const createFundUnit = async (
@@ -131,6 +136,7 @@ const updateFundUnit = async ({
   totalValue,
   profit,
   bondsPercent,
+  currency,
 }: FundUnit): Promise<FundUnit> => {
   try {
     if (!_id) {
@@ -147,6 +153,7 @@ const updateFundUnit = async ({
           totalValue,
           profit,
           bondsPercent,
+          currency,
         }),
       ),
     });

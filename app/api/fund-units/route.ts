@@ -37,14 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = body as Record<string, unknown>;
-    const { name, openedDate, totalValue, profit, bondsPercent } = payload;
-    const resolvedBondsPercent = bondsPercent ?? payload.obligatiuniPercent;
+    const { name, openedDate, totalValue, profit, bondsPercent, currency } =
+      payload;
 
     if (
       !name ||
       totalValue === undefined ||
       profit === undefined ||
-      resolvedBondsPercent === undefined
+      bondsPercent === undefined ||
+      !currency
     ) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
@@ -54,7 +55,8 @@ export async function POST(request: NextRequest) {
       openedDate,
       totalValue: Number(totalValue),
       profit: Number(profit),
-      bondsPercent: Number(resolvedBondsPercent),
+      bondsPercent: Number(bondsPercent),
+      currency,
     });
 
     if (!validationResult.success) {
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
 
     const existingFundUnit = await fundUnitsCollection.findOne({
       name: validatedData.name,
+      currency: validatedData.currency,
     });
     if (existingFundUnit) {
       return apiError(API_ERROR_CODES.fundUnitDuplicateName, 409);
@@ -81,6 +84,7 @@ export async function POST(request: NextRequest) {
       totalValue: validatedData.totalValue,
       profit: validatedData.profit,
       bondsPercent: validatedData.bondsPercent,
+      currency: validatedData.currency,
       date: todayIsoDate(),
     };
 
