@@ -123,7 +123,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingStocks")}</p>
                     </div>
                   </div>
@@ -138,7 +138,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-4" />
                       <p className="text-zinc-400">
                         {t("loadingTransactions")}
                       </p>
@@ -155,7 +155,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingDeposits")}</p>
                     </div>
                   </div>
@@ -170,7 +170,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingDividends")}</p>
                     </div>
                   </div>
@@ -185,7 +185,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingEtfs")}</p>
                     </div>
                   </div>

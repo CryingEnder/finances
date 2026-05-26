@@ -509,7 +509,7 @@ export default function DepositsTab() {
                     id="isActive"
                     type="checkbox"
                     checked={depositForm.isActive}
-                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-500"
+                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
@@ -526,7 +526,7 @@ export default function DepositsTab() {
                     id="autoRenew"
                     type="checkbox"
                     checked={depositForm.autoRenew}
-                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-500"
+                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,

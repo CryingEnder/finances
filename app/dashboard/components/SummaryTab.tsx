@@ -811,7 +811,7 @@ export default function SummaryTab() {
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-zinc-400 text-sm">{t("termDeposits")}</p>
-              <TrendingUp className={`w-5 h-5 ${TAB_ICON_CLASS.deposits}`} />
+              <Landmark className={`w-5 h-5 ${TAB_ICON_CLASS.deposits}`} />
             </div>
             <p className="text-2xl font-bold text-white">
               {formatCurrencyDisplay(
@@ -873,7 +873,7 @@ export default function SummaryTab() {
                 summaries={fundUnitSummariesByCurrency}
                 ronCurrentValue={fundUnitsInRon.currentValue}
                 icon={
-                  <Landmark className={`h-5 w-5 ${TAB_ICON_CLASS.fundUnits}`} />
+                  <TrendingUp className={`h-5 w-5 ${TAB_ICON_CLASS.fundUnits}`} />
                 }
               />
             )}
