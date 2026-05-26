@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Edit, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Edit, Plus, Trash2, TrendingUp } from "lucide-react";
 
 import type { Transaction, TransactionWithCalculations } from "../../lib/types";
 
@@ -11,6 +11,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { formatDisplayDate } from "../../lib/dates";
+import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
@@ -278,7 +279,7 @@ export default function TransactionsTab() {
           <DialogTrigger asChild>
             <Button
               onClick={resetTransactionForm}
-              className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              className={TAB_BUTTON_CLASS.stocks}
             >
               <Plus className="w-4 h-4 mr-2" />
               {t("addTransaction")}
@@ -704,7 +705,7 @@ export default function TransactionsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  className={TAB_BUTTON_CLASS.stocks}
                   disabled={
                     createTransactionMutation.isPending ||
                     updateTransactionMutation.isPending
@@ -864,17 +865,12 @@ export default function TransactionsTab() {
                     </td>
                     <td className="py-3 px-2">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                           "BUY" === transaction.type
                             ? "bg-green-900/30 text-green-400 border border-green-800"
                             : "bg-red-900/30 text-red-400 border border-red-800"
                         }`}
                       >
-                        {"BUY" === transaction.type ? (
-                          <TrendingUp className="w-3 h-3" />
-                        ) : (
-                          <TrendingDown className="w-3 h-3" />
-                        )}
                         {"BUY" === transaction.type ? t("buy") : t("sell")}
                       </span>
                     </td>

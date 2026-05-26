@@ -1,4 +1,3 @@
-/** Maps Zod English messages to stable validation translation keys. */
 export const ZOD_MESSAGE_TO_CODE = {
   "Instrument name is required": "instrumentRequired",
   "Instrument name must be 100 characters or less": "instrumentMaxLength",

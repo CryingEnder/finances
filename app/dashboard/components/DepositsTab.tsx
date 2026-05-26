@@ -20,6 +20,7 @@ import type {
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
 import { daysSinceIsoDate, daysUntilIsoDate } from "../../lib/dates";
@@ -253,7 +254,7 @@ export default function DepositsTab() {
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4" />
             <p className="text-zinc-400">{t("loading")}</p>
           </div>
         </div>
@@ -271,7 +272,7 @@ export default function DepositsTab() {
           <DialogTrigger asChild>
             <Button
               onClick={resetDepositForm}
-              className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              className={TAB_BUTTON_CLASS.deposits}
             >
               <Plus className="w-4 h-4 mr-2" />
               {t("addTermDeposit")}
@@ -508,7 +509,7 @@ export default function DepositsTab() {
                     id="isActive"
                     type="checkbox"
                     checked={depositForm.isActive}
-                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-500"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
@@ -525,7 +526,7 @@ export default function DepositsTab() {
                     id="autoRenew"
                     type="checkbox"
                     checked={depositForm.autoRenew}
-                    className="w-4 h-4 text-green-600 bg-zinc-700 border-zinc-600 rounded focus:ring-green-500"
+                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-500"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
@@ -552,7 +553,7 @@ export default function DepositsTab() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  className={TAB_BUTTON_CLASS.deposits}
                   disabled={
                     createDepositMutation.isPending ||
                     updateDepositMutation.isPending
@@ -587,7 +588,7 @@ export default function DepositsTab() {
             }}
             className={`cursor-pointer ${
               showChart
-                ? "bg-green-600 hover:bg-green-700 text-white"
+                ? TAB_BUTTON_CLASS.deposits
                 : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
             }`}
           >
@@ -625,7 +626,7 @@ export default function DepositsTab() {
                   }}
                   className={`cursor-pointer ${
                     "all" === selectedFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -639,7 +640,7 @@ export default function DepositsTab() {
                   }}
                   className={`cursor-pointer ${
                     "active" === selectedFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -653,7 +654,7 @@ export default function DepositsTab() {
                   }}
                   className={`cursor-pointer ${
                     "matured" === selectedFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -669,7 +670,7 @@ export default function DepositsTab() {
                   }}
                   className={`cursor-pointer ${
                     "all" === selectedTermFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -685,7 +686,7 @@ export default function DepositsTab() {
                   }
                   className={`cursor-pointer ${
                     "short" === selectedTermFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -701,7 +702,7 @@ export default function DepositsTab() {
                   }
                   className={`cursor-pointer ${
                     "medium" === selectedTermFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -717,7 +718,7 @@ export default function DepositsTab() {
                   }
                   className={`cursor-pointer ${
                     "long" === selectedTermFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >
@@ -733,7 +734,7 @@ export default function DepositsTab() {
                   }
                   className={`cursor-pointer ${
                     "xlong" === selectedTermFilter
-                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      ? TAB_BUTTON_CLASS.deposits
                       : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                   }`}
                 >

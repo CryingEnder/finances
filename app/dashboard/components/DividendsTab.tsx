@@ -11,6 +11,7 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { TAB_ICON_CLASS, TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import { getIsoYear, todayIsoDate, formatDisplayDate } from "../../lib/dates";
 import {
@@ -205,7 +206,7 @@ export default function DividendsTab() {
           <DialogTrigger asChild>
             <Button
               disabled={0 === companies.length}
-              className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              className={TAB_BUTTON_CLASS.dividends}
               onClick={() => {
                 beginAddDividend();
               }}
@@ -318,7 +319,7 @@ export default function DividendsTab() {
               <div className="flex gap-2 justify-end pt-2">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  className={TAB_BUTTON_CLASS.dividends}
                   disabled={
                     createMutation.isPending ||
                     updateMutation.isPending ||
@@ -403,7 +404,7 @@ export default function DividendsTab() {
 
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Coins className="w-5 h-5 text-green-400" />
+              <Coins className={`w-5 h-5 ${TAB_ICON_CLASS.dividends}`} />
               {t("summary")}
             </h3>
             <div className="text-sm">

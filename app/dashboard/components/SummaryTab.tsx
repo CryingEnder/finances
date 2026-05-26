@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Coins, TrendingUp } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Coins, Landmark, LineChart, TrendingUp } from "lucide-react";
 import {
   Pie,
   Cell,
@@ -12,16 +12,39 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import type {
+  Etf,
+  Currency,
+  FundUnit,
+  EtfSummary,
+  FundUnitSummary,
+} from "../../lib/types";
+
+import { CURRENCIES } from "../../lib/currency";
+import { useEtfs } from "../../lib/hooks/use-etfs";
 import { useDeposits } from "../../lib/hooks/use-deposits";
 import { useDividends } from "../../lib/hooks/use-dividends";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { useFundUnits } from "../../lib/hooks/use-fund-units";
+import { TAB_COLORS, TAB_ICON_CLASS } from "../../lib/tab-colors";
 import { usePortfolioEntries } from "../../lib/hooks/use-portfolio";
+import {
+  convertToRon,
+  formatEurToRonRate,
+  formatUsdToRonRate,
+} from "../../lib/currency-conversion";
+import {
+  profitReturnPercent,
+  formatCurrencyDisplay,
+  formatSignedCurrencyAmount,
+} from "../../lib/currency-format";
 
 interface SummaryPieRow {
   name: string;
   value: number;
   color: string;
-  [key: string]: string | number;
+  legendOrder?: number;
+  [key: string]: string | number | undefined;
 }
 
 interface SummaryDistributionPieProps {
@@ -31,13 +54,206 @@ interface SummaryDistributionPieProps {
   title: string;
 }
 
-const COLORS = {
-  deposits: "#10b981",
-  stocks: "#3b82f6",
-  dividends: "#f97316",
-  profit: "#f59e0b",
-  loss: "#ef4444",
-};
+const COLORS = TAB_COLORS;
+
+type CurrencySummaries<T> = Partial<Record<Currency, T>>;
+
+function summarizeEtfs(rows: Etf[]): EtfSummary {
+  return rows.reduce(
+    (acc, etf) => {
+      const purchaseCost = etf.volume * etf.openingPrice;
+      const value = etf.volume * etf.actualPrice;
+      const profitNet = value - purchaseCost;
+      return {
+        totalValue: acc.totalValue + value,
+        totalPurchaseCost: acc.totalPurchaseCost + purchaseCost,
+        totalProfitNet: acc.totalProfitNet + profitNet,
+        totalProfitNetPercent: 0,
+      };
+    },
+    {
+      totalValue: 0,
+      totalPurchaseCost: 0,
+      totalProfitNet: 0,
+      totalProfitNetPercent: 0,
+    },
+  );
+}
+
+function summarizeFundUnits(rows: FundUnit[]): FundUnitSummary {
+  return rows.reduce(
+    (acc, row) => {
+      const invested = row.totalValue - row.profit;
+      return {
+        totalValue: acc.totalValue + row.totalValue,
+        totalInvested: acc.totalInvested + invested,
+        totalProfit: acc.totalProfit + row.profit,
+        totalProfitPercent: 0,
+      };
+    },
+    {
+      totalValue: 0,
+      totalInvested: 0,
+      totalProfit: 0,
+      totalProfitPercent: 0,
+    },
+  );
+}
+
+function withProfitPercent(
+  summary: EtfSummary,
+  profit: number,
+  basis: number,
+): EtfSummary {
+  return {
+    ...summary,
+    totalProfitNetPercent: basis > 0 ? (profit / basis) * 100 : 0,
+  };
+}
+
+function withFundProfitPercent(summary: FundUnitSummary): FundUnitSummary {
+  return {
+    ...summary,
+    totalProfitPercent:
+      summary.totalValue > 0
+        ? (summary.totalProfit / summary.totalValue) * 100
+        : 0,
+  };
+}
+
+function groupByCurrency<T extends { currency: Currency }>(
+  items: T[],
+): Record<Currency, T[]> {
+  const grouped: Record<Currency, T[]> = { EUR: [], USD: [], RON: [] };
+  for (const item of items) {
+    grouped[item.currency].push(item);
+  }
+  return grouped;
+}
+
+interface CurrencyBreakdownProps {
+  title: string;
+  icon: ReactNode;
+  summaries: CurrencySummaries<EtfSummary | FundUnitSummary>;
+  variant: "etf" | "fundUnit";
+  ronInvested: number;
+  ronCurrentValue: number;
+}
+
+function CurrencyBreakdown({
+  title,
+  icon,
+  summaries,
+  variant,
+  ronInvested,
+  ronCurrentValue,
+}: CurrencyBreakdownProps) {
+  const t = useTranslations("Summary");
+  const locale = useLocale();
+  const numberFormat = numberFormatLocale(locale);
+
+  const sections = CURRENCIES.filter((currency) => {
+    const summary = summaries[currency];
+    return undefined !== summary && summary.totalValue > 0;
+  });
+
+  if (0 === sections.length) {
+    return null;
+  }
+
+  return (
+    <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-zinc-400 text-sm">{title}</p>
+        {icon}
+      </div>
+      <div className="space-y-4">
+        {sections.map((currency) => {
+          const summary = summaries[currency];
+          if (!summary) {
+            return null;
+          }
+
+          const invested =
+            "etf" === variant
+              ? (summary as EtfSummary).totalPurchaseCost
+              : (summary as FundUnitSummary).totalInvested;
+          const profit =
+            "etf" === variant
+              ? (summary as EtfSummary).totalProfitNet
+              : (summary as FundUnitSummary).totalProfit;
+          const profitPercent =
+            "etf" === variant
+              ? (summary as EtfSummary).totalProfitNetPercent
+              : (summary as FundUnitSummary).totalProfitPercent;
+
+          return (
+            <div
+              key={currency}
+              className="border-t border-zinc-700/80 pt-3 first:border-t-0 first:pt-0"
+            >
+              <span className="mb-2 inline-block rounded border border-zinc-600 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-400">
+                {currency}
+              </span>
+              <p className="text-xl font-bold text-white">
+                {formatCurrencyDisplay(
+                  summary.totalValue,
+                  currency,
+                  numberFormat,
+                )}
+              </p>
+              <div className="mt-1 space-y-0.5 text-xs text-zinc-400">
+                <p>
+                  {"etf" === variant ? t("costLabel") : t("investedLabel")}{" "}
+                  {formatCurrencyDisplay(invested, currency, numberFormat)}
+                </p>
+                <p>
+                  {t("profitLabel")}{" "}
+                  <span
+                    className={profit >= 0 ? "text-green-400" : "text-red-400"}
+                  >
+                    {formatSignedCurrencyAmount(profit, currency, numberFormat)}
+                    {"\u00A0("}
+                    {profitPercent.toFixed(2)}%)
+                  </span>
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {(ronInvested > 0 || ronCurrentValue > 0) && (
+        <div className="mt-4 border-t border-zinc-700/80 pt-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            {t("ronTotalSubtitle")}
+          </p>
+          <div className="space-y-0.5 text-xs text-zinc-400">
+            <p>
+              {"etf" === variant ? t("ronCostLabel") : t("ronInvestedLabel")}{" "}
+              {formatCurrencyDisplay(ronInvested, "RON", numberFormat)}
+            </p>
+            <p>
+              {t("ronValueLabel")}{" "}
+              <span className="font-medium text-white">
+                {formatCurrencyDisplay(ronCurrentValue, "RON", numberFormat)}
+                {ronInvested > 0 && (
+                  <>
+                    {"\u00A0("}
+                    {profitReturnPercent(
+                      ronCurrentValue - ronInvested,
+                      ronInvested,
+                    ).toFixed(2)}
+                    %)
+                  </>
+                )}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface PieTooltipPayload {
   name: string;
@@ -52,6 +268,26 @@ interface SummaryPieTooltipProps {
   payload?: PieTooltipPayload[];
   totalValue: number;
   valueLabel: string;
+}
+
+function SummaryExchangeRates() {
+  const t = useTranslations("Summary");
+  const locale = useLocale();
+  const numberFormat = numberFormatLocale(locale);
+  const usdRate = formatUsdToRonRate(numberFormat);
+  const eurRate = formatEurToRonRate(numberFormat);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-zinc-700/80 bg-zinc-800/40 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+      <p className="text-sm text-zinc-400">{t("fxRatesLabel")}</p>
+      <p className="text-sm text-zinc-300">
+        {t("fxUsdToRon", { rate: usdRate })}
+      </p>
+      <p className="text-sm text-zinc-300">
+        {t("fxEurToRon", { rate: eurRate })}
+      </p>
+    </div>
+  );
 }
 
 function SummaryPieTooltip({
@@ -80,11 +316,7 @@ function SummaryPieTooltip({
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
       <p className="text-white font-medium mb-2">{data.name}</p>
       <p className="text-sm" style={{ color: data.payload.color }}>
-        {valueLabel}:{" "}
-        {data.value.toLocaleString(numberFormat, {
-          style: "currency",
-          currency: "RON",
-        })}
+        {valueLabel}: {formatCurrencyDisplay(data.value, "RON", numberFormat)}
       </p>
       <p className="text-sm text-zinc-400">
         {tc("percentage")}: {percentage}%
@@ -152,9 +384,15 @@ function SummaryVerticalLegend(props: {
     return null;
   }
 
+  const sortedPayload = [...payload].sort((a, b) => {
+    const aOrder = (a.payload as SummaryPieRow | undefined)?.legendOrder ?? 999;
+    const bOrder = (b.payload as SummaryPieRow | undefined)?.legendOrder ?? 999;
+    return aOrder - bOrder;
+  });
+
   return (
     <div className="mt-3 flex w-full flex-col items-start gap-2.5 px-2">
-      {payload.map((item, i) => {
+      {sortedPayload.map((item, i) => {
         const row = item.payload as SummaryPieRow | undefined;
         const label =
           "string" === typeof row?.name
@@ -179,11 +417,7 @@ function SummaryVerticalLegend(props: {
               className="mt-1.5 size-2.5 shrink-0 rounded-sm"
             />
             <span className="min-w-0 leading-snug">
-              {label}:{" "}
-              {amount.toLocaleString(numberFormat, {
-                style: "currency",
-                currency: "RON",
-              })}
+              {label}: {formatCurrencyDisplay(amount, "RON", numberFormat)}
             </span>
           </div>
         );
@@ -261,6 +495,82 @@ export default function SummaryTab() {
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
     usePortfolioEntries();
   const { data: dividends = [], isLoading: dividendsLoading } = useDividends();
+  const { data: etfs = [], isLoading: etfsLoading } = useEtfs();
+  const { data: fundUnits = [], isLoading: fundUnitsLoading } = useFundUnits();
+
+  const etfSummariesByCurrency = useMemo((): CurrencySummaries<EtfSummary> => {
+    const grouped = groupByCurrency(etfs);
+    const summaries: CurrencySummaries<EtfSummary> = {};
+
+    for (const currency of CURRENCIES) {
+      const rows = grouped[currency];
+      if (0 === rows.length) {
+        continue;
+      }
+      const summary = summarizeEtfs(rows);
+      summaries[currency] = withProfitPercent(
+        summary,
+        summary.totalProfitNet,
+        summary.totalPurchaseCost,
+      );
+    }
+
+    return summaries;
+  }, [etfs]);
+
+  const fundUnitSummariesByCurrency =
+    useMemo((): CurrencySummaries<FundUnitSummary> => {
+      const grouped = groupByCurrency(fundUnits);
+      const summaries: CurrencySummaries<FundUnitSummary> = {};
+
+      for (const currency of CURRENCIES) {
+        const rows = grouped[currency];
+        if (0 === rows.length) {
+          continue;
+        }
+        summaries[currency] = withFundProfitPercent(summarizeFundUnits(rows));
+      }
+
+      return summaries;
+    }, [fundUnits]);
+
+  const etfsInRon = useMemo(() => {
+    let invested = 0;
+    let currentValue = 0;
+    let profit = 0;
+
+    for (const currency of CURRENCIES) {
+      const summary = etfSummariesByCurrency[currency];
+      if (!summary) {
+        continue;
+      }
+      // TODO: Replace convertToRon with live API rates when available.
+      invested += convertToRon(summary.totalPurchaseCost, currency);
+      currentValue += convertToRon(summary.totalValue, currency);
+      profit += convertToRon(summary.totalProfitNet, currency);
+    }
+
+    return { invested, currentValue, profit };
+  }, [etfSummariesByCurrency]);
+
+  const fundUnitsInRon = useMemo(() => {
+    let invested = 0;
+    let currentValue = 0;
+    let profit = 0;
+
+    for (const currency of CURRENCIES) {
+      const summary = fundUnitSummariesByCurrency[currency];
+      if (!summary) {
+        continue;
+      }
+      // TODO: Replace convertToRon with live API rates when available.
+      invested += convertToRon(summary.totalInvested, currency);
+      currentValue += convertToRon(summary.totalValue, currency);
+      profit += convertToRon(summary.totalProfit, currency);
+    }
+
+    return { invested, currentValue, profit };
+  }, [fundUnitSummariesByCurrency]);
 
   const summary = useMemo(() => {
     const totalDepositsCurrentValue = deposits.reduce(
@@ -290,13 +600,25 @@ export default function SummaryTab() {
       0,
     );
 
-    const totalCurrentValue = totalDepositsCurrentValue + stocksCurrentValue;
+    const totalCurrentValue =
+      totalDepositsCurrentValue +
+      stocksCurrentValue +
+      etfsInRon.currentValue +
+      fundUnitsInRon.currentValue;
 
-    const totalInvested = totalDepositsInvested + stocksInvestedValue;
+    const totalInvested =
+      totalDepositsInvested +
+      stocksInvestedValue +
+      etfsInRon.invested +
+      fundUnitsInRon.invested;
 
     const depositsProfit = totalDepositsCurrentValue - totalDepositsInvested;
     const stocksUnrealizedProfit = stocksCurrentValue - stocksInvestedValue;
-    const totalProfit = depositsProfit + stocksUnrealizedProfit;
+    const totalProfit =
+      depositsProfit +
+      stocksUnrealizedProfit +
+      etfsInRon.profit +
+      fundUnitsInRon.profit;
 
     return {
       totalDepositsInvested,
@@ -309,7 +631,7 @@ export default function SummaryTab() {
       stocksUnrealizedProfit,
       totalProfit,
     };
-  }, [deposits, portfolioEntries]);
+  }, [deposits, portfolioEntries, etfsInRon, fundUnitsInRon]);
 
   const totalDividends = useMemo(
     () => dividends.reduce((sum, d) => sum + d.amount, 0),
@@ -324,57 +646,72 @@ export default function SummaryTab() {
   const pieBasisData = useMemo((): SummaryPieRow[] => {
     return [
       {
-        name: t("pieTermDepositsPrincipal"),
-        value: summary.totalDepositsInvested,
-        color: COLORS.deposits,
-      },
-      {
         name: t("pieStocksCost"),
         value: summary.stocksInvestedValue,
         color: COLORS.stocks,
+        legendOrder: 1,
+      },
+      {
+        name: t("pieTermDepositsPrincipal"),
+        value: summary.totalDepositsInvested,
+        color: COLORS.deposits,
+        legendOrder: 2,
+      },
+      {
+        name: t("pieEtfsCost"),
+        value: etfsInRon.invested,
+        color: COLORS.etfs,
+        legendOrder: 3,
+      },
+      {
+        name: t("pieFundUnitsInvested"),
+        value: fundUnitsInRon.invested,
+        color: COLORS.fundUnits,
+        legendOrder: 4,
       },
     ].filter((item) => item.value > 0);
-  }, [summary, t]);
+  }, [summary, etfsInRon.invested, fundUnitsInRon.invested, t]);
 
   const pieWealthData = useMemo((): SummaryPieRow[] => {
-    const rows: SummaryPieRow[] = [
+    return [
+      {
+        name: t("pieDividendsCumulative"),
+        value: totalDividends,
+        color: COLORS.dividends,
+        legendOrder: 0,
+      },
+      {
+        name: t("pieStocksMarket"),
+        value: summary.stocksCurrentValue,
+        color: COLORS.stocks,
+        legendOrder: 1,
+      },
       {
         name: t("pieTermDepositsWithInterest"),
         value: summary.totalDepositsCurrentValue,
         color: COLORS.deposits,
+        legendOrder: 2,
       },
-    ];
-    if (summary.stocksCurrentValue > 0 && totalDividends > 0) {
-      rows.push(
-        {
-          name: t("pieStocksMarket"),
-          value: summary.stocksCurrentValue,
-          color: COLORS.stocks,
-        },
-        {
-          name: t("pieDividendsCumulative"),
-          value: totalDividends,
-          color: COLORS.dividends,
-        },
-      );
-    } else {
-      if (summary.stocksCurrentValue > 0) {
-        rows.push({
-          name: t("pieStocksMarket"),
-          value: summary.stocksCurrentValue,
-          color: COLORS.stocks,
-        });
-      }
-      if (totalDividends > 0) {
-        rows.push({
-          name: t("pieDividendsCumulative"),
-          value: totalDividends,
-          color: COLORS.dividends,
-        });
-      }
-    }
-    return rows.filter((item) => item.value > 0);
-  }, [summary, totalDividends, t]);
+      {
+        name: t("pieEtfsValue"),
+        value: etfsInRon.currentValue,
+        color: COLORS.etfs,
+        legendOrder: 3,
+      },
+      {
+        name: t("pieFundUnitsValue"),
+        value: fundUnitsInRon.currentValue,
+        color: COLORS.fundUnits,
+        legendOrder: 4,
+      },
+    ].filter((item) => item.value > 0);
+  }, [
+    summary,
+    etfsInRon.currentValue,
+    fundUnitsInRon.currentValue,
+    totalDividends,
+    t,
+  ]);
 
   const pieBasisTotal = useMemo(
     () => pieBasisData.reduce((s, r) => s + r.value, 0),
@@ -386,7 +723,20 @@ export default function SummaryTab() {
     [pieWealthData],
   );
 
-  if (depositsLoading || portfolioLoading || dividendsLoading) {
+  const hasEtfSections = CURRENCIES.some(
+    (currency) => (etfSummariesByCurrency[currency]?.totalValue ?? 0) > 0,
+  );
+  const hasFundUnitSections = CURRENCIES.some(
+    (currency) => (fundUnitSummariesByCurrency[currency]?.totalValue ?? 0) > 0,
+  );
+
+  if (
+    depositsLoading ||
+    portfolioLoading ||
+    dividendsLoading ||
+    etfsLoading ||
+    fundUnitsLoading
+  ) {
     return (
       <div className="space-y-6">
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
@@ -405,63 +755,29 @@ export default function SummaryTab() {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
+        <SummaryExchangeRates />
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-400 text-sm">{t("termDeposits")}</p>
-              <TrendingUp className="w-5 h-5 text-green-400" />
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {summary.totalDepositsCurrentValue.toLocaleString(numberFormat, {
-                style: "currency",
-                currency: "RON",
-              })}
-            </p>
-            <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
-              <p>
-                {t("principalLabel")}{" "}
-                {summary.totalDepositsInvested.toLocaleString(numberFormat, {
-                  style: "currency",
-                  currency: "RON",
-                })}
-              </p>
-              <p>
-                {t("profitLabel")}{" "}
-                <span
-                  className={
-                    summary.depositsProfit >= 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }
-                >
-                  {summary.depositsProfit >= 0 ? "+" : ""}
-                  {summary.depositsProfit.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-2">
               <p className="text-zinc-400 text-sm">{t("stocks")}</p>
-              <TrendingUp className="w-5 h-5 text-blue-400" />
+              <TrendingUp className={`w-5 h-5 ${TAB_ICON_CLASS.stocks}`} />
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.stocksCurrentValue.toLocaleString(numberFormat, {
-                style: "currency",
-                currency: "RON",
-              })}
+              {formatCurrencyDisplay(
+                summary.stocksCurrentValue,
+                "RON",
+                numberFormat,
+              )}
             </p>
             <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
               <p>
                 {t("investedLabel")}{" "}
-                {summary.stocksInvestedValue.toLocaleString(numberFormat, {
-                  style: "currency",
-                  currency: "RON",
-                })}
+                {formatCurrencyDisplay(
+                  summary.stocksInvestedValue,
+                  "RON",
+                  numberFormat,
+                )}
               </p>
               <p>
                 {t("unrealizedLabel")}{" "}
@@ -472,16 +788,109 @@ export default function SummaryTab() {
                       : "text-red-400"
                   }
                 >
-                  {summary.stocksUnrealizedProfit >= 0 ? "+" : ""}
-                  {summary.stocksUnrealizedProfit.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
+                  {formatSignedCurrencyAmount(
+                    summary.stocksUnrealizedProfit,
+                    "RON",
+                    numberFormat,
+                  )}
+                  {summary.stocksInvestedValue > 0 && (
+                    <>
+                      {"\u00A0("}
+                      {profitReturnPercent(
+                        summary.stocksUnrealizedProfit,
+                        summary.stocksInvestedValue,
+                      ).toFixed(2)}
+                      %)
+                    </>
+                  )}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-400 text-sm">{t("termDeposits")}</p>
+              <TrendingUp className={`w-5 h-5 ${TAB_ICON_CLASS.deposits}`} />
+            </div>
+            <p className="text-2xl font-bold text-white">
+              {formatCurrencyDisplay(
+                summary.totalDepositsCurrentValue,
+                "RON",
+                numberFormat,
+              )}
+            </p>
+            <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
+              <p>
+                {t("principalLabel")}{" "}
+                {formatCurrencyDisplay(
+                  summary.totalDepositsInvested,
+                  "RON",
+                  numberFormat,
+                )}
+              </p>
+              <p>
+                {t("profitLabel")}{" "}
+                <span
+                  className={
+                    summary.depositsProfit >= 0
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }
+                >
+                  {formatSignedCurrencyAmount(
+                    summary.depositsProfit,
+                    "RON",
+                    numberFormat,
+                  )}
+                  {summary.totalDepositsInvested > 0 && (
+                    <>
+                      {"\u00A0("}
+                      {profitReturnPercent(
+                        summary.depositsProfit,
+                        summary.totalDepositsInvested,
+                      ).toFixed(2)}
+                      %)
+                    </>
+                  )}
                 </span>
               </p>
             </div>
           </div>
         </div>
+
+        {(hasEtfSections || hasFundUnitSections) && (
+          <div
+            className={`grid grid-cols-1 gap-4 ${
+              hasEtfSections && hasFundUnitSections ? "lg:grid-cols-2" : ""
+            }`}
+          >
+            {hasFundUnitSections && (
+              <CurrencyBreakdown
+                variant="fundUnit"
+                title={t("fundUnits")}
+                ronInvested={fundUnitsInRon.invested}
+                summaries={fundUnitSummariesByCurrency}
+                ronCurrentValue={fundUnitsInRon.currentValue}
+                icon={
+                  <Landmark className={`h-5 w-5 ${TAB_ICON_CLASS.fundUnits}`} />
+                }
+              />
+            )}
+            {hasEtfSections && (
+              <CurrencyBreakdown
+                variant="etf"
+                title={t("etfs")}
+                ronInvested={etfsInRon.invested}
+                summaries={etfSummariesByCurrency}
+                ronCurrentValue={etfsInRon.currentValue}
+                icon={
+                  <LineChart className={`h-5 w-5 ${TAB_ICON_CLASS.etfs}`} />
+                }
+              />
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
@@ -489,35 +898,37 @@ export default function SummaryTab() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-zinc-400 text-sm">
-                    {t("totalCurrentValue")}
+                    {t("totalCurrentValue")}{" "}
+                    <span className="text-zinc-500">
+                      ({t("excludingDividends").toLowerCase()})
+                    </span>
                   </p>
                   <span className="rounded border border-zinc-600 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-400">
                     RON
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-white">
-                  {summary.totalCurrentValue.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
+                  {formatCurrencyDisplay(
+                    summary.totalCurrentValue,
+                    "RON",
+                    numberFormat,
+                  )}
                 </p>
                 {summary.totalInvested > 0 && (
                   <p className="mt-1 text-sm text-zinc-400">
                     {t("investedLabel")}{" "}
-                    {summary.totalInvested.toLocaleString(numberFormat, {
-                      style: "currency",
-                      currency: "RON",
-                    })}
+                    {formatCurrencyDisplay(
+                      summary.totalInvested,
+                      "RON",
+                      numberFormat,
+                    )}
                   </p>
                 )}
               </div>
               <div className="border-t border-zinc-700/80 pt-3">
                 <p className="mb-2 text-sm text-zinc-400">{t("dividends")}</p>
                 <p className="text-2xl font-bold text-white">
-                  {totalDividends.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
+                  {formatCurrencyDisplay(totalDividends, "RON", numberFormat)}
                 </p>
                 {0 === dividends.length && (
                   <p className="mt-1 text-sm text-zinc-400">
@@ -545,11 +956,11 @@ export default function SummaryTab() {
                     summary.totalProfit >= 0 ? "text-green-400" : "text-red-400"
                   }`}
                 >
-                  {summary.totalProfit >= 0 ? "+" : ""}
-                  {summary.totalProfit.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
+                  {formatSignedCurrencyAmount(
+                    summary.totalProfit,
+                    "RON",
+                    numberFormat,
+                  )}
                 </p>
                 {summary.totalInvested > 0 && (
                   <p className="mt-1 text-sm text-zinc-400">
@@ -572,11 +983,11 @@ export default function SummaryTab() {
                       : "text-red-400"
                   }`}
                 >
-                  {totalProfitWithDividends >= 0 ? "+" : ""}
-                  {totalProfitWithDividends.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
+                  {formatSignedCurrencyAmount(
+                    totalProfitWithDividends,
+                    "RON",
+                    numberFormat,
+                  )}
                 </p>
                 {summary.totalInvested > 0 && (
                   <p className="mt-1 text-sm text-zinc-400">

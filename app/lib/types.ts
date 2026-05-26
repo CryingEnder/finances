@@ -29,7 +29,6 @@ export interface PortfolioEntry {
   referencePrice: number;
 }
 
-// Client-side calculated fields
 export type PortfolioEntryWithCalculations = PortfolioEntry & {
   purchaseValue: number; // quantity * averagePrice
   currentValue: number; // quantity * referencePrice
@@ -69,7 +68,6 @@ export interface Deposit {
   autoRenew: boolean; // Whether it auto-renews at maturity
 }
 
-// Client-side calculated fields for deposits
 export type DepositWithCalculations = Deposit & {
   daysActive: number; // Days since start date
   totalReturn: number; // currentBalance - principal
@@ -110,7 +108,6 @@ export interface Transaction {
   currency: "RON";
 }
 
-// Client-side calculated fields (not stored in DB)
 export type TransactionWithCalculations = Transaction & {
   totalFees: number; // bcrCommission + settlementCommission + otherFees + externalCosts + taxWithheld
   feesWithoutTax: number; // bcrCommission + settlementCommission + otherFees + externalCosts (excluding tax)

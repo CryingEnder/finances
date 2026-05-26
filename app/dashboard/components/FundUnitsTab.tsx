@@ -15,6 +15,7 @@ import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
+import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { formatDisplayDate } from "../../lib/dates";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
@@ -411,7 +412,7 @@ export default function FundUnitsTab() {
           <DialogTrigger asChild>
             <Button
               onClick={beginAdd}
-              className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              className={TAB_BUTTON_CLASS.fundUnits}
             >
               <Plus className="w-4 h-4 mr-2" />
               {t("addFundUnit")}
@@ -573,7 +574,7 @@ export default function FundUnitsTab() {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  className={TAB_BUTTON_CLASS.fundUnits}
                   disabled={
                     createMutation.isPending || updateMutation.isPending
                   }

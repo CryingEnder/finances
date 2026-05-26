@@ -170,7 +170,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingDividends")}</p>
                     </div>
                   </div>
@@ -215,7 +215,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingSummary")}</p>
                     </div>
                   </div>
