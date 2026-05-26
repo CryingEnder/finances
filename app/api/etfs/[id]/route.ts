@@ -2,9 +2,14 @@ import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../../lib/auth";
+import { todayIsoDate } from "../../../lib/dates";
 import { isValidObjectId } from "../../../lib/utils";
 import { getEtfsCollection } from "../../../lib/database";
-import { etfSchema, formatZodErrors } from "../../../lib/validation";
+import {
+  etfHasChanges,
+  etfSchema,
+  formatZodErrors,
+} from "../../../lib/validation";
 
 export async function PUT(
   request: NextRequest,
@@ -21,7 +26,7 @@ export async function PUT(
     }
 
     const payload = body as Record<string, unknown>;
-    const { symbol, label, volume, actualPrice, openingPrice, currency, date } =
+    const { symbol, label, volume, actualPrice, openingPrice, currency } =
       payload;
 
     if (
@@ -45,7 +50,6 @@ export async function PUT(
       actualPrice: Number(actualPrice),
       openingPrice: Number(openingPrice),
       currency,
-      date: date ?? "",
     });
 
     if (!validationResult.success) {
@@ -71,34 +75,42 @@ export async function PUT(
 
     const objectId = new ObjectId(id);
 
-    const existingEtf = await etfsCollection.findOne({
+    const currentEtf = await etfsCollection.findOne({ _id: objectId });
+    if (!currentEtf) {
+      return NextResponse.json({ error: "ETF not found" }, { status: 404 });
+    }
+
+    if (!etfHasChanges(currentEtf, validatedData)) {
+      return NextResponse.json(
+        { error: "No changes to save" },
+        { status: 400 },
+      );
+    }
+
+    const duplicateSymbol = await etfsCollection.findOne({
       symbol: validatedData.symbol,
       _id: { $ne: objectId },
     });
-    if (existingEtf) {
+    if (duplicateSymbol) {
       return NextResponse.json(
         { error: "An ETF with this symbol already exists" },
         { status: 409 },
       );
     }
 
-    const setFields: Record<string, string | number> = {
-      symbol: validatedData.symbol,
-      label: validatedData.label,
-      volume: validatedData.volume,
-      actualPrice: validatedData.actualPrice,
-      openingPrice: validatedData.openingPrice,
-      currency: validatedData.currency,
-    };
-    if (validatedData.date) {
-      setFields.date = validatedData.date;
-    }
-
     const result = await etfsCollection.updateOne(
       { _id: objectId },
-      validatedData.date
-        ? { $set: setFields }
-        : { $set: setFields, $unset: { date: "" } },
+      {
+        $set: {
+          symbol: validatedData.symbol,
+          label: validatedData.label,
+          volume: validatedData.volume,
+          actualPrice: validatedData.actualPrice,
+          openingPrice: validatedData.openingPrice,
+          currency: validatedData.currency,
+          date: todayIsoDate(),
+        },
+      },
     );
 
     if (0 === result.matchedCount) {

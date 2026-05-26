@@ -112,12 +112,28 @@ const fetchEtfs = async (): Promise<Etf[]> => {
   }
 };
 
-const createEtf = async (etf: Omit<Etf, "_id">): Promise<Etf> => {
+const etfRequestBody = ({
+  symbol,
+  label,
+  volume,
+  actualPrice,
+  openingPrice,
+  currency,
+}: Omit<Etf, "_id" | "date">) => ({
+  symbol,
+  label,
+  volume,
+  actualPrice,
+  openingPrice,
+  currency,
+});
+
+const createEtf = async (etf: Omit<Etf, "_id" | "date">): Promise<Etf> => {
   try {
     const response = await fetch("/api/etfs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(etf),
+      body: JSON.stringify(etfRequestBody(etf)),
     });
 
     if (!response.ok) {
@@ -139,7 +155,15 @@ const createEtf = async (etf: Omit<Etf, "_id">): Promise<Etf> => {
   }
 };
 
-const updateEtf = async ({ _id, ...etf }: Etf): Promise<Etf> => {
+const updateEtf = async ({
+  _id,
+  symbol,
+  label,
+  volume,
+  actualPrice,
+  openingPrice,
+  currency,
+}: Etf): Promise<Etf> => {
   try {
     if (!_id) {
       throw new Error("ETF ID is required");
@@ -148,7 +172,16 @@ const updateEtf = async ({ _id, ...etf }: Etf): Promise<Etf> => {
     const response = await fetch(`/api/etfs/${_id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(etf),
+      body: JSON.stringify(
+        etfRequestBody({
+          symbol,
+          label,
+          volume,
+          actualPrice,
+          openingPrice,
+          currency,
+        }),
+      ),
     });
 
     if (!response.ok) {

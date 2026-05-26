@@ -128,7 +128,7 @@ export interface Etf {
   actualPrice: number;
   openingPrice: number;
   currency: EtfCurrency;
-  date?: string; // ISO date YYYY-MM-DD when the position was recorded
+  date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
 }
 
 export type EtfWithCalculations = Etf & {

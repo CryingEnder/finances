@@ -295,17 +295,31 @@ export const etfSchema = z.object({
   currency: z.enum(["EUR", "USD", "RON"], {
     message: "Currency must be EUR, USD, or RON",
   }),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
-    .optional()
-    .or(z.literal(""))
-    .transform((val) => ("" === val ? undefined : val)),
 });
+
+export type EtfInput = z.infer<typeof etfSchema>;
+
+export type EtfComparableFields = Pick<
+  EtfInput,
+  "symbol" | "label" | "volume" | "actualPrice" | "openingPrice" | "currency"
+>;
+
+export function etfHasChanges(
+  existing: EtfComparableFields,
+  updated: EtfComparableFields,
+): boolean {
+  return (
+    existing.symbol !== updated.symbol ||
+    existing.label !== updated.label ||
+    existing.volume !== updated.volume ||
+    existing.actualPrice !== updated.actualPrice ||
+    existing.openingPrice !== updated.openingPrice ||
+    existing.currency !== updated.currency
+  );
+}
 
 export type CompanyInput = z.infer<typeof companySchema>;
 export type DividendInput = z.infer<typeof dividendSchema>;
 export type PortfolioEntryInput = z.infer<typeof portfolioEntrySchema>;
 export type DepositInput = z.infer<typeof depositSchema>;
 export type TransactionInput = z.infer<typeof transactionSchema>;
-export type EtfInput = z.infer<typeof etfSchema>;

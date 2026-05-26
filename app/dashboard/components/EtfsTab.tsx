@@ -115,7 +115,6 @@ export default function EtfsTab() {
   const [formActualPrice, setFormActualPrice] = useState("");
   const [formOpeningPrice, setFormOpeningPrice] = useState("");
   const [formCurrency, setFormCurrency] = useState<EtfCurrency>("EUR");
-  const [formDate, setFormDate] = useState("");
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -146,7 +145,6 @@ export default function EtfsTab() {
     setFormActualPrice("");
     setFormOpeningPrice("");
     setFormCurrency("EUR");
-    setFormDate("");
   };
 
   const openEdit = (row: Etf) => {
@@ -157,7 +155,6 @@ export default function EtfsTab() {
     setFormActualPrice(String(row.actualPrice));
     setFormOpeningPrice(String(row.openingPrice));
     setFormCurrency(row.currency);
-    setFormDate(row.date ?? "");
     setFormError("");
     setDialogOpen(true);
   };
@@ -181,7 +178,7 @@ export default function EtfsTab() {
       return;
     }
 
-    const payload: Omit<Etf, "_id"> = {
+    const payload: Omit<Etf, "_id" | "date"> = {
       symbol: formSymbol.trim(),
       label: formLabel.trim(),
       volume,
@@ -189,10 +186,6 @@ export default function EtfsTab() {
       openingPrice,
       currency: formCurrency,
     };
-
-    if (formDate.trim().length > 0) {
-      payload.date = formDate.trim();
-    }
 
     try {
       if (editing) {
@@ -204,7 +197,10 @@ export default function EtfsTab() {
       beginAdd();
       setDialogOpen(false);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t("failedSave"));
+      const message = err instanceof Error ? err.message : t("failedSave");
+      setFormError(
+        "No changes to save" === message ? t("errNoChanges") : message,
+      );
     }
   };
 
@@ -463,46 +459,30 @@ export default function EtfsTab() {
                   }}
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="etfCurrency" className="mb-2 block">
-                    {t("currency")}
-                  </Label>
-                  <Select
-                    value={formCurrency}
-                    onValueChange={(value) => {
-                      setFormCurrency(value as EtfCurrency);
-                    }}
+              <div>
+                <Label htmlFor="etfCurrency" className="mb-2 block">
+                  {t("currency")}
+                </Label>
+                <Select
+                  value={formCurrency}
+                  onValueChange={(value) => {
+                    setFormCurrency(value as EtfCurrency);
+                  }}
+                >
+                  <SelectTrigger
+                    id="etfCurrency"
+                    className="bg-zinc-700 border-zinc-600 text-white w-full"
                   >
-                    <SelectTrigger
-                      id="etfCurrency"
-                      className="bg-zinc-700 border-zinc-600 text-white w-full"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                      {ETF_CURRENCIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {currencyLabel(c, t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="etfDate" className="mb-2 block">
-                    {t("dateOptional")}
-                  </Label>
-                  <Input
-                    type="date"
-                    id="etfDate"
-                    value={formDate}
-                    onChange={(e) => {
-                      setFormDate(e.target.value);
-                    }}
-                    className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
-                  />
-                </div>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                    {ETF_CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {currencyLabel(c, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>

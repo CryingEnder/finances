@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
+import { todayIsoDate } from "../../lib/dates";
 import { getEtfsCollection } from "../../lib/database";
 import { etfSchema, formatZodErrors } from "../../lib/validation";
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = body as Record<string, unknown>;
-    const { symbol, label, volume, actualPrice, openingPrice, currency, date } =
+    const { symbol, label, volume, actualPrice, openingPrice, currency } =
       payload;
 
     if (
@@ -61,7 +62,6 @@ export async function POST(request: NextRequest) {
       actualPrice: Number(actualPrice),
       openingPrice: Number(openingPrice),
       currency,
-      date: date ?? "",
     });
 
     if (!validationResult.success) {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       actualPrice: validatedData.actualPrice,
       openingPrice: validatedData.openingPrice,
       currency: validatedData.currency,
-      ...(validatedData.date ? { date: validatedData.date } : {}),
+      date: todayIsoDate(),
     };
 
     const result = await etfsCollection.insertOne(etf);
