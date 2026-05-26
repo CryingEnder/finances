@@ -5,6 +5,7 @@ export const TAB_COLORS = {
   etfs: "#4f46e5",
   fundUnits: "#16a34a",
   dividends: "#ea580c",
+  bonds: "#b45309",
   profit: "#84cc16",
   loss: "#f87171",
 } as const;

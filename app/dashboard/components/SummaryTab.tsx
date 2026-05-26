@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Coins, Landmark, LineChart, TrendingUp } from "lucide-react";
 import {
@@ -38,8 +38,10 @@ import {
   formatCurrencyDisplay,
   formatSignedCurrencyAmount,
 } from "../../lib/currency-format";
+import { cn } from "../../lib/utils";
 
 interface SummaryPieRow {
+  id: string;
   name: string;
   value: number;
   color: string;
@@ -47,11 +49,20 @@ interface SummaryPieRow {
   [key: string]: string | number | undefined;
 }
 
+interface PieToggleItem {
+  id: string;
+  label: string;
+  color: string;
+  enabled: boolean;
+}
+
 interface SummaryDistributionPieProps {
   data: SummaryPieRow[];
   tooltipValueLabel: string;
   totalValue: number;
   title: string;
+  toggleItems?: PieToggleItem[];
+  onToggleItem?: (id: string) => void;
 }
 
 const COLORS = TAB_COLORS;
@@ -426,11 +437,57 @@ function SummaryVerticalLegend(props: {
   );
 }
 
+function SummaryPieToggleBar({
+  items,
+  onToggleItem,
+}: {
+  items: PieToggleItem[];
+  onToggleItem: (id: string) => void;
+}) {
+  if (0 === items.length) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 flex flex-wrap gap-2">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          aria-pressed={item.enabled}
+          onClick={() => onToggleItem(item.id)}
+          className={cn(
+            "cursor-pointer rounded-full border py-1 text-xs font-medium transition-all",
+            item.enabled ? "pl-3 pr-2" : "px-3",
+            item.enabled
+              ? "border-transparent text-white shadow-sm"
+              : "border-zinc-600 bg-zinc-900/40 text-zinc-500 opacity-70",
+          )}
+          style={
+            item.enabled ? { backgroundColor: item.color } : { color: item.color }
+          }
+        >
+          <span className="inline-flex items-center gap-0.5">
+            {item.label}
+            {item.enabled && (
+              <span aria-hidden className="text-[0.8125rem] leading-none opacity-80">
+                ×
+              </span>
+            )}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SummaryDistributionPie({
   data,
   tooltipValueLabel,
   totalValue,
   title,
+  toggleItems,
+  onToggleItem,
 }: SummaryDistributionPieProps) {
   const t = useTranslations("Summary");
 
@@ -438,6 +495,9 @@ function SummaryDistributionPie({
     return (
       <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+        {toggleItems && onToggleItem && (
+          <SummaryPieToggleBar items={toggleItems} onToggleItem={onToggleItem} />
+        )}
         <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-zinc-700 py-12">
           <p className="text-sm text-zinc-500 text-center px-4">
             {t("pieNothing")}
@@ -450,6 +510,9 @@ function SummaryDistributionPie({
   return (
     <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      {toggleItems && onToggleItem && (
+        <SummaryPieToggleBar items={toggleItems} onToggleItem={onToggleItem} />
+      )}
       <div className="h-112 min-h-112 w-full min-w-0 shrink-0">
         <ResponsiveContainer height={448} minWidth={0} width="100%">
           <PieChart>
@@ -643,27 +706,64 @@ export default function SummaryTab() {
     [summary.totalProfit, totalDividends],
   );
 
-  const pieBasisData = useMemo((): SummaryPieRow[] => {
+  const [basisHiddenIds, setBasisHiddenIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [wealthHiddenIds, setWealthHiddenIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const togglePieItem = useCallback(
+    (
+      id: string,
+      allRows: SummaryPieRow[],
+      hiddenIds: Set<string>,
+      setHiddenIds: Dispatch<SetStateAction<Set<string>>>,
+    ) => {
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+          return next;
+        }
+
+        const visibleCount = allRows.filter((row) => !prev.has(row.id)).length;
+        if (visibleCount <= 1) {
+          return prev;
+        }
+
+        next.add(id);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const pieBasisDataAll = useMemo((): SummaryPieRow[] => {
     return [
       {
+        id: "stocks",
         name: t("pieStocksCost"),
         value: summary.stocksInvestedValue,
         color: COLORS.stocks,
         legendOrder: 1,
       },
       {
+        id: "deposits",
         name: t("pieTermDepositsPrincipal"),
         value: summary.totalDepositsInvested,
         color: COLORS.deposits,
         legendOrder: 2,
       },
       {
+        id: "etfs",
         name: t("pieEtfsCost"),
         value: etfsInRon.invested,
         color: COLORS.etfs,
         legendOrder: 3,
       },
       {
+        id: "fundUnits",
         name: t("pieFundUnitsInvested"),
         value: fundUnitsInRon.invested,
         color: COLORS.fundUnits,
@@ -672,33 +772,38 @@ export default function SummaryTab() {
     ].filter((item) => item.value > 0);
   }, [summary, etfsInRon.invested, fundUnitsInRon.invested, t]);
 
-  const pieWealthData = useMemo((): SummaryPieRow[] => {
+  const pieWealthDataAll = useMemo((): SummaryPieRow[] => {
     return [
       {
+        id: "dividends",
         name: t("pieDividendsCumulative"),
         value: totalDividends,
         color: COLORS.dividends,
         legendOrder: 0,
       },
       {
+        id: "stocks",
         name: t("pieStocksMarket"),
         value: summary.stocksCurrentValue,
         color: COLORS.stocks,
         legendOrder: 1,
       },
       {
+        id: "deposits",
         name: t("pieTermDepositsWithInterest"),
         value: summary.totalDepositsCurrentValue,
         color: COLORS.deposits,
         legendOrder: 2,
       },
       {
+        id: "etfs",
         name: t("pieEtfsValue"),
         value: etfsInRon.currentValue,
         color: COLORS.etfs,
         legendOrder: 3,
       },
       {
+        id: "fundUnits",
         name: t("pieFundUnitsValue"),
         value: fundUnitsInRon.currentValue,
         color: COLORS.fundUnits,
@@ -713,6 +818,81 @@ export default function SummaryTab() {
     t,
   ]);
 
+  const pieBasisData = useMemo(
+    () => pieBasisDataAll.filter((row) => !basisHiddenIds.has(row.id)),
+    [pieBasisDataAll, basisHiddenIds],
+  );
+
+  const pieWealthData = useMemo(
+    () => pieWealthDataAll.filter((row) => !wealthHiddenIds.has(row.id)),
+    [pieWealthDataAll, wealthHiddenIds],
+  );
+
+  const pieBasisToggleItems = useMemo(
+    (): PieToggleItem[] =>
+      pieBasisDataAll.map((row) => ({
+        id: row.id,
+        label: row.name,
+        color: row.color,
+        enabled: !basisHiddenIds.has(row.id),
+      })),
+    [pieBasisDataAll, basisHiddenIds],
+  );
+
+  const pieWealthToggleItems = useMemo(
+    (): PieToggleItem[] =>
+      pieWealthDataAll.map((row) => ({
+        id: row.id,
+        label: row.name,
+        color: row.color,
+        enabled: !wealthHiddenIds.has(row.id),
+      })),
+    [pieWealthDataAll, wealthHiddenIds],
+  );
+
+  const fundAllocation = useMemo(() => {
+    if (0 === fundUnits.length || fundUnitsInRon.currentValue <= 0) {
+      return null;
+    }
+
+    const avgBondsPercent =
+      fundUnits.reduce((sum, unit) => sum + unit.bondsPercent, 0) /
+      fundUnits.length;
+    const avgStocksPercent = 100 - avgBondsPercent;
+    const totalRon = fundUnitsInRon.currentValue;
+
+    return {
+      avgBondsPercent,
+      avgStocksPercent,
+      totalRon,
+      bondsValue: totalRon * (avgBondsPercent / 100),
+      stocksValue: totalRon * (avgStocksPercent / 100),
+    };
+  }, [fundUnits, fundUnitsInRon.currentValue]);
+
+  const pieFundAllocationData = useMemo((): SummaryPieRow[] => {
+    if (!fundAllocation) {
+      return [];
+    }
+
+    return [
+      {
+        id: "bonds",
+        name: t("pieBonds"),
+        value: fundAllocation.bondsValue,
+        color: COLORS.bonds,
+        legendOrder: 1,
+      },
+      {
+        id: "stocks",
+        name: t("pieStocks"),
+        value: fundAllocation.stocksValue,
+        color: COLORS.stocks,
+        legendOrder: 2,
+      },
+    ].filter((item) => item.value > 0);
+  }, [fundAllocation, t]);
+
   const pieBasisTotal = useMemo(
     () => pieBasisData.reduce((s, r) => s + r.value, 0),
     [pieBasisData],
@@ -721,6 +901,11 @@ export default function SummaryTab() {
   const pieWealthTotal = useMemo(
     () => pieWealthData.reduce((s, r) => s + r.value, 0),
     [pieWealthData],
+  );
+
+  const pieFundAllocationTotal = useMemo(
+    () => pieFundAllocationData.reduce((s, r) => s + r.value, 0),
+    [pieFundAllocationData],
   );
 
   const hasEtfSections = CURRENCIES.some(
@@ -1012,14 +1197,42 @@ export default function SummaryTab() {
               totalValue={pieBasisTotal}
               title={t("pieInvestedTitle")}
               tooltipValueLabel={t("amount")}
+              toggleItems={pieBasisToggleItems}
+              onToggleItem={(id) =>
+                togglePieItem(
+                  id,
+                  pieBasisDataAll,
+                  basisHiddenIds,
+                  setBasisHiddenIds,
+                )
+              }
             />
             <SummaryDistributionPie
               data={pieWealthData}
               title={t("pieWealthTitle")}
               totalValue={pieWealthTotal}
               tooltipValueLabel={t("amount")}
+              toggleItems={pieWealthToggleItems}
+              onToggleItem={(id) =>
+                togglePieItem(
+                  id,
+                  pieWealthDataAll,
+                  wealthHiddenIds,
+                  setWealthHiddenIds,
+                )
+              }
             />
           </div>
+          {fundAllocation && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SummaryDistributionPie
+                data={pieFundAllocationData}
+                totalValue={pieFundAllocationTotal}
+                title={t("pieFundAllocationTitle")}
+                tooltipValueLabel={t("amount")}
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
