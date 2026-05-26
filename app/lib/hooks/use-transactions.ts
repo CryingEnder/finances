@@ -47,8 +47,7 @@ const parseTransaction = (value: unknown): Transaction => {
   const market = payload.market;
   const currency = payload.currency;
   const id = payload._id;
-  const normalizedMarket =
-    "string" === typeof market ? market : "UNKNOWN";
+  const normalizedMarket = "string" === typeof market ? market : "UNKNOWN";
   const normalizedCurrency = "RON" === currency ? "RON" : "RON";
 
   if (
@@ -118,7 +117,7 @@ const parseTransactions = (value: unknown): Transaction[] => {
     try {
       acc.push(parseTransaction(item));
     } catch (error) {
-      console.warn("Skipping invalid transaction payload", error);
+      console.error("Skipping invalid transaction payload", error);
     }
     return acc;
   }, []);
@@ -216,7 +215,9 @@ export function useCreateTransaction() {
   return useMutation({
     mutationFn: createTransaction,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: transactionsKeys.lists(),
+      });
     },
   });
 }
@@ -227,7 +228,9 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: updateTransaction,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: transactionsKeys.lists(),
+      });
     },
   });
 }
@@ -238,7 +241,9 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: transactionsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: transactionsKeys.lists(),
+      });
     },
   });
 }

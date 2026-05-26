@@ -68,7 +68,7 @@ const parseEtfs = (value: unknown): Etf[] => {
     try {
       acc.push(parseEtf(item));
     } catch (error) {
-      console.warn("Skipping invalid ETF payload", error);
+      console.error("Skipping invalid ETF payload", error);
     }
     return acc;
   }, []);

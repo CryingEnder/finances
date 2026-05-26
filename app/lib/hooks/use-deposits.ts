@@ -89,7 +89,7 @@ const parseDeposits = (value: unknown): Deposit[] => {
     try {
       acc.push(parseDeposit(item));
     } catch (error) {
-      console.warn("Skipping invalid deposit payload", error);
+      console.error("Skipping invalid deposit payload", error);
     }
     return acc;
   }, []);

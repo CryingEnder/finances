@@ -70,7 +70,7 @@ const parseFundUnits = (value: unknown): FundUnit[] => {
     try {
       acc.push(parseFundUnit(item));
     } catch (error) {
-      console.warn("Skipping invalid fund unit payload", error);
+      console.error("Skipping invalid fund unit payload", error);
     }
     return acc;
   }, []);

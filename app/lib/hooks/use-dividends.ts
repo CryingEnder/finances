@@ -71,7 +71,7 @@ const parseDividends = (value: unknown): Dividend[] => {
     try {
       acc.push(parseDividend(item));
     } catch (error) {
-      console.warn("Skipping invalid dividend payload", error);
+      console.error("Skipping invalid dividend payload", error);
     }
     return acc;
   }, []);
