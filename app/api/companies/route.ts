@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
+import { apiError } from "../../lib/api-response";
+import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../lib/database";
 import { companySchema, formatZodErrors } from "../../lib/validation";
 
@@ -21,10 +23,7 @@ export async function GET() {
     return NextResponse.json(serializedCompanies);
   } catch (error) {
     console.error("Error fetching companies:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch companies" },
-      { status: 500 }
-    );
+    return apiError(API_ERROR_CODES.failedFetchCompanies, 500);
   }
 }
 
@@ -33,20 +32,14 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 }
-      );
+      return apiError(API_ERROR_CODES.missingCompanyFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
     const { instrument, isin, issuer } = payload;
 
     if (!instrument || !isin || !issuer) {
-      return NextResponse.json(
-        { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 }
-      );
+      return apiError(API_ERROR_CODES.missingCompanyFields, 400);
     }
 
     const validationResult = companySchema.safeParse({
@@ -56,12 +49,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 }
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -72,10 +63,7 @@ export async function POST(request: NextRequest) {
       instrument: validatedData.instrument,
     });
     if (existingCompany) {
-      return NextResponse.json(
-        { error: "Company with this instrument already exists" },
-        { status: 409 }
-      );
+      return apiError(API_ERROR_CODES.companyDuplicateInstrument, 409);
     }
 
     const company = {
@@ -88,13 +76,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { ...company, _id: result.insertedId.toString() },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error creating company:", error);
-    return NextResponse.json(
-      { error: "Failed to create company" },
-      { status: 500 }
-    );
+    return apiError(API_ERROR_CODES.failedCreateCompany, 500);
   }
 }

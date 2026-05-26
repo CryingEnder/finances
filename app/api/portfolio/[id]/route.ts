@@ -2,7 +2,9 @@ import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../../lib/auth";
+import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getPortfolioCollection } from "../../../lib/database";
 import { formatZodErrors, portfolioEntrySchema } from "../../../lib/validation";
 
@@ -14,10 +16,7 @@ export async function PUT(
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
@@ -42,10 +41,7 @@ export async function PUT(
       averagePrice === undefined ||
       referencePrice === undefined
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const validationResult = portfolioEntrySchema.safeParse({
@@ -60,12 +56,10 @@ export async function PUT(
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -74,10 +68,7 @@ export async function PUT(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid portfolio entry ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidPortfolioEntryId, 400);
     }
 
     const objectId = new ObjectId(id);
@@ -88,12 +79,7 @@ export async function PUT(
       _id: { $ne: objectId },
     });
     if (existingEntry) {
-      return NextResponse.json(
-        {
-          error: "Portfolio entry with this date and instrument already exists",
-        },
-        { status: 409 },
-      );
+      return apiError(API_ERROR_CODES.portfolioEntryDuplicate, 409);
     }
 
     const result = await portfolioCollection.updateOne(
@@ -113,18 +99,12 @@ export async function PUT(
     );
 
     if (0 === result.matchedCount) {
-      return NextResponse.json(
-        { error: "Portfolio entry not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.portfolioEntryNotFound, 404);
     }
 
     const updatedEntry = await portfolioCollection.findOne({ _id: objectId });
     if (!updatedEntry) {
-      return NextResponse.json(
-        { error: "Portfolio entry not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.portfolioEntryNotFound, 404);
     }
 
     return NextResponse.json({
@@ -133,10 +113,7 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error updating portfolio entry:", error);
-    return NextResponse.json(
-      { error: "Failed to update portfolio entry" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedUpdatePortfolioEntry, 500);
   }
 }
 
@@ -150,28 +127,19 @@ export async function DELETE(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid portfolio entry ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidPortfolioEntryId, 400);
     }
 
     const objectId = new ObjectId(id);
     const result = await portfolioCollection.deleteOne({ _id: objectId });
 
     if (0 === result.deletedCount) {
-      return NextResponse.json(
-        { error: "Portfolio entry not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.portfolioEntryNotFound, 404);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting portfolio entry:", error);
-    return NextResponse.json(
-      { error: "Failed to delete portfolio entry" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedDeletePortfolioEntry, 500);
   }
 }

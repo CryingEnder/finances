@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Transaction } from "../types";
 
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+
+import {
+  throwIdRequired,
+  assertOkResponse,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
+
 export const transactionsKeys = {
   all: ["transactions"] as const,
   lists: () => [...transactionsKeys.all, "list"] as const,
@@ -11,14 +21,9 @@ export const transactionsKeys = {
   detail: (id: string) => [...transactionsKeys.details(), id] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parseTransaction = (value: unknown): Transaction => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid transaction payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -71,11 +76,11 @@ const parseTransaction = (value: unknown): Transaction => {
       undefined !== taxWithheld &&
       null !== taxWithheld)
   ) {
-    throw new Error("Invalid transaction payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid transaction payload");
+    throwInvalidPayload();
   }
 
   return {
@@ -106,57 +111,31 @@ const parseTransaction = (value: unknown): Transaction => {
 
 const parseTransactions = (value: unknown): Transaction[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid transactions payload");
+    throwInvalidPayload();
   }
 
   return value.reduce<Transaction[]>((acc, item) => {
     try {
       acc.push(parseTransaction(item));
     } catch (error) {
-      // Keep legacy rows from blanking the whole tab.
       console.warn("Skipping invalid transaction payload", error);
     }
     return acc;
   }, []);
 };
 
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
-};
-
 const fetchTransactions = async (): Promise<Transaction[]> => {
   try {
     const response = await fetch("/api/transactions");
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch transactions (${String(response.status)})`,
-      );
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedFetchTransactions);
 
     const data: unknown = await response.json();
     return parseTransactions(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to fetch transactions");
+    throwNetworkError();
   }
 };
 
@@ -170,22 +149,15 @@ const createTransaction = async (
       body: JSON.stringify(transaction),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to create transaction (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedCreateTransaction);
 
     const data: unknown = await response.json();
     return parseTransaction(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to create transaction");
+    throwNetworkError();
   }
 };
 
@@ -195,7 +167,7 @@ const updateTransaction = async ({
 }: Transaction): Promise<Transaction> => {
   try {
     if (!_id) {
-      throw new Error("Transaction ID is required");
+      throwIdRequired();
     }
 
     const response = await fetch(`/api/transactions/${_id}`, {
@@ -204,22 +176,15 @@ const updateTransaction = async ({
       body: JSON.stringify(transaction),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to update transaction (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedUpdateTransaction);
 
     const data: unknown = await response.json();
     return parseTransaction(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to update transaction");
+    throwNetworkError();
   }
 };
 
@@ -229,19 +194,12 @@ const deleteTransaction = async (id: string): Promise<void> => {
       method: "DELETE",
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to delete transaction (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedDeleteTransaction);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to delete transaction");
+    throwNetworkError();
   }
 };
 

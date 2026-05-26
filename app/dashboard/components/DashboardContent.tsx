@@ -24,6 +24,7 @@ const DepositsTab = lazy(() => import("./DepositsTab"));
 const TransactionsTab = lazy(() => import("./TransactionsTab"));
 const DividendsTab = lazy(() => import("./DividendsTab"));
 const EtfsTab = lazy(() => import("./EtfsTab"));
+const FundUnitsTab = lazy(() => import("./FundUnitsTab"));
 const SummaryTab = lazy(() => import("./SummaryTab"));
 
 const dashboardTabTriggerClass =
@@ -81,7 +82,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
           </div>
 
           <Tabs defaultValue="stocks" className="flex w-full flex-col gap-0">
-            <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 gap-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-1 min-h-12 lg:grid-cols-6">
+            <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 gap-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-1 min-h-12 lg:grid-cols-7">
               <TabsTrigger value="stocks" className={dashboardTabTriggerClass}>
                 {t("tabPortfolio")}
               </TabsTrigger>
@@ -105,6 +106,12 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
               </TabsTrigger>
               <TabsTrigger value="etfs" className={dashboardTabTriggerClass}>
                 {t("tabEtfs")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="fundUnits"
+                className={dashboardTabTriggerClass}
+              >
+                {t("tabFundUnits")}
               </TabsTrigger>
               <TabsTrigger value="summary" className={dashboardTabTriggerClass}>
                 {t("tabSummary")}
@@ -185,6 +192,21 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 }
               >
                 <EtfsTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent className="mt-6" value="fundUnits">
+              <Suspense
+                fallback={
+                  <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4" />
+                      <p className="text-zinc-400">{t("loadingFundUnits")}</p>
+                    </div>
+                  </div>
+                }
+              >
+                <FundUnitsTab />
               </Suspense>
             </TabsContent>
 

@@ -2,7 +2,9 @@ import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../../lib/auth";
+import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../../lib/database";
 import { companySchema, formatZodErrors } from "../../../lib/validation";
 
@@ -14,20 +16,14 @@ export async function PUT(
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingCompanyFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
     const { instrument, isin, issuer } = payload;
 
     if (!instrument || !isin || !issuer) {
-      return NextResponse.json(
-        { error: "Missing required fields: instrument, isin, issuer" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingCompanyFields, 400);
     }
 
     const validationResult = companySchema.safeParse({
@@ -37,12 +33,10 @@ export async function PUT(
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -51,10 +45,7 @@ export async function PUT(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid company ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidCompanyId, 400);
     }
 
     const objectId = new ObjectId(id);
@@ -64,10 +55,7 @@ export async function PUT(
       _id: { $ne: objectId },
     });
     if (existingCompany) {
-      return NextResponse.json(
-        { error: "Company with this instrument already exists" },
-        { status: 409 },
-      );
+      return apiError(API_ERROR_CODES.companyDuplicateInstrument, 409);
     }
 
     const result = await companiesCollection.updateOne(
@@ -82,12 +70,12 @@ export async function PUT(
     );
 
     if (0 === result.matchedCount) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError(API_ERROR_CODES.companyNotFound, 404);
     }
 
     const updatedCompany = await companiesCollection.findOne({ _id: objectId });
     if (!updatedCompany) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError(API_ERROR_CODES.companyNotFound, 404);
     }
 
     return NextResponse.json({
@@ -96,10 +84,7 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error updating company:", error);
-    return NextResponse.json(
-      { error: "Failed to update company" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedUpdateCompany, 500);
   }
 }
 
@@ -113,25 +98,19 @@ export async function DELETE(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid company ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidCompanyId, 400);
     }
 
     const objectId = new ObjectId(id);
     const result = await companiesCollection.deleteOne({ _id: objectId });
 
     if (0 === result.deletedCount) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError(API_ERROR_CODES.companyNotFound, 404);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting company:", error);
-    return NextResponse.json(
-      { error: "Failed to delete company" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedDeleteCompany, 500);
   }
 }

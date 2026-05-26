@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
+import { apiError } from "../../lib/api-response";
 import { getDepositsCollection } from "../../lib/database";
+import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { depositSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET(request: NextRequest) {
@@ -27,10 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(serializedDeposits);
   } catch (error) {
     console.error("Error fetching deposits:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch deposits" },
-      { status: 500 }
-    );
+    return apiError(API_ERROR_CODES.failedFetchDeposits, 500);
   }
 }
 
@@ -39,10 +38,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
@@ -72,10 +68,7 @@ export async function POST(request: NextRequest) {
       isActive === undefined ||
       autoRenew === undefined
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const validationResult = depositSchema.safeParse({
@@ -93,12 +86,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 }
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -110,10 +101,7 @@ export async function POST(request: NextRequest) {
       depositName: validatedData.depositName,
     });
     if (existingDeposit) {
-      return NextResponse.json(
-        { error: "Deposit with this bank and name already exists" },
-        { status: 409 }
-      );
+      return apiError(API_ERROR_CODES.depositDuplicate, 409);
     }
 
     const deposit = {
@@ -134,13 +122,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { ...deposit, _id: result.insertedId.toString() },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error creating deposit:", error);
-    return NextResponse.json(
-      { error: "Failed to create deposit" },
-      { status: 500 }
-    );
+    return apiError(API_ERROR_CODES.failedCreateDeposit, 500);
   }
 }

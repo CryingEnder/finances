@@ -2,17 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Edit, Plus, Trash2, LineChart } from "lucide-react";
+import { Edit, Plus, Trash2, Landmark } from "lucide-react";
 
 import type {
-  Etf,
-  EtfSummary,
-  EtfCurrency,
-  EtfWithCalculations,
+  FundUnit,
+  FundUnitSummary,
+  FundUnitWithCalculations,
 } from "../../lib/types";
 
-import { formatPrice } from "../../lib/utils";
-import { ETF_CURRENCIES } from "../../lib/types";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
@@ -24,139 +21,116 @@ import {
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
 import {
-  useEtfs,
-  useCreateEtf,
-  useDeleteEtf,
-  useUpdateEtf,
-} from "../../lib/hooks/use-etfs";
-import {
-  Select,
-  SelectItem,
-  SelectValue,
-  SelectContent,
-  SelectTrigger,
-} from "../../components/ui/select";
-import {
   Dialog,
   DialogTitle,
   DialogHeader,
   DialogContent,
   DialogTrigger,
 } from "../../components/ui/dialog";
+import {
+  useFundUnits,
+  useCreateFundUnit,
+  useDeleteFundUnit,
+  useUpdateFundUnit,
+} from "../../lib/hooks/use-fund-units";
 
-function withCalculations(etf: Etf): EtfWithCalculations {
-  const purchaseCost = etf.volume * etf.openingPrice;
-  const value = etf.volume * etf.actualPrice;
-  const profitNet = value - purchaseCost;
-  const profitNetPercent =
-    purchaseCost > 0 ? (profitNet / purchaseCost) * 100 : 0;
+function withCalculations(fundUnit: FundUnit): FundUnitWithCalculations {
+  const stocksPercent = 100 - fundUnit.bondsPercent;
+  const invested = fundUnit.totalValue - fundUnit.profit;
+  const profitPercent =
+    fundUnit.totalValue > 0 ? (fundUnit.profit / fundUnit.totalValue) * 100 : 0;
 
   return {
-    ...etf,
-    value,
-    purchaseCost,
-    profitNet,
-    profitNetPercent,
+    ...fundUnit,
+    stocksPercent,
+    invested,
+    profitPercent,
   };
 }
 
-function summarize(rows: EtfWithCalculations[]): EtfSummary {
+function summarize(rows: FundUnitWithCalculations[]): FundUnitSummary {
   const summary = rows.reduce(
-    (acc, etf) => ({
-      totalValue: acc.totalValue + etf.value,
-      totalPurchaseCost: acc.totalPurchaseCost + etf.purchaseCost,
-      totalProfitNet: acc.totalProfitNet + etf.profitNet,
-      totalProfitNetPercent: 0,
+    (acc, row) => ({
+      totalValue: acc.totalValue + row.totalValue,
+      totalInvested: acc.totalInvested + row.invested,
+      totalProfit: acc.totalProfit + row.profit,
+      totalProfitPercent: 0,
     }),
     {
       totalValue: 0,
-      totalPurchaseCost: 0,
-      totalProfitNet: 0,
-      totalProfitNetPercent: 0,
+      totalInvested: 0,
+      totalProfit: 0,
+      totalProfitPercent: 0,
     },
   );
 
-  summary.totalProfitNetPercent =
-    summary.totalPurchaseCost > 0
-      ? (summary.totalProfitNet / summary.totalPurchaseCost) * 100
+  summary.totalProfitPercent =
+    summary.totalValue > 0
+      ? (summary.totalProfit / summary.totalValue) * 100
       : 0;
 
   return summary;
 }
 
-function currencyLabel(
-  currency: EtfCurrency,
-  t: ReturnType<typeof useTranslations<"Etfs">>,
-): string {
-  if ("EUR" === currency) {
-    return t("currencyEUR");
-  }
-  if ("USD" === currency) {
-    return t("currencyUSD");
-  }
-  return t("currencyRON");
-}
-
-export default function EtfsTab() {
-  const t = useTranslations("Etfs");
+export default function FundUnitsTab() {
+  const t = useTranslations("FundUnits");
   const tc = useTranslations("Common");
   const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
-  const { data: etfs = [], isLoading } = useEtfs();
-  const createMutation = useCreateEtf();
-  const updateMutation = useUpdateEtf();
-  const deleteMutation = useDeleteEtf();
+  const { data: fundUnits = [], isLoading } = useFundUnits();
+  const createMutation = useCreateFundUnit();
+  const updateMutation = useUpdateFundUnit();
+  const deleteMutation = useDeleteFundUnit();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Etf | null>(null);
-  const [formSymbol, setFormSymbol] = useState("");
-  const [formLabel, setFormLabel] = useState("");
-  const [formVolume, setFormVolume] = useState("");
-  const [formActualPrice, setFormActualPrice] = useState("");
-  const [formOpeningPrice, setFormOpeningPrice] = useState("");
-  const [formCurrency, setFormCurrency] = useState<EtfCurrency>("EUR");
+  const [editing, setEditing] = useState<FundUnit | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formOpenedDate, setFormOpenedDate] = useState("");
+  const [formTotalValue, setFormTotalValue] = useState("");
+  const [formProfit, setFormProfit] = useState("");
+  const [formBondsPercent, setFormBondsPercent] = useState("");
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const etfsWithCalculations = useMemo(
-    () => etfs.map(withCalculations),
-    [etfs],
+  const fundUnitsWithCalculations = useMemo(
+    () => fundUnits.map(withCalculations),
+    [fundUnits],
   );
 
-  const byCurrency = useMemo(() => {
-    const grouped: Record<EtfCurrency, EtfWithCalculations[]> = {
-      EUR: [],
-      USD: [],
-      RON: [],
-    };
-    for (const etf of etfsWithCalculations) {
-      grouped[etf.currency].push(etf);
+  const summary = useMemo(
+    () => summarize(fundUnitsWithCalculations),
+    [fundUnitsWithCalculations],
+  );
+
+  const formStocksPercent = useMemo(() => {
+    const bonds = parseFloat(formBondsPercent);
+    if (Number.isNaN(bonds)) {
+      return "";
     }
-    return grouped;
-  }, [etfsWithCalculations]);
+    const clamped = Math.min(100, Math.max(0, bonds));
+    return String(100 - clamped);
+  }, [formBondsPercent]);
 
   const beginAdd = () => {
     setEditing(null);
     setFormError("");
-    setFormSymbol("");
-    setFormLabel("");
-    setFormVolume("");
-    setFormActualPrice("");
-    setFormOpeningPrice("");
-    setFormCurrency("EUR");
+    setFormName("");
+    setFormOpenedDate("");
+    setFormTotalValue("");
+    setFormProfit("");
+    setFormBondsPercent("");
   };
 
-  const openEdit = (row: Etf) => {
+  const openEdit = (row: FundUnit) => {
     setEditing(row);
-    setFormSymbol(row.symbol);
-    setFormLabel(row.label);
-    setFormVolume(String(row.volume));
-    setFormActualPrice(String(row.actualPrice));
-    setFormOpeningPrice(String(row.openingPrice));
-    setFormCurrency(row.currency);
+    setFormName(row.name);
+    setFormOpenedDate(row.openedDate ?? "");
+    setFormTotalValue(String(row.totalValue));
+    setFormProfit(String(row.profit));
+    setFormBondsPercent(String(row.bondsPercent));
     setFormError("");
     setDialogOpen(true);
   };
@@ -165,28 +139,33 @@ export default function EtfsTab() {
     e.preventDefault();
     setFormError("");
 
-    const volume = parseFloat(formVolume);
-    const actualPrice = parseFloat(formActualPrice);
-    const openingPrice = parseFloat(formOpeningPrice);
+    const totalValue = parseFloat(formTotalValue);
+    const profit = parseFloat(formProfit);
+    const bondsPercent = parseFloat(formBondsPercent);
 
     if (
-      !formSymbol.trim() ||
-      !formLabel.trim() ||
-      Number.isNaN(volume) ||
-      Number.isNaN(actualPrice) ||
-      Number.isNaN(openingPrice)
+      !formName.trim() ||
+      Number.isNaN(totalValue) ||
+      Number.isNaN(profit) ||
+      Number.isNaN(bondsPercent) ||
+      bondsPercent < 0 ||
+      bondsPercent > 100
     ) {
       setFormError(t("errRequired"));
       return;
     }
 
-    const payload: Omit<Etf, "_id" | "date"> = {
-      symbol: formSymbol.trim(),
-      label: formLabel.trim(),
-      volume,
-      actualPrice,
-      openingPrice,
-      currency: formCurrency,
+    if (totalValue - profit < 0) {
+      setFormError(t("errInvestedNegative"));
+      return;
+    }
+
+    const payload: Omit<FundUnit, "_id" | "date"> = {
+      name: formName.trim(),
+      openedDate: formOpenedDate.trim() || undefined,
+      totalValue,
+      profit,
+      bondsPercent,
     };
 
     try {
@@ -218,80 +197,78 @@ export default function EtfsTab() {
     }
   };
 
-  const renderSummaryCards = (summary: EtfSummary) => (
+  const renderSummaryCards = (rowSummary: FundUnitSummary) => (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
       <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
         <p className="text-zinc-400 text-xs mb-1">{t("totalValue")}</p>
         <p className="text-lg font-bold text-white">
-          {summary.totalValue.toLocaleString(numberFormat, {
+          {rowSummary.totalValue.toLocaleString(numberFormat, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
         </p>
       </div>
       <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalCost")}</p>
+        <p className="text-zinc-400 text-xs mb-1">{t("totalInvested")}</p>
         <p className="text-lg font-bold text-white">
-          {summary.totalPurchaseCost.toLocaleString(numberFormat, {
+          {rowSummary.totalInvested.toLocaleString(numberFormat, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
         </p>
       </div>
       <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalProfitNet")}</p>
+        <p className="text-zinc-400 text-xs mb-1">{t("totalProfit")}</p>
         <p
           className={`text-lg font-bold ${
-            summary.totalProfitNet >= 0 ? "text-green-400" : "text-red-400"
+            rowSummary.totalProfit >= 0 ? "text-green-400" : "text-red-400"
           }`}
         >
-          {summary.totalProfitNet.toLocaleString(numberFormat, {
+          {rowSummary.totalProfit.toLocaleString(numberFormat, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
         </p>
       </div>
       <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">
-          {t("totalProfitNetPercent")}
-        </p>
+        <p className="text-zinc-400 text-xs mb-1">{t("totalProfitPercent")}</p>
         <p
           className={`text-lg font-bold ${
-            summary.totalProfitNetPercent >= 0
+            rowSummary.totalProfitPercent >= 0
               ? "text-green-400"
               : "text-red-400"
           }`}
         >
-          {summary.totalProfitNetPercent.toFixed(2)}%
+          {rowSummary.totalProfitPercent.toFixed(2)}%
         </p>
       </div>
     </div>
   );
 
-  const renderTable = (rows: EtfWithCalculations[]) => (
+  const renderTable = (rows: FundUnitWithCalculations[]) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-zinc-700">
+            <th className="text-left py-3 px-2 text-zinc-300">{t("name")}</th>
             <th className="text-left py-3 px-2 text-zinc-300">
-              {t("position")}
+              {t("openedDate")}
             </th>
             <th className="text-left py-3 px-2 text-zinc-300">{t("date")}</th>
             <th className="text-right py-3 px-2 text-zinc-300">
-              {t("volume")}
-            </th>
-            <th className="text-right py-3 px-2 text-zinc-300">{t("value")}</th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("actualPrice")}
+              {t("totalValue")}
             </th>
             <th className="text-right py-3 px-2 text-zinc-300">
-              {t("openingPrice")}
+              {tc("profit")}
             </th>
             <th className="text-right py-3 px-2 text-zinc-300">
-              {t("profitNet")}
+              {tc("profitPercent")}
             </th>
             <th className="text-right py-3 px-2 text-zinc-300">
-              {t("profitNetPercent")}
+              {t("bondsPercent")}
+            </th>
+            <th className="text-right py-3 px-2 text-zinc-300">
+              {t("stocksPercent")}
             </th>
             <th className="text-center py-3 px-2 text-zinc-300">
               {tc("actions")}
@@ -299,48 +276,45 @@ export default function EtfsTab() {
           </tr>
         </thead>
         <tbody>
-          {rows.map((etf) => (
-            <tr key={etf._id} className="border-b border-zinc-700/50">
-              <td className="py-3 px-2">
-                <div className="font-semibold text-white">{etf.label}</div>
-                <div className="text-xs text-zinc-400 mt-0.5">{etf.symbol}</div>
+          {rows.map((row) => (
+            <tr key={row._id} className="border-b border-zinc-700/50">
+              <td className="py-3 px-2 font-semibold text-white">{row.name}</td>
+              <td className="py-3 px-2 text-zinc-300">
+                {row.openedDate
+                  ? formatDisplayDate(row.openedDate)
+                  : tc("emDash")}
               </td>
               <td className="py-3 px-2 text-zinc-300">
-                {etf.date ? formatDisplayDate(etf.date) : tc("emDash")}
+                {row.date ? formatDisplayDate(row.date) : tc("emDash")}
               </td>
               <td className="py-3 px-2 text-white text-right font-medium">
-                {etf.volume.toLocaleString(numberFormat, {
-                  maximumFractionDigits: 4,
-                })}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {etf.value.toLocaleString(numberFormat, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {formatPrice(etf.actualPrice)}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {formatPrice(etf.openingPrice)}
-              </td>
-              <td
-                className={`py-3 px-2 text-right font-semibold ${
-                  etf.profitNet >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {etf.profitNet.toLocaleString(numberFormat, {
+                {row.totalValue.toLocaleString(numberFormat, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </td>
               <td
                 className={`py-3 px-2 text-right font-semibold ${
-                  etf.profitNetPercent >= 0 ? "text-green-400" : "text-red-400"
+                  row.profit >= 0 ? "text-green-400" : "text-red-400"
                 }`}
               >
-                {etf.profitNetPercent.toFixed(2)}%
+                {row.profit.toLocaleString(numberFormat, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </td>
+              <td
+                className={`py-3 px-2 text-right font-semibold ${
+                  row.profitPercent >= 0 ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {row.profitPercent.toFixed(2)}%
+              </td>
+              <td className="py-3 px-2 text-white text-right font-medium">
+                {row.bondsPercent.toFixed(2)}%
+              </td>
+              <td className="py-3 px-2 text-white text-right font-medium">
+                {row.stocksPercent.toFixed(2)}%
               </td>
               <td className="py-3 px-2 text-center">
                 <div className="flex gap-1 justify-center">
@@ -348,7 +322,7 @@ export default function EtfsTab() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      openEdit(etf);
+                      openEdit(row);
                     }}
                     className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                   >
@@ -360,8 +334,8 @@ export default function EtfsTab() {
                     disabled={deleteMutation.isPending}
                     className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
                     onClick={() => {
-                      if (etf._id) {
-                        setDeleteTargetId(etf._id);
+                      if (row._id) {
+                        setDeleteTargetId(row._id);
                       }
                     }}
                   >
@@ -407,13 +381,13 @@ export default function EtfsTab() {
               className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              {t("addEtf")}
+              {t("addFundUnit")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editing ? t("editEtf") : t("addNewEtf")}
+                {editing ? t("editFundUnit") : t("addNewFundUnit")}
               </DialogTitle>
             </DialogHeader>
             <form
@@ -423,116 +397,103 @@ export default function EtfsTab() {
               }}
             >
               <div>
-                <Label htmlFor="etfSymbol" className="mb-2 block">
-                  {t("symbol")}
+                <Label className="mb-2 block" htmlFor="fundUnitName">
+                  {t("name")}
                 </Label>
                 <Input
                   required
-                  id="etfSymbol"
-                  maxLength={30}
-                  value={formSymbol}
+                  maxLength={200}
+                  value={formName}
+                  id="fundUnitName"
                   disabled={Boolean(editing)}
                   className="bg-zinc-700 border-zinc-600 text-white disabled:opacity-60"
                   onChange={(e) => {
-                    setFormSymbol(e.target.value);
+                    setFormName(e.target.value);
                   }}
                 />
                 {editing ? (
                   <p className="text-xs text-zinc-400 mt-1">
-                    {t("symbolLocked")}
+                    {t("nameLocked")}
                   </p>
                 ) : null}
               </div>
               <div>
-                <Label htmlFor="etfLabel" className="mb-2 block">
-                  {t("label")}
+                <Label className="mb-2 block" htmlFor="fundUnitOpenedDate">
+                  {t("openedDateOptional")}
                 </Label>
                 <Input
-                  required
-                  id="etfLabel"
-                  maxLength={200}
-                  value={formLabel}
-                  className="bg-zinc-700 border-zinc-600 text-white"
+                  type="date"
+                  value={formOpenedDate}
+                  id="fundUnitOpenedDate"
+                  className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
                   onChange={(e) => {
-                    setFormLabel(e.target.value);
+                    setFormOpenedDate(e.target.value);
                   }}
                 />
               </div>
-              <div>
-                <Label htmlFor="etfCurrency" className="mb-2 block">
-                  {t("currency")}
-                </Label>
-                <Select
-                  value={formCurrency}
-                  onValueChange={(value) => {
-                    setFormCurrency(value as EtfCurrency);
-                  }}
-                >
-                  <SelectTrigger
-                    id="etfCurrency"
-                    className="bg-zinc-700 border-zinc-600 text-white w-full"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                    {ETF_CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {currencyLabel(c, t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-2 block" htmlFor="fundUnitTotalValue">
+                    {t("totalValue")}
+                  </Label>
+                  <Input
+                    required
+                    min="0.01"
+                    step="any"
+                    type="number"
+                    value={formTotalValue}
+                    id="fundUnitTotalValue"
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setFormTotalValue(e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block" htmlFor="fundUnitProfit">
+                    {tc("profit")}
+                  </Label>
+                  <Input
+                    required
+                    step="any"
+                    type="number"
+                    value={formProfit}
+                    id="fundUnitProfit"
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setFormProfit(e.target.value);
+                    }}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="etfVolume" className="mb-2 block">
-                    {t("volume")}
+                  <Label className="mb-2 block" htmlFor="fundUnitBondsPercent">
+                    {t("bondsPercent")}
                   </Label>
                   <Input
+                    min="0"
                     required
+                    max="100"
                     step="any"
-                    min="0.0001"
                     type="number"
-                    id="etfVolume"
-                    value={formVolume}
+                    value={formBondsPercent}
+                    id="fundUnitBondsPercent"
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormVolume(e.target.value);
+                      setFormBondsPercent(e.target.value);
                     }}
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block" htmlFor="etfActualPrice">
-                    {t("actualPrice")}
+                  <Label className="mb-2 block" htmlFor="fundUnitStocksPercent">
+                    {t("stocksPercent")}
                   </Label>
                   <Input
-                    required
-                    step="any"
-                    min="0.0001"
-                    type="number"
-                    id="etfActualPrice"
-                    value={formActualPrice}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setFormActualPrice(e.target.value);
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block" htmlFor="etfOpeningPrice">
-                    {t("openingPrice")}
-                  </Label>
-                  <Input
-                    required
-                    step="any"
-                    min="0.0001"
-                    type="number"
-                    id="etfOpeningPrice"
-                    value={formOpeningPrice}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setFormOpeningPrice(e.target.value);
-                    }}
+                    readOnly
+                    value={formStocksPercent}
+                    id="fundUnitStocksPercent"
+                    className="bg-zinc-700/50 border-zinc-600 text-zinc-300 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -571,34 +532,15 @@ export default function EtfsTab() {
         </Dialog>
       </div>
 
-      {etfsWithCalculations.length > 0 ? (
-        <div className="space-y-8">
-          {ETF_CURRENCIES.map((currency) => {
-            const rows = byCurrency[currency];
-            if (0 === rows.length) {
-              return null;
-            }
-
-            const summary = summarize(rows);
-
-            return (
-              <section
-                key={currency}
-                className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6"
-              >
-                <h3 className="text-lg font-semibold text-white pb-4 mb-4 border-b border-zinc-700">
-                  {currencyLabel(currency, t)}
-                </h3>
-                {renderSummaryCards(summary)}
-                {renderTable(rows)}
-              </section>
-            );
-          })}
-        </div>
+      {fundUnitsWithCalculations.length > 0 ? (
+        <section className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
+          {renderSummaryCards(summary)}
+          {renderTable(fundUnitsWithCalculations)}
+        </section>
       ) : (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
           <div className="text-center">
-            <LineChart className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
+            <Landmark className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-white mb-2">
               {t("emptyTitle")}
             </h3>

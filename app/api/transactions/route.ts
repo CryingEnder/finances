@@ -3,6 +3,8 @@ import type { Filter } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
+import { apiError } from "../../lib/api-response";
+import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { formatZodErrors, transactionSchema } from "../../lib/validation";
 import {
   type DatabaseTransaction,
@@ -43,10 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(serializedTransactions);
   } catch (error) {
     console.error("Error fetching transactions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch transactions" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedFetchTransactions, 500);
   }
 }
 
@@ -55,21 +54,16 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body: unknown = await request.json();
     if ("object" !== typeof body || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const validationResult = transactionSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -107,9 +101,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating transaction:", error);
-    return NextResponse.json(
-      { error: "Failed to create transaction" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedCreateTransaction, 500);
   }
 }

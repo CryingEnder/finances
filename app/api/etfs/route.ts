@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
 import { todayIsoDate } from "../../lib/dates";
+import { apiError } from "../../lib/api-response";
 import { getEtfsCollection } from "../../lib/database";
+import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { etfSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -19,10 +21,7 @@ export async function GET() {
     return NextResponse.json(serializedEtfs);
   } catch (error) {
     console.error("Error fetching ETFs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch ETFs" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedFetchEtfs, 500);
   }
 }
 
@@ -31,10 +30,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
@@ -49,10 +45,7 @@ export async function POST(request: NextRequest) {
       openingPrice === undefined ||
       !currency
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const validationResult = etfSchema.safeParse({
@@ -65,12 +58,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -81,10 +72,7 @@ export async function POST(request: NextRequest) {
       symbol: validatedData.symbol,
     });
     if (existingEtf) {
-      return NextResponse.json(
-        { error: "An ETF with this symbol already exists" },
-        { status: 409 },
-      );
+      return apiError(API_ERROR_CODES.etfDuplicateSymbol, 409);
     }
 
     const etf = {
@@ -105,9 +93,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating ETF:", error);
-    return NextResponse.json(
-      { error: "Failed to create ETF" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedCreateEtf, 500);
   }
 }

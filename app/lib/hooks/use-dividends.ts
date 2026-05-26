@@ -3,20 +3,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Dividend } from "../types";
 
 import { isIsoDateString } from "../dates";
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+
+import {
+  throwIdRequired,
+  assertOkResponse,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
 
 export const dividendsKeys = {
   all: ["dividends"] as const,
   lists: () => [...dividendsKeys.all, "list"] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parseDividend = (value: unknown): Dividend => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid dividend payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -36,15 +40,15 @@ const parseDividend = (value: unknown): Dividend => {
     "string" !== typeof isin ||
     "string" !== typeof issuer
   ) {
-    throw new Error("Invalid dividend payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== notes && "string" !== typeof notes) {
-    throw new Error("Invalid dividend payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid dividend payload");
+    throwInvalidPayload();
   }
 
   return {
@@ -60,7 +64,7 @@ const parseDividend = (value: unknown): Dividend => {
 
 const parseDividends = (value: unknown): Dividend[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid dividends payload");
+    throwInvalidPayload();
   }
 
   return value.reduce<Dividend[]>((acc, item) => {
@@ -73,98 +77,82 @@ const parseDividends = (value: unknown): Dividend[] => {
   }, []);
 };
 
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
-};
-
 const fetchDividends = async (): Promise<Dividend[]> => {
-  const response = await fetch("/api/dividends");
-  if (!response.ok) {
-    throw new Error(`Failed to fetch dividends (${String(response.status)})`);
-  }
+  try {
+    const response = await fetch("/api/dividends");
+    await assertOkResponse(response, API_ERROR_CODES.failedFetchDividends);
 
-  const data: unknown = await response.json();
-  return parseDividends(data);
+    const data: unknown = await response.json();
+    return parseDividends(data);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    throwNetworkError();
+  }
 };
 
 const createDividend = async (
   dividend: Omit<Dividend, "_id">,
 ): Promise<Dividend> => {
-  const response = await fetch("/api/dividends", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dividend),
-  });
+  try {
+    const response = await fetch("/api/dividends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dividend),
+    });
 
-  if (!response.ok) {
-    const errorData: unknown = await response.json().catch(() => null);
-    const errorMessage = extractErrorMessage(
-      errorData,
-      `Failed to create dividend (${String(response.status)})`,
-    );
-    throw new Error(errorMessage);
+    await assertOkResponse(response, API_ERROR_CODES.failedCreateDividend);
+
+    const data: unknown = await response.json();
+    return parseDividend(data);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    throwNetworkError();
   }
-
-  const data: unknown = await response.json();
-  return parseDividend(data);
 };
 
 const updateDividend = async ({
   _id,
   ...dividend
 }: Dividend): Promise<Dividend> => {
-  if (!_id) {
-    throw new Error("Dividend ID is required");
+  try {
+    if (!_id) {
+      throwIdRequired();
+    }
+
+    const response = await fetch(`/api/dividends/${_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dividend),
+    });
+
+    await assertOkResponse(response, API_ERROR_CODES.failedUpdateDividend);
+
+    const data: unknown = await response.json();
+    return parseDividend(data);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    throwNetworkError();
   }
-
-  const response = await fetch(`/api/dividends/${_id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dividend),
-  });
-
-  if (!response.ok) {
-    const errorData: unknown = await response.json().catch(() => null);
-    const errorMessage = extractErrorMessage(
-      errorData,
-      `Failed to update dividend (${String(response.status)})`,
-    );
-    throw new Error(errorMessage);
-  }
-
-  const data: unknown = await response.json();
-  return parseDividend(data);
 };
 
 const deleteDividend = async (id: string): Promise<void> => {
-  const response = await fetch(`/api/dividends/${id}`, {
-    method: "DELETE",
-  });
+  try {
+    const response = await fetch(`/api/dividends/${id}`, {
+      method: "DELETE",
+    });
 
-  if (!response.ok) {
-    const errorData: unknown = await response.json().catch(() => null);
-    const errorMessage = extractErrorMessage(
-      errorData,
-      `Failed to delete dividend (${String(response.status)})`,
-    );
-    throw new Error(errorMessage);
+    await assertOkResponse(response, API_ERROR_CODES.failedDeleteDividend);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    throwNetworkError();
   }
 };
 

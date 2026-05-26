@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Company } from "../types";
 
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+import { parseApiErrorPayload } from "../extract-api-error";
+
+import {
+  throwIdRequired,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
+
 export const companiesKeys = {
   all: ["companies"] as const,
   lists: () => [...companiesKeys.all, "list"] as const,
@@ -10,14 +20,9 @@ export const companiesKeys = {
   detail: (id: string) => [...companiesKeys.details(), id] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parseCompany = (value: unknown): Company => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid company payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -31,11 +36,11 @@ const parseCompany = (value: unknown): Company => {
     "string" !== typeof isin ||
     "string" !== typeof issuer
   ) {
-    throw new Error("Invalid company payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid company payload");
+    throwInvalidPayload();
   }
 
   return {
@@ -48,47 +53,30 @@ const parseCompany = (value: unknown): Company => {
 
 const parseCompanies = (value: unknown): Company[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid companies payload");
+    throwInvalidPayload();
   }
 
   return value.map((item) => parseCompany(item));
-};
-
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
 };
 
 const fetchCompanies = async (): Promise<Company[]> => {
   try {
     const response = await fetch("/api/companies");
     if (!response.ok) {
-      throw new Error(`Failed to fetch companies (${String(response.status)})`);
+      const errorData: unknown = await response.json().catch(() => null);
+      throw parseApiErrorPayload(
+        errorData,
+        API_ERROR_CODES.failedFetchCompanies,
+      );
     }
 
     const data: unknown = await response.json();
     return parseCompanies(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to fetch companies");
+    throwNetworkError();
   }
 };
 
@@ -104,20 +92,19 @@ const createCompany = async (
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
+      throw parseApiErrorPayload(
         errorData,
-        `Failed to create company (${String(response.status)})`,
+        API_ERROR_CODES.failedCreateCompany,
       );
-      throw new Error(errorMessage);
     }
 
     const data: unknown = await response.json();
     return parseCompany(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to create company");
+    throwNetworkError();
   }
 };
 
@@ -127,7 +114,7 @@ const updateCompany = async ({
 }: Company): Promise<Company> => {
   try {
     if (!_id) {
-      throw new Error("Company ID is required");
+      throwIdRequired();
     }
 
     const response = await fetch(`/api/companies/${_id}`, {
@@ -138,20 +125,19 @@ const updateCompany = async ({
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
+      throw parseApiErrorPayload(
         errorData,
-        `Failed to update company (${String(response.status)})`,
+        API_ERROR_CODES.failedUpdateCompany,
       );
-      throw new Error(errorMessage);
     }
 
     const data: unknown = await response.json();
     return parseCompany(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to update company");
+    throwNetworkError();
   }
 };
 
@@ -163,17 +149,16 @@ const deleteCompany = async (id: string): Promise<void> => {
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
+      throw parseApiErrorPayload(
         errorData,
-        `Failed to delete company (${String(response.status)})`,
+        API_ERROR_CODES.failedDeleteCompany,
       );
-      throw new Error(errorMessage);
     }
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to delete company");
+    throwNetworkError();
   }
 };
 

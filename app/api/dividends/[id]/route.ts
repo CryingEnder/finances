@@ -2,7 +2,9 @@ import { ObjectId, type UpdateFilter } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../../lib/auth";
+import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { dividendSchema, formatZodErrors } from "../../../lib/validation";
 import {
   type DatabaseDividend,
@@ -17,10 +19,7 @@ export async function PUT(
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
@@ -33,10 +32,7 @@ export async function PUT(
       !isin ||
       !issuer
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const notes =
@@ -56,12 +52,10 @@ export async function PUT(
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -70,10 +64,7 @@ export async function PUT(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid dividend ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidDividendId, 400);
     }
 
     const objectId = new ObjectId(id);
@@ -100,18 +91,12 @@ export async function PUT(
     );
 
     if (0 === result.matchedCount) {
-      return NextResponse.json(
-        { error: "Dividend not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.dividendNotFound, 404);
     }
 
     const updated = await dividendsCollection.findOne({ _id: objectId });
     if (!updated) {
-      return NextResponse.json(
-        { error: "Dividend not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.dividendNotFound, 404);
     }
 
     const serialized = {
@@ -131,10 +116,7 @@ export async function PUT(
     return NextResponse.json(serialized);
   } catch (error) {
     console.error("Error updating dividend:", error);
-    return NextResponse.json(
-      { error: "Failed to update dividend" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedUpdateDividend, 500);
   }
 }
 
@@ -148,28 +130,19 @@ export async function DELETE(
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid dividend ID format" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.invalidDividendId, 400);
     }
 
     const objectId = new ObjectId(id);
     const result = await dividendsCollection.deleteOne({ _id: objectId });
 
     if (0 === result.deletedCount) {
-      return NextResponse.json(
-        { error: "Dividend not found" },
-        { status: 404 },
-      );
+      return apiError(API_ERROR_CODES.dividendNotFound, 404);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting dividend:", error);
-    return NextResponse.json(
-      { error: "Failed to delete dividend" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedDeleteDividend, 500);
   }
 }

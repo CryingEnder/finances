@@ -17,6 +17,7 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { formatDisplayDate } from "../../lib/dates";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -55,6 +56,7 @@ type PendingStockDelete =
 export default function StocksTab() {
   const t = useTranslations("Stocks");
   const tc = useTranslations("Common");
+  const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -124,9 +126,7 @@ export default function StocksTab() {
       resetCompanyForm();
       setIsCompanyDialogOpen(false);
     } catch (error) {
-      setCompanyError(
-        error instanceof Error ? error.message : t("failedSaveCompany"),
-      );
+      setCompanyError(formatError(error, t("failedSaveCompany")));
     }
   };
 
@@ -163,9 +163,7 @@ export default function StocksTab() {
       resetPortfolioForm();
       setIsPortfolioDialogOpen(false);
     } catch (error) {
-      setPortfolioError(
-        error instanceof Error ? error.message : t("failedSavePortfolio"),
-      );
+      setPortfolioError(formatError(error, t("failedSavePortfolio")));
     }
   };
 
@@ -184,11 +182,12 @@ export default function StocksTab() {
     } catch (error) {
       console.error(error);
       setNoticeMessage(
-        error instanceof Error
-          ? error.message
-          : "company" === kind
+        formatError(
+          error,
+          "company" === kind
             ? t("failedDeleteCompany")
             : t("failedDeletePortfolio"),
+        ),
       );
       setPendingDelete(null);
     }
@@ -460,19 +459,25 @@ export default function StocksTab() {
                 <div>
                   <p className="text-zinc-400">{t("totalPurchaseValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalPurchaseValue.toLocaleString(numberFormat, {
-                      style: "currency",
-                      currency: "RON",
-                    })}
+                    {dateSummary.totalPurchaseValue.toLocaleString(
+                      numberFormat,
+                      {
+                        style: "currency",
+                        currency: "RON",
+                      },
+                    )}
                   </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">{t("totalCurrentValue")}</p>
                   <p className="text-white font-medium">
-                    {dateSummary.totalCurrentValue.toLocaleString(numberFormat, {
-                      style: "currency",
-                      currency: "RON",
-                    })}
+                    {dateSummary.totalCurrentValue.toLocaleString(
+                      numberFormat,
+                      {
+                        style: "currency",
+                        currency: "RON",
+                      },
+                    )}
                   </p>
                 </div>
                 <div>

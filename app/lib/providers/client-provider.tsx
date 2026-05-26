@@ -16,7 +16,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
           },
           mutations: {
-            retry: 1,
+            retry: false,
           },
         },
       }),

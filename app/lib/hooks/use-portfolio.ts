@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { PortfolioEntry } from "../types";
 
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+
+import {
+  throwIdRequired,
+  assertOkResponse,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
+
 export const portfolioKeys = {
   all: ["portfolio"] as const,
   lists: () => [...portfolioKeys.all, "list"] as const,
@@ -10,14 +20,9 @@ export const portfolioKeys = {
   detail: (id: string) => [...portfolioKeys.details(), id] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parsePortfolioEntry = (value: unknown): PortfolioEntry => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid portfolio entry payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -43,11 +48,11 @@ const parsePortfolioEntry = (value: unknown): PortfolioEntry => {
     "number" !== typeof averagePrice ||
     "number" !== typeof referencePrice
   ) {
-    throw new Error("Invalid portfolio entry payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid portfolio entry payload");
+    throwInvalidPayload();
   }
 
   return {
@@ -66,49 +71,27 @@ const parsePortfolioEntry = (value: unknown): PortfolioEntry => {
 
 const parsePortfolioEntries = (value: unknown): PortfolioEntry[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid portfolio entries payload");
+    throwInvalidPayload();
   }
 
   return value.map((item) => parsePortfolioEntry(item));
 };
 
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
-};
-
 const fetchPortfolioEntries = async (): Promise<PortfolioEntry[]> => {
   try {
     const response = await fetch("/api/portfolio");
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch portfolio entries (${String(response.status)})`,
-      );
-    }
+    await assertOkResponse(
+      response,
+      API_ERROR_CODES.failedFetchPortfolioEntries,
+    );
 
     const data: unknown = await response.json();
     return parsePortfolioEntries(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to fetch portfolio entries");
+    throwNetworkError();
   }
 };
 
@@ -122,22 +105,18 @@ const createPortfolioEntry = async (
       body: JSON.stringify(entry),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to create portfolio entry (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(
+      response,
+      API_ERROR_CODES.failedCreatePortfolioEntry,
+    );
 
     const data: unknown = await response.json();
     return parsePortfolioEntry(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to create portfolio entry");
+    throwNetworkError();
   }
 };
 
@@ -147,7 +126,7 @@ const updatePortfolioEntry = async ({
 }: PortfolioEntry): Promise<PortfolioEntry> => {
   try {
     if (!_id) {
-      throw new Error("Portfolio entry ID is required");
+      throwIdRequired();
     }
 
     const response = await fetch(`/api/portfolio/${_id}`, {
@@ -156,22 +135,18 @@ const updatePortfolioEntry = async ({
       body: JSON.stringify(entry),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to update portfolio entry (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(
+      response,
+      API_ERROR_CODES.failedUpdatePortfolioEntry,
+    );
 
     const data: unknown = await response.json();
     return parsePortfolioEntry(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to update portfolio entry");
+    throwNetworkError();
   }
 };
 
@@ -181,19 +156,15 @@ const deletePortfolioEntry = async (id: string): Promise<void> => {
       method: "DELETE",
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to delete portfolio entry (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(
+      response,
+      API_ERROR_CODES.failedDeletePortfolioEntry,
+    );
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to delete portfolio entry");
+    throwNetworkError();
   }
 };
 

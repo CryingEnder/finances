@@ -6,6 +6,7 @@ import type {
   Company,
   Deposit,
   Dividend,
+  FundUnit,
   Transaction,
   PortfolioEntry,
 } from "./types";
@@ -24,6 +25,7 @@ export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
   _id?: ObjectId;
 };
 type DatabaseEtf = Omit<Etf, "_id" | "userId"> & { _id?: ObjectId };
+type DatabaseFundUnit = Omit<FundUnit, "_id" | "userId"> & { _id?: ObjectId };
 
 let client: MongoClient | null = null;
 let globalDb: Db | null = null;
@@ -125,4 +127,11 @@ export async function getEtfsCollection(
 ): Promise<Collection<DatabaseEtf>> {
   const database = await connectToUserDatabase(userId);
   return database.collection<DatabaseEtf>("etfs");
+}
+
+export async function getFundUnitsCollection(
+  userId: string,
+): Promise<Collection<DatabaseFundUnit>> {
+  const database = await connectToUserDatabase(userId);
+  return database.collection<DatabaseFundUnit>("fundUnits");
 }

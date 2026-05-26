@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Deposit } from "../types";
 
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+
+import {
+  throwIdRequired,
+  assertOkResponse,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
+
 export const depositsKeys = {
   all: ["deposits"] as const,
   lists: () => [...depositsKeys.all, "list"] as const,
@@ -10,14 +20,9 @@ export const depositsKeys = {
   detail: (id: string) => [...depositsKeys.details(), id] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parseDeposit = (value: unknown): Deposit => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid deposit payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -49,11 +54,11 @@ const parseDeposit = (value: unknown): Deposit => {
     "boolean" !== typeof isActive ||
     "boolean" !== typeof autoRenew
   ) {
-    throw new Error("Invalid deposit payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid deposit payload");
+    throwInvalidPayload();
   }
 
   return {
@@ -77,55 +82,31 @@ const parseDeposit = (value: unknown): Deposit => {
 
 const parseDeposits = (value: unknown): Deposit[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid deposits payload");
+    throwInvalidPayload();
   }
 
   return value.reduce<Deposit[]>((acc, item) => {
     try {
       acc.push(parseDeposit(item));
     } catch (error) {
-      // Keep legacy rows from blanking the whole tab.
       console.warn("Skipping invalid deposit payload", error);
     }
     return acc;
   }, []);
 };
 
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
-};
-
 const fetchDeposits = async (): Promise<Deposit[]> => {
   try {
     const response = await fetch("/api/deposits");
-    if (!response.ok) {
-      throw new Error(`Failed to fetch deposits (${String(response.status)})`);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedFetchDeposits);
 
     const data: unknown = await response.json();
     return parseDeposits(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to fetch deposits");
+    throwNetworkError();
   }
 };
 
@@ -139,22 +120,15 @@ const createDeposit = async (
       body: JSON.stringify(deposit),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to create deposit (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedCreateDeposit);
 
     const data: unknown = await response.json();
     return parseDeposit(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to create deposit");
+    throwNetworkError();
   }
 };
 
@@ -164,7 +138,7 @@ const updateDeposit = async ({
 }: Deposit): Promise<Deposit> => {
   try {
     if (!_id) {
-      throw new Error("Deposit ID is required");
+      throwIdRequired();
     }
 
     const response = await fetch(`/api/deposits/${_id}`, {
@@ -173,22 +147,15 @@ const updateDeposit = async ({
       body: JSON.stringify(deposit),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to update deposit (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedUpdateDeposit);
 
     const data: unknown = await response.json();
     return parseDeposit(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to update deposit");
+    throwNetworkError();
   }
 };
 
@@ -198,19 +165,12 @@ const deleteDeposit = async (id: string): Promise<void> => {
       method: "DELETE",
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to delete deposit (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedDeleteDeposit);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to delete deposit");
+    throwNetworkError();
   }
 };
 

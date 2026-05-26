@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/button";
 import { formatDisplayDate } from "../../lib/dates";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -41,6 +42,7 @@ import {
 export default function TransactionsTab() {
   const t = useTranslations("Transactions");
   const tc = useTranslations("Common");
+  const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -148,9 +150,7 @@ export default function TransactionsTab() {
       resetTransactionForm();
       setIsTransactionDialogOpen(false);
     } catch (error) {
-      setTransactionError(
-        error instanceof Error ? error.message : t("failedSave"),
-      );
+      setTransactionError(formatError(error, t("failedSave")));
     }
   };
 
@@ -164,9 +164,7 @@ export default function TransactionsTab() {
       setDeleteTransactionId(null);
     } catch (error) {
       console.error("Error deleting transaction:", error);
-      setNoticeMessage(
-        error instanceof Error ? error.message : t("failedDelete"),
-      );
+      setNoticeMessage(formatError(error, t("failedDelete")));
       setDeleteTransactionId(null);
     }
   };
@@ -551,7 +549,7 @@ export default function TransactionsTab() {
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col justify-end">
                   <Label className="mb-2 block" htmlFor="bcrCommission">
-                    {t("bcrCommission")}
+                    {t("commission")}
                   </Label>
                   <Input
                     min="0"
@@ -914,10 +912,13 @@ export default function TransactionsTab() {
                       })}
                     </td>
                     <td className="py-3 px-2 text-zinc-300 text-right">
-                      {(transaction.taxWithheld || 0).toLocaleString(numberFormat, {
-                        style: "currency",
-                        currency: "RON",
-                      })}
+                      {(transaction.taxWithheld || 0).toLocaleString(
+                        numberFormat,
+                        {
+                          style: "currency",
+                          currency: "RON",
+                        },
+                      )}
                     </td>
                     <td
                       className={`py-3 px-2 text-right font-medium ${
@@ -931,10 +932,13 @@ export default function TransactionsTab() {
                     >
                       {transaction.realizedProfit !== undefined &&
                       "number" === typeof transaction.realizedProfit
-                        ? transaction.realizedProfit.toLocaleString(numberFormat, {
-                            style: "currency",
-                            currency: "RON",
-                          })
+                        ? transaction.realizedProfit.toLocaleString(
+                            numberFormat,
+                            {
+                              style: "currency",
+                              currency: "RON",
+                            },
+                          )
                         : tc("emDash")}
                     </td>
                     <td className="py-3 px-2 text-center">
@@ -975,7 +979,9 @@ export default function TransactionsTab() {
             <h3 className="text-xl font-semibold text-white mb-3">
               {t("emptyTitle")}
             </h3>
-            <p className="text-zinc-400 mb-6 max-w-md mx-auto">{t("emptyBody")}</p>
+            <p className="text-zinc-400 mb-6 max-w-md mx-auto">
+              {t("emptyBody")}
+            </p>
             <p className="text-sm text-zinc-500">{t("emptyHint")}</p>
           </div>
         </div>

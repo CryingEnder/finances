@@ -11,15 +11,12 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
+import { getIsoYear, todayIsoDate, formatDisplayDate } from "../../lib/dates";
 import {
   NoticeDialog,
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
-import {
-  getIsoYear,
-  todayIsoDate,
-  formatDisplayDate,
-} from "../../lib/dates";
 import {
   Select,
   SelectItem,
@@ -44,6 +41,7 @@ import {
 export default function DividendsTab() {
   const t = useTranslations("Dividends");
   const tc = useTranslations("Common");
+  const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -158,7 +156,7 @@ export default function DividendsTab() {
       setFormError("");
       setDialogOpen(false);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t("failedSave"));
+      setFormError(formatError(err, t("failedSave")));
     }
   };
 
@@ -172,7 +170,7 @@ export default function DividendsTab() {
       setDeleteTargetId(null);
     } catch (err) {
       console.error(err);
-      setNoticeMessage(err instanceof Error ? err.message : t("failedDelete"));
+      setNoticeMessage(formatError(err, t("failedDelete")));
       setDeleteTargetId(null);
     }
   };

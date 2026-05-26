@@ -2,19 +2,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Etf, EtfCurrency } from "../types";
 
+import { API_ERROR_CODES } from "../api-error-codes";
+import { ApiRequestError } from "../api-request-error";
+
+import {
+  throwIdRequired,
+  assertOkResponse,
+  throwNetworkError,
+  throwInvalidPayload,
+} from "./api-fetch";
+
 export const etfsKeys = {
   all: ["etfs"] as const,
   lists: () => [...etfsKeys.all, "list"] as const,
 };
 
-interface ApiErrorPayload {
-  error?: string;
-  details?: { message?: string }[];
-}
-
 const parseEtf = (value: unknown): Etf => {
   if ("object" !== typeof value || null === value) {
-    throw new Error("Invalid ETF payload");
+    throwInvalidPayload();
   }
 
   const payload = value as Record<string, unknown>;
@@ -34,11 +39,11 @@ const parseEtf = (value: unknown): Etf => {
     "number" !== typeof actualPrice ||
     "number" !== typeof openingPrice
   ) {
-    throw new Error("Invalid ETF payload");
+    throwInvalidPayload();
   }
 
   if (undefined !== id && "string" !== typeof id) {
-    throw new Error("Invalid ETF payload");
+    throwInvalidPayload();
   }
 
   const resolvedCurrency: EtfCurrency =
@@ -54,14 +59,13 @@ const parseEtf = (value: unknown): Etf => {
     actualPrice,
     openingPrice,
     currency: resolvedCurrency,
-    date:
-      "string" === typeof date && date.length > 0 ? date : undefined,
+    date: "string" === typeof date && date.length > 0 ? date : undefined,
   };
 };
 
 const parseEtfs = (value: unknown): Etf[] => {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid ETFs payload");
+    throwInvalidPayload();
   }
 
   return value.reduce<Etf[]>((acc, item) => {
@@ -74,41 +78,18 @@ const parseEtfs = (value: unknown): Etf[] => {
   }, []);
 };
 
-const extractErrorMessage = (
-  payload: unknown,
-  fallback: string,
-): string => {
-  if ("object" !== typeof payload || null === payload) {
-    return fallback;
-  }
-
-  const errorPayload = payload as ApiErrorPayload;
-  const detailMessage = errorPayload.details?.[0]?.message;
-  if ("string" === typeof detailMessage && detailMessage.length > 0) {
-    return detailMessage;
-  }
-
-  if ("string" === typeof errorPayload.error && errorPayload.error.length > 0) {
-    return errorPayload.error;
-  }
-
-  return fallback;
-};
-
 const fetchEtfs = async (): Promise<Etf[]> => {
   try {
     const response = await fetch("/api/etfs");
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ETFs (${String(response.status)})`);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedFetchEtfs);
 
     const data: unknown = await response.json();
     return parseEtfs(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to fetch ETFs");
+    throwNetworkError();
   }
 };
 
@@ -136,22 +117,15 @@ const createEtf = async (etf: Omit<Etf, "_id" | "date">): Promise<Etf> => {
       body: JSON.stringify(etfRequestBody(etf)),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to create ETF (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedCreateEtf);
 
     const data: unknown = await response.json();
     return parseEtf(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to create ETF");
+    throwNetworkError();
   }
 };
 
@@ -166,7 +140,7 @@ const updateEtf = async ({
 }: Etf): Promise<Etf> => {
   try {
     if (!_id) {
-      throw new Error("ETF ID is required");
+      throwIdRequired();
     }
 
     const response = await fetch(`/api/etfs/${_id}`, {
@@ -184,22 +158,15 @@ const updateEtf = async ({
       ),
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to update ETF (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedUpdateEtf);
 
     const data: unknown = await response.json();
     return parseEtf(data);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to update ETF");
+    throwNetworkError();
   }
 };
 
@@ -209,19 +176,12 @@ const deleteEtf = async (id: string): Promise<void> => {
       method: "DELETE",
     });
 
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage = extractErrorMessage(
-        errorData,
-        `Failed to delete ETF (${String(response.status)})`,
-      );
-      throw new Error(errorMessage);
-    }
+    await assertOkResponse(response, API_ERROR_CODES.failedDeleteEtf);
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof ApiRequestError) {
       throw error;
     }
-    throw new Error("Network error: Failed to delete ETF");
+    throwNetworkError();
   }
 };
 

@@ -144,3 +144,26 @@ export interface EtfSummary {
   totalProfitNet: number;
   totalProfitNetPercent: number;
 }
+
+export interface FundUnit {
+  _id?: string;
+  name: string; // e.g. ERSTE Balanced RON
+  openedDate?: string; // ISO date YYYY-MM-DD; optional, when opened at the bank
+  totalValue: number; // current value including profit
+  profit: number;
+  bondsPercent: number; // bonds allocation percentage (0-100)
+  date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
+}
+
+export type FundUnitWithCalculations = FundUnit & {
+  stocksPercent: number; // 100 - bondsPercent
+  invested: number; // totalValue - profit
+  profitPercent: number; // (profit / totalValue) * 100
+};
+
+export interface FundUnitSummary {
+  totalValue: number;
+  totalInvested: number;
+  totalProfit: number;
+  totalProfitPercent: number;
+}

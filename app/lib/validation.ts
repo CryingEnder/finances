@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isIsoDateAfter } from "./dates";
+import { zodMessageToCode } from "./validation-error-codes";
 
 export const companySchema = z.object({
   instrument: z
@@ -72,7 +73,7 @@ export const portfolioEntrySchema = z
 export function formatZodErrors(error: z.ZodError) {
   return error.issues.map((err) => ({
     field: err.path.join("."),
-    message: err.message,
+    code: zodMessageToCode(err.message),
   }));
 }
 
@@ -215,8 +216,8 @@ export const transactionSchema = z
       .max(100000000, "Gross amount cannot exceed 100,000,000 RON"),
     bcrCommission: z
       .number()
-      .min(0, "BCR commission must be 0 or greater")
-      .max(1000000, "BCR commission cannot exceed 1,000,000 RON"),
+      .min(0, "Commission must be 0 or greater")
+      .max(1000000, "Commission cannot exceed 1,000,000 RON"),
     settlementCommission: z
       .number()
       .min(0, "Settlement commission must be 0 or greater")
@@ -315,6 +316,63 @@ export function etfHasChanges(
     existing.actualPrice !== updated.actualPrice ||
     existing.openingPrice !== updated.openingPrice ||
     existing.currency !== updated.currency
+  );
+}
+
+export const fundUnitSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, "Name is required")
+      .max(200, "Name must be 200 characters or less")
+      .trim(),
+    openedDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Opened date must be in YYYY-MM-DD format")
+      .optional()
+      .or(z.literal("")),
+    totalValue: z
+      .number()
+      .min(0.01, "Total value must be at least 0.01 RON")
+      .max(100000000, "Total value cannot exceed 100,000,000 RON"),
+    profit: z
+      .number()
+      .min(-100000000, "Profit cannot be less than -100,000,000 RON")
+      .max(100000000, "Profit cannot exceed 100,000,000 RON"),
+    bondsPercent: z
+      .number()
+      .min(0, "Bonds percentage must be 0 or greater")
+      .max(100, "Bonds percentage cannot exceed 100%"),
+  })
+  .refine((data) => data.totalValue - data.profit >= 0, {
+    message: "Invested amount cannot be negative",
+    path: ["profit"],
+  })
+  .transform((data) => ({
+    ...data,
+    openedDate: "" === data.openedDate ? undefined : data.openedDate,
+  }));
+
+export type FundUnitInput = z.infer<typeof fundUnitSchema>;
+
+export interface FundUnitComparableFields {
+  name: string;
+  openedDate?: string;
+  totalValue: number;
+  profit: number;
+  bondsPercent: number;
+}
+
+export function fundUnitHasChanges(
+  existing: FundUnitComparableFields,
+  updated: FundUnitComparableFields,
+): boolean {
+  return (
+    existing.name !== updated.name ||
+    (existing.openedDate ?? "") !== (updated.openedDate ?? "") ||
+    existing.totalValue !== updated.totalValue ||
+    existing.profit !== updated.profit ||
+    existing.bondsPercent !== updated.bondsPercent
   );
 }
 

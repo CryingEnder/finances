@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "../../lib/auth";
+import { apiError } from "../../lib/api-response";
+import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getDividendsCollection } from "../../lib/database";
 import { dividendSchema, formatZodErrors } from "../../lib/validation";
 
@@ -31,10 +33,7 @@ export async function GET() {
     return NextResponse.json(serialized);
   } catch (error) {
     console.error("Error fetching dividends:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch dividends" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedFetchDividends, 500);
   }
 }
 
@@ -43,10 +42,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const payload = body as Record<string, unknown>;
@@ -59,10 +55,7 @@ export async function POST(request: NextRequest) {
       !isin ||
       !issuer
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const notes =
@@ -82,12 +75,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: formatZodErrors(validationResult.error),
-        },
-        { status: 400 },
+      return apiError(
+        API_ERROR_CODES.validationFailed,
+        400,
+        formatZodErrors(validationResult.error),
       );
     }
 
@@ -111,9 +102,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating dividend:", error);
-    return NextResponse.json(
-      { error: "Failed to create dividend" },
-      { status: 500 },
-    );
+    return apiError(API_ERROR_CODES.failedCreateDividend, 500);
   }
 }

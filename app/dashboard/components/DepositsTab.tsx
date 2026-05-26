@@ -22,10 +22,8 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
-import {
-  daysSinceIsoDate,
-  daysUntilIsoDate,
-} from "../../lib/dates";
+import { daysSinceIsoDate, daysUntilIsoDate } from "../../lib/dates";
+import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -49,6 +47,7 @@ import DepositsChart from "./DepositsChart";
 export default function DepositsTab() {
   const t = useTranslations("Deposits");
   const tc = useTranslations("Common");
+  const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -115,7 +114,7 @@ export default function DepositsTab() {
       resetDepositForm();
       setIsDepositDialogOpen(false);
     } catch (error) {
-      setDepositError(error instanceof Error ? error.message : t("failedSave"));
+      setDepositError(formatError(error, t("failedSave")));
     }
   };
 
@@ -129,9 +128,7 @@ export default function DepositsTab() {
       setDeleteDepositId(null);
     } catch (error) {
       console.error("Error deleting deposit:", error);
-      setNoticeMessage(
-        error instanceof Error ? error.message : t("failedDelete"),
-      );
+      setNoticeMessage(formatError(error, t("failedDelete")));
       setDeleteDepositId(null);
     }
   };
