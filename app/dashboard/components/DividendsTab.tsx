@@ -39,6 +39,20 @@ import {
   useUpdateDividend,
 } from "../../lib/hooks/use-dividends";
 
+interface DividendFormState {
+  isin: string;
+  date: string;
+  amount: string;
+  notes: string;
+}
+
+const EMPTY_DIVIDEND_FORM: DividendFormState = {
+  isin: "",
+  date: "",
+  amount: "",
+  notes: "",
+};
+
 export default function DividendsTab() {
   const t = useTranslations("Dividends");
   const tc = useTranslations("Common");
@@ -55,10 +69,8 @@ export default function DividendsTab() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Dividend | null>(null);
-  const [formIsin, setFormIsin] = useState<string>("");
-  const [formDate, setFormDate] = useState<string>("");
-  const [formAmount, setFormAmount] = useState<string>("");
-  const [formNotes, setFormNotes] = useState<string>("");
+  const [dividendForm, setDividendForm] =
+    useState<DividendFormState>(EMPTY_DIVIDEND_FORM);
   const [formError, setFormError] = useState<string>("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -94,21 +106,29 @@ export default function DividendsTab() {
     [filtered],
   );
 
+  const resetDividendForm = () => {
+    setDividendForm(EMPTY_DIVIDEND_FORM);
+    setEditing(null);
+    setFormError("");
+  };
+
   const beginAddDividend = () => {
     setEditing(null);
     setFormError("");
-    setFormIsin("");
-    setFormDate(todayIsoDate());
-    setFormAmount("");
-    setFormNotes("");
+    setDividendForm({
+      ...EMPTY_DIVIDEND_FORM,
+      date: todayIsoDate(),
+    });
   };
 
   const openEdit = (row: Dividend) => {
     setEditing(row);
-    setFormIsin(row.isin);
-    setFormDate(row.date);
-    setFormAmount(String(row.amount));
-    setFormNotes(row.notes ?? "");
+    setDividendForm({
+      isin: row.isin,
+      date: row.date,
+      amount: String(row.amount),
+      notes: row.notes ?? "",
+    });
     setFormError("");
     setDialogOpen(true);
   };
@@ -117,15 +137,15 @@ export default function DividendsTab() {
     e.preventDefault();
     setFormError("");
 
-    const amount = parseFloat(formAmount);
+    const amount = parseFloat(dividendForm.amount);
 
     try {
-      if (!formDate || Number.isNaN(amount)) {
+      if (!dividendForm.date || Number.isNaN(amount)) {
         setFormError(t("errDateAmount"));
         return;
       }
 
-      const company = companies.find((c) => c.isin === formIsin);
+      const company = companies.find((c) => c.isin === dividendForm.isin);
       if (!company) {
         setFormError(t("errSelectCompany"));
         return;
@@ -135,12 +155,12 @@ export default function DividendsTab() {
         instrument: company.instrument,
         isin: company.isin,
         issuer: company.issuer,
-        date: formDate,
+        date: dividendForm.date,
         amount,
       };
 
-      if (formNotes.trim().length > 0) {
-        payload.notes = formNotes.trim();
+      if (dividendForm.notes.trim().length > 0) {
+        payload.notes = dividendForm.notes.trim();
       }
 
       if (editing) {
@@ -149,12 +169,7 @@ export default function DividendsTab() {
         await createMutation.mutateAsync(payload);
       }
 
-      setEditing(null);
-      setFormIsin("");
-      setFormDate("");
-      setFormAmount("");
-      setFormNotes("");
-      setFormError("");
+      resetDividendForm();
       setDialogOpen(false);
     } catch (err) {
       setFormError(formatError(err, t("failedSave")));
@@ -197,9 +212,7 @@ export default function DividendsTab() {
           onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) {
-              setEditing(null);
-              setFormIsin("");
-              setFormError("");
+              resetDividendForm();
             }
           }}
         >
@@ -232,9 +245,9 @@ export default function DividendsTab() {
                   {tc("company")}
                 </Label>
                 <Select
-                  value={formIsin}
+                  value={dividendForm.isin}
                   onValueChange={(isin) => {
-                    setFormIsin(isin);
+                    setDividendForm((prev) => ({ ...prev, isin }));
                     setFormError("");
                   }}
                 >
@@ -272,11 +285,14 @@ export default function DividendsTab() {
                   required
                   type="date"
                   id="div-date"
-                  value={formDate}
-                  onChange={(e) => {
-                    setFormDate(e.target.value);
-                  }}
+                  value={dividendForm.date}
                   className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                  onChange={(e) => {
+                    setDividendForm((prev) => ({
+                      ...prev,
+                      date: e.target.value,
+                    }));
+                  }}
                 />
               </div>
 
@@ -290,10 +306,13 @@ export default function DividendsTab() {
                   step="0.01"
                   type="number"
                   id="div-amount"
-                  value={formAmount}
+                  value={dividendForm.amount}
                   className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) => {
-                    setFormAmount(e.target.value);
+                    setDividendForm((prev) => ({
+                      ...prev,
+                      amount: e.target.value,
+                    }));
                   }}
                 />
               </div>
@@ -305,11 +324,14 @@ export default function DividendsTab() {
                 <Input
                   id="div-notes"
                   maxLength={500}
-                  value={formNotes}
+                  value={dividendForm.notes}
                   placeholder={t("notesPlaceholder")}
                   className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) => {
-                    setFormNotes(e.target.value);
+                    setDividendForm((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }));
                   }}
                 />
               </div>
@@ -323,8 +345,8 @@ export default function DividendsTab() {
                   disabled={
                     createMutation.isPending ||
                     updateMutation.isPending ||
-                    !formIsin ||
-                    !formDate
+                    !dividendForm.isin ||
+                    !dividendForm.date
                   }
                 >
                   {createMutation.isPending || updateMutation.isPending

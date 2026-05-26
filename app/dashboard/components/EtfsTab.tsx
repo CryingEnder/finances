@@ -16,8 +16,8 @@ import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
-import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { formatDisplayDate } from "../../lib/dates";
+import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
@@ -98,6 +98,24 @@ function currencyLabel(
   return t("currencyRON");
 }
 
+interface EtfFormState {
+  symbol: string;
+  label: string;
+  volume: string;
+  actualPrice: string;
+  openingPrice: string;
+  currency: Currency;
+}
+
+const EMPTY_ETF_FORM: EtfFormState = {
+  symbol: "",
+  label: "",
+  volume: "",
+  actualPrice: "",
+  openingPrice: "",
+  currency: "EUR",
+};
+
 export default function EtfsTab() {
   const t = useTranslations("Etfs");
   const tc = useTranslations("Common");
@@ -112,12 +130,7 @@ export default function EtfsTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Etf | null>(null);
-  const [formSymbol, setFormSymbol] = useState("");
-  const [formLabel, setFormLabel] = useState("");
-  const [formVolume, setFormVolume] = useState("");
-  const [formActualPrice, setFormActualPrice] = useState("");
-  const [formOpeningPrice, setFormOpeningPrice] = useState("");
-  const [formCurrency, setFormCurrency] = useState<Currency>("EUR");
+  const [etfForm, setEtfForm] = useState<EtfFormState>(EMPTY_ETF_FORM);
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -139,25 +152,26 @@ export default function EtfsTab() {
     return grouped;
   }, [etfsWithCalculations]);
 
-  const beginAdd = () => {
+  const resetEtfForm = () => {
+    setEtfForm(EMPTY_ETF_FORM);
     setEditing(null);
     setFormError("");
-    setFormSymbol("");
-    setFormLabel("");
-    setFormVolume("");
-    setFormActualPrice("");
-    setFormOpeningPrice("");
-    setFormCurrency("EUR");
+  };
+
+  const beginAdd = () => {
+    resetEtfForm();
   };
 
   const openEdit = (row: Etf) => {
     setEditing(row);
-    setFormSymbol(row.symbol);
-    setFormLabel(row.label);
-    setFormVolume(String(row.volume));
-    setFormActualPrice(String(row.actualPrice));
-    setFormOpeningPrice(String(row.openingPrice));
-    setFormCurrency(row.currency);
+    setEtfForm({
+      symbol: row.symbol,
+      label: row.label,
+      volume: String(row.volume),
+      actualPrice: String(row.actualPrice),
+      openingPrice: String(row.openingPrice),
+      currency: row.currency,
+    });
     setFormError("");
     setDialogOpen(true);
   };
@@ -166,13 +180,13 @@ export default function EtfsTab() {
     e.preventDefault();
     setFormError("");
 
-    const volume = parseFloat(formVolume);
-    const actualPrice = parseFloat(formActualPrice);
-    const openingPrice = parseFloat(formOpeningPrice);
+    const volume = parseFloat(etfForm.volume);
+    const actualPrice = parseFloat(etfForm.actualPrice);
+    const openingPrice = parseFloat(etfForm.openingPrice);
 
     if (
-      !formSymbol.trim() ||
-      !formLabel.trim() ||
+      !etfForm.symbol.trim() ||
+      !etfForm.label.trim() ||
       Number.isNaN(volume) ||
       Number.isNaN(actualPrice) ||
       Number.isNaN(openingPrice)
@@ -182,12 +196,12 @@ export default function EtfsTab() {
     }
 
     const payload: Omit<Etf, "_id" | "date"> = {
-      symbol: formSymbol.trim(),
-      label: formLabel.trim(),
+      symbol: etfForm.symbol.trim(),
+      label: etfForm.label.trim(),
       volume,
       actualPrice,
       openingPrice,
-      currency: formCurrency,
+      currency: etfForm.currency,
     };
 
     try {
@@ -197,7 +211,7 @@ export default function EtfsTab() {
         await createMutation.mutateAsync(payload);
       }
 
-      beginAdd();
+      resetEtfForm();
       setDialogOpen(false);
     } catch (err) {
       setFormError(formatError(err, t("failedSave")));
@@ -398,15 +412,12 @@ export default function EtfsTab() {
           onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) {
-              beginAdd();
+              resetEtfForm();
             }
           }}
         >
           <DialogTrigger asChild>
-            <Button
-              onClick={beginAdd}
-              className={TAB_BUTTON_CLASS.etfs}
-            >
+            <Button onClick={beginAdd} className={TAB_BUTTON_CLASS.etfs}>
               <Plus className="w-4 h-4 mr-2" />
               {t("addEtf")}
             </Button>
@@ -431,11 +442,11 @@ export default function EtfsTab() {
                   required
                   id="etfSymbol"
                   maxLength={30}
-                  value={formSymbol}
+                  value={etfForm.symbol}
                   disabled={Boolean(editing)}
                   className="bg-zinc-700 border-zinc-600 text-white disabled:opacity-60"
                   onChange={(e) => {
-                    setFormSymbol(e.target.value);
+                    setEtfForm((prev) => ({ ...prev, symbol: e.target.value }));
                   }}
                 />
                 {editing ? (
@@ -452,10 +463,10 @@ export default function EtfsTab() {
                   required
                   id="etfLabel"
                   maxLength={200}
-                  value={formLabel}
+                  value={etfForm.label}
                   className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) => {
-                    setFormLabel(e.target.value);
+                    setEtfForm((prev) => ({ ...prev, label: e.target.value }));
                   }}
                 />
               </div>
@@ -464,9 +475,12 @@ export default function EtfsTab() {
                   {t("currency")}
                 </Label>
                 <Select
-                  value={formCurrency}
+                  value={etfForm.currency}
                   onValueChange={(value) => {
-                    setFormCurrency(value as Currency);
+                    setEtfForm((prev) => ({
+                      ...prev,
+                      currency: value as Currency,
+                    }));
                   }}
                 >
                   <SelectTrigger
@@ -495,10 +509,13 @@ export default function EtfsTab() {
                     min="0.0001"
                     type="number"
                     id="etfVolume"
-                    value={formVolume}
+                    value={etfForm.volume}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormVolume(e.target.value);
+                      setEtfForm((prev) => ({
+                        ...prev,
+                        volume: e.target.value,
+                      }));
                     }}
                   />
                 </div>
@@ -512,10 +529,13 @@ export default function EtfsTab() {
                     min="0.0001"
                     type="number"
                     id="etfActualPrice"
-                    value={formActualPrice}
+                    value={etfForm.actualPrice}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormActualPrice(e.target.value);
+                      setEtfForm((prev) => ({
+                        ...prev,
+                        actualPrice: e.target.value,
+                      }));
                     }}
                   />
                 </div>
@@ -529,10 +549,13 @@ export default function EtfsTab() {
                     min="0.0001"
                     type="number"
                     id="etfOpeningPrice"
-                    value={formOpeningPrice}
+                    value={etfForm.openingPrice}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormOpeningPrice(e.target.value);
+                      setEtfForm((prev) => ({
+                        ...prev,
+                        openingPrice: e.target.value,
+                      }));
                     }}
                   />
                 </div>

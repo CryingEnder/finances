@@ -15,8 +15,8 @@ import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
-import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { formatDisplayDate } from "../../lib/dates";
+import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
@@ -95,6 +95,24 @@ function currencyLabel(
   return t("currencyRON");
 }
 
+interface FundUnitFormState {
+  name: string;
+  openedDate: string;
+  totalValue: string;
+  profit: string;
+  bondsPercent: string;
+  currency: Currency;
+}
+
+const EMPTY_FUND_UNIT_FORM: FundUnitFormState = {
+  name: "",
+  openedDate: "",
+  totalValue: "",
+  profit: "",
+  bondsPercent: "",
+  currency: "EUR",
+};
+
 export default function FundUnitsTab() {
   const t = useTranslations("FundUnits");
   const tc = useTranslations("Common");
@@ -109,12 +127,8 @@ export default function FundUnitsTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FundUnit | null>(null);
-  const [formName, setFormName] = useState("");
-  const [formOpenedDate, setFormOpenedDate] = useState("");
-  const [formTotalValue, setFormTotalValue] = useState("");
-  const [formProfit, setFormProfit] = useState("");
-  const [formBondsPercent, setFormBondsPercent] = useState("");
-  const [formCurrency, setFormCurrency] = useState<Currency>("EUR");
+  const [fundUnitForm, setFundUnitForm] =
+    useState<FundUnitFormState>(EMPTY_FUND_UNIT_FORM);
   const [formError, setFormError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -137,33 +151,34 @@ export default function FundUnitsTab() {
   }, [fundUnitsWithCalculations]);
 
   const formStocksPercent = useMemo(() => {
-    const bonds = parseFloat(formBondsPercent);
+    const bonds = parseFloat(fundUnitForm.bondsPercent);
     if (Number.isNaN(bonds)) {
       return "";
     }
     const clamped = Math.min(100, Math.max(0, bonds));
     return String(100 - clamped);
-  }, [formBondsPercent]);
+  }, [fundUnitForm.bondsPercent]);
 
-  const beginAdd = () => {
+  const resetFundUnitForm = () => {
+    setFundUnitForm(EMPTY_FUND_UNIT_FORM);
     setEditing(null);
     setFormError("");
-    setFormName("");
-    setFormOpenedDate("");
-    setFormTotalValue("");
-    setFormProfit("");
-    setFormBondsPercent("");
-    setFormCurrency("EUR");
+  };
+
+  const beginAdd = () => {
+    resetFundUnitForm();
   };
 
   const openEdit = (row: FundUnit) => {
     setEditing(row);
-    setFormName(row.name);
-    setFormOpenedDate(row.openedDate ?? "");
-    setFormTotalValue(String(row.totalValue));
-    setFormProfit(String(row.profit));
-    setFormBondsPercent(String(row.bondsPercent));
-    setFormCurrency(row.currency);
+    setFundUnitForm({
+      name: row.name,
+      openedDate: row.openedDate ?? "",
+      totalValue: String(row.totalValue),
+      profit: String(row.profit),
+      bondsPercent: String(row.bondsPercent),
+      currency: row.currency,
+    });
     setFormError("");
     setDialogOpen(true);
   };
@@ -172,12 +187,12 @@ export default function FundUnitsTab() {
     e.preventDefault();
     setFormError("");
 
-    const totalValue = parseFloat(formTotalValue);
-    const profit = parseFloat(formProfit);
-    const bondsPercent = parseFloat(formBondsPercent);
+    const totalValue = parseFloat(fundUnitForm.totalValue);
+    const profit = parseFloat(fundUnitForm.profit);
+    const bondsPercent = parseFloat(fundUnitForm.bondsPercent);
 
     if (
-      !formName.trim() ||
+      !fundUnitForm.name.trim() ||
       Number.isNaN(totalValue) ||
       Number.isNaN(profit) ||
       Number.isNaN(bondsPercent) ||
@@ -194,12 +209,12 @@ export default function FundUnitsTab() {
     }
 
     const payload: Omit<FundUnit, "_id" | "date"> = {
-      name: formName.trim(),
-      openedDate: formOpenedDate.trim() || undefined,
+      name: fundUnitForm.name.trim(),
+      openedDate: fundUnitForm.openedDate.trim() || undefined,
       totalValue,
       profit,
       bondsPercent,
-      currency: formCurrency,
+      currency: fundUnitForm.currency,
     };
 
     try {
@@ -209,7 +224,7 @@ export default function FundUnitsTab() {
         await createMutation.mutateAsync(payload);
       }
 
-      beginAdd();
+      resetFundUnitForm();
       setDialogOpen(false);
     } catch (err) {
       setFormError(formatError(err, t("failedSave")));
@@ -405,15 +420,12 @@ export default function FundUnitsTab() {
           onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) {
-              beginAdd();
+              resetFundUnitForm();
             }
           }}
         >
           <DialogTrigger asChild>
-            <Button
-              onClick={beginAdd}
-              className={TAB_BUTTON_CLASS.fundUnits}
-            >
+            <Button onClick={beginAdd} className={TAB_BUTTON_CLASS.fundUnits}>
               <Plus className="w-4 h-4 mr-2" />
               {t("addFundUnit")}
             </Button>
@@ -437,12 +449,15 @@ export default function FundUnitsTab() {
                 <Input
                   required
                   maxLength={200}
-                  value={formName}
                   id="fundUnitName"
+                  value={fundUnitForm.name}
                   disabled={Boolean(editing)}
                   className="bg-zinc-700 border-zinc-600 text-white disabled:opacity-60"
                   onChange={(e) => {
-                    setFormName(e.target.value);
+                    setFundUnitForm((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }));
                   }}
                 />
                 {editing ? (
@@ -456,9 +471,12 @@ export default function FundUnitsTab() {
                   {t("currency")}
                 </Label>
                 <Select
-                  value={formCurrency}
+                  value={fundUnitForm.currency}
                   onValueChange={(value) => {
-                    setFormCurrency(value as Currency);
+                    setFundUnitForm((prev) => ({
+                      ...prev,
+                      currency: value as Currency,
+                    }));
                   }}
                 >
                   <SelectTrigger
@@ -482,11 +500,14 @@ export default function FundUnitsTab() {
                 </Label>
                 <Input
                   type="date"
-                  value={formOpenedDate}
                   id="fundUnitOpenedDate"
+                  value={fundUnitForm.openedDate}
                   className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
                   onChange={(e) => {
-                    setFormOpenedDate(e.target.value);
+                    setFundUnitForm((prev) => ({
+                      ...prev,
+                      openedDate: e.target.value,
+                    }));
                   }}
                 />
               </div>
@@ -500,11 +521,14 @@ export default function FundUnitsTab() {
                     min="0.01"
                     step="any"
                     type="number"
-                    value={formTotalValue}
                     id="fundUnitTotalValue"
+                    value={fundUnitForm.totalValue}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormTotalValue(e.target.value);
+                      setFundUnitForm((prev) => ({
+                        ...prev,
+                        totalValue: e.target.value,
+                      }));
                     }}
                   />
                 </div>
@@ -516,11 +540,14 @@ export default function FundUnitsTab() {
                     required
                     step="any"
                     type="number"
-                    value={formProfit}
                     id="fundUnitProfit"
+                    value={fundUnitForm.profit}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormProfit(e.target.value);
+                      setFundUnitForm((prev) => ({
+                        ...prev,
+                        profit: e.target.value,
+                      }));
                     }}
                   />
                 </div>
@@ -536,11 +563,14 @@ export default function FundUnitsTab() {
                     max="100"
                     step="any"
                     type="number"
-                    value={formBondsPercent}
                     id="fundUnitBondsPercent"
+                    value={fundUnitForm.bondsPercent}
                     className="bg-zinc-700 border-zinc-600 text-white"
                     onChange={(e) => {
-                      setFormBondsPercent(e.target.value);
+                      setFundUnitForm((prev) => ({
+                        ...prev,
+                        bondsPercent: e.target.value,
+                      }));
                     }}
                   />
                 </div>
