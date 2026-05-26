@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Coins, Landmark, LineChart, TrendingUp } from "lucide-react";
 import {
@@ -11,6 +10,7 @@ import {
   PieChart,
   ResponsiveContainer,
 } from "recharts";
+import { useMemo, useState, useCallback, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
 import type {
   Etf,
@@ -20,6 +20,7 @@ import type {
   FundUnitSummary,
 } from "../../lib/types";
 
+import { cn } from "../../lib/utils";
 import { CURRENCIES } from "../../lib/currency";
 import { useEtfs } from "../../lib/hooks/use-etfs";
 import { useDeposits } from "../../lib/hooks/use-deposits";
@@ -28,17 +29,18 @@ import { numberFormatLocale } from "../../lib/number-locale";
 import { useFundUnits } from "../../lib/hooks/use-fund-units";
 import { TAB_COLORS, TAB_ICON_CLASS } from "../../lib/tab-colors";
 import { usePortfolioEntries } from "../../lib/hooks/use-portfolio";
-import {
-  convertToRon,
-  formatEurToRonRate,
-  formatUsdToRonRate,
-} from "../../lib/currency-conversion";
+import { useExchangeRates } from "../../lib/hooks/use-exchange-rates";
 import {
   profitReturnPercent,
   formatCurrencyDisplay,
   formatSignedCurrencyAmount,
 } from "../../lib/currency-format";
-import { cn } from "../../lib/utils";
+import {
+  convertToRon,
+  formatExchangeRate,
+  type RonExchangeRates,
+  FALLBACK_EXCHANGE_RATES_TO_RON,
+} from "../../lib/currency-conversion";
 
 interface SummaryPieRow {
   id: string;
@@ -281,16 +283,39 @@ interface SummaryPieTooltipProps {
   valueLabel: string;
 }
 
-function SummaryExchangeRates() {
+interface SummaryExchangeRatesProps {
+  rates: RonExchangeRates;
+  rateDate: string | null;
+  apiFailed: boolean;
+}
+
+function SummaryExchangeRates({
+  rates,
+  rateDate,
+  apiFailed,
+}: SummaryExchangeRatesProps) {
   const t = useTranslations("Summary");
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
-  const usdRate = formatUsdToRonRate(numberFormat);
-  const eurRate = formatEurToRonRate(numberFormat);
+  const usdRate = formatExchangeRate(rates.USD, numberFormat);
+  const eurRate = formatExchangeRate(rates.EUR, numberFormat);
+  const sourceLabel = apiFailed
+    ? t("fxRatesApiFailed")
+    : rateDate
+      ? t("fxRatesBnrAsOf", { date: rateDate })
+      : null;
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-zinc-700/80 bg-zinc-800/40 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
-      <p className="text-sm text-zinc-400">{t("fxRatesLabel")}</p>
+      <p className="text-sm">
+        <span className="text-zinc-200">{t("fxRatesLabel")}</span>
+        {sourceLabel && (
+          <span className={cn("text-zinc-400", apiFailed && "text-red-400")}>
+            {" "}
+            ({sourceLabel})
+          </span>
+        )}
+      </p>
       <p className="text-sm text-zinc-300">
         {t("fxUsdToRon", { rate: usdRate })}
       </p>
@@ -455,7 +480,10 @@ function SummaryPieToggleBar({
           key={item.id}
           type="button"
           aria-pressed={item.enabled}
-          onClick={() => onToggleItem(item.id)}
+          onClick={() => { onToggleItem(item.id); }}
+          style={
+            item.enabled ? { backgroundColor: item.color } : { color: item.color }
+          }
           className={cn(
             "cursor-pointer rounded-full border py-1 text-xs font-medium transition-all",
             item.enabled ? "pl-3 pr-2" : "px-3",
@@ -463,9 +491,6 @@ function SummaryPieToggleBar({
               ? "border-transparent text-white shadow-sm"
               : "border-zinc-600 bg-zinc-900/40 text-zinc-500 opacity-70",
           )}
-          style={
-            item.enabled ? { backgroundColor: item.color } : { color: item.color }
-          }
         >
           <span className="inline-flex items-center gap-0.5">
             {item.label}
@@ -554,6 +579,13 @@ export default function SummaryTab() {
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
+  const { data: exchangeRatesData, isError: exchangeRatesError } =
+    useExchangeRates();
+  const ronExchangeRates = exchangeRatesData?.rates ?? FALLBACK_EXCHANGE_RATES_TO_RON;
+  const exchangeRateDate = exchangeRatesData?.rateDate ?? null;
+  const exchangeRatesApiFailed =
+    exchangeRatesError || "fallback" === exchangeRatesData?.source;
+
   const { data: deposits = [], isLoading: depositsLoading } = useDeposits();
   const { data: portfolioEntries = [], isLoading: portfolioLoading } =
     usePortfolioEntries();
@@ -607,14 +639,25 @@ export default function SummaryTab() {
       if (!summary) {
         continue;
       }
-      // TODO: Replace convertToRon with live API rates when available.
-      invested += convertToRon(summary.totalPurchaseCost, currency);
-      currentValue += convertToRon(summary.totalValue, currency);
-      profit += convertToRon(summary.totalProfitNet, currency);
+      invested += convertToRon(
+        summary.totalPurchaseCost,
+        currency,
+        ronExchangeRates,
+      );
+      currentValue += convertToRon(
+        summary.totalValue,
+        currency,
+        ronExchangeRates,
+      );
+      profit += convertToRon(
+        summary.totalProfitNet,
+        currency,
+        ronExchangeRates,
+      );
     }
 
     return { invested, currentValue, profit };
-  }, [etfSummariesByCurrency]);
+  }, [etfSummariesByCurrency, ronExchangeRates]);
 
   const fundUnitsInRon = useMemo(() => {
     let invested = 0;
@@ -626,14 +669,21 @@ export default function SummaryTab() {
       if (!summary) {
         continue;
       }
-      // TODO: Replace convertToRon with live API rates when available.
-      invested += convertToRon(summary.totalInvested, currency);
-      currentValue += convertToRon(summary.totalValue, currency);
-      profit += convertToRon(summary.totalProfit, currency);
+      invested += convertToRon(
+        summary.totalInvested,
+        currency,
+        ronExchangeRates,
+      );
+      currentValue += convertToRon(
+        summary.totalValue,
+        currency,
+        ronExchangeRates,
+      );
+      profit += convertToRon(summary.totalProfit, currency, ronExchangeRates);
     }
 
     return { invested, currentValue, profit };
-  }, [fundUnitSummariesByCurrency]);
+  }, [fundUnitSummariesByCurrency, ronExchangeRates]);
 
   const summary = useMemo(() => {
     const totalDepositsCurrentValue = deposits.reduce(
@@ -940,7 +990,11 @@ export default function SummaryTab() {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <SummaryExchangeRates />
+        <SummaryExchangeRates
+          rates={ronExchangeRates}
+          rateDate={exchangeRateDate}
+          apiFailed={exchangeRatesApiFailed}
+        />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
@@ -1199,12 +1253,12 @@ export default function SummaryTab() {
               tooltipValueLabel={t("amount")}
               toggleItems={pieBasisToggleItems}
               onToggleItem={(id) =>
-                togglePieItem(
+                { togglePieItem(
                   id,
                   pieBasisDataAll,
                   basisHiddenIds,
                   setBasisHiddenIds,
-                )
+                ); }
               }
             />
             <SummaryDistributionPie
@@ -1214,12 +1268,12 @@ export default function SummaryTab() {
               tooltipValueLabel={t("amount")}
               toggleItems={pieWealthToggleItems}
               onToggleItem={(id) =>
-                togglePieItem(
+                { togglePieItem(
                   id,
                   pieWealthDataAll,
                   wealthHiddenIds,
                   setWealthHiddenIds,
-                )
+                ); }
               }
             />
           </div>
@@ -1227,9 +1281,9 @@ export default function SummaryTab() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <SummaryDistributionPie
                 data={pieFundAllocationData}
-                totalValue={pieFundAllocationTotal}
-                title={t("pieFundAllocationTitle")}
                 tooltipValueLabel={t("amount")}
+                title={t("pieFundAllocationTitle")}
+                totalValue={pieFundAllocationTotal}
               />
             </div>
           )}

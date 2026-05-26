@@ -582,14 +582,14 @@ export default function DepositsTab() {
         </Dialog>
         {deposits.length > 0 && (
           <Button
-            variant={showChart ? "default" : "outline"}
+            variant={showChart ? "outline" : "default"}
             onClick={() => {
               setShowChart(!showChart);
             }}
             className={`cursor-pointer ${
               showChart
-                ? TAB_BUTTON_CLASS.deposits
-                : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                ? "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                : TAB_BUTTON_CLASS.deposits
             }`}
           >
             <BarChart3 className="w-4 h-4 mr-2" />
@@ -959,14 +959,18 @@ export default function DepositsTab() {
         description={t("deleteDescription")}
         isConfirming={deleteDepositMutation.isPending}
         onOpenChange={(open) => {
-          if (!open) setDeleteDepositId(null);
+          if (!open) {
+            setDeleteDepositId(null);
+          }
         }}
       />
       <NoticeDialog
         message={noticeMessage ?? ""}
         open={noticeMessage !== null}
         onOpenChange={(open) => {
-          if (!open) setNoticeMessage(null);
+          if (!open) {
+            setNoticeMessage(null);
+          }
         }}
       />
     </div>

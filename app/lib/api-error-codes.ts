@@ -59,6 +59,8 @@ export const API_ERROR_CODES = {
   failedUpdateFundUnit: "failedUpdateFundUnit",
   failedDeleteFundUnit: "failedDeleteFundUnit",
 
+  failedFetchExchangeRates: "failedFetchExchangeRates",
+
   networkError: "networkError",
   invalidPayload: "invalidPayload",
   idRequired: "idRequired",

@@ -1,10 +1,14 @@
 import type { Currency } from "./types";
 
-// TODO: Replace hardcoded rates with live API exchange rates.
-export const EXCHANGE_RATES_TO_RON = {
+export const FALLBACK_EXCHANGE_RATES_TO_RON = {
   USD: 4.5,
   EUR: 5.2,
 } as const;
+
+export interface RonExchangeRates {
+  USD: number;
+  EUR: number;
+}
 
 const RATE_FRACTION_DIGITS = {
   minimumFractionDigits: 2,
@@ -15,22 +19,16 @@ export function formatExchangeRate(rate: number, numberFormat: string): string {
   return new Intl.NumberFormat(numberFormat, RATE_FRACTION_DIGITS).format(rate);
 }
 
-export function formatUsdToRonRate(numberFormat: string): string {
-  return formatExchangeRate(EXCHANGE_RATES_TO_RON.USD, numberFormat);
-}
-
-export function formatEurToRonRate(numberFormat: string): string {
-  return formatExchangeRate(EXCHANGE_RATES_TO_RON.EUR, numberFormat);
-}
-
-export function convertToRon(amount: number, currency: Currency): number {
-  if ("RON" === currency) {
-    return amount;
-  }
+export function convertToRon(
+  amount: number,
+  currency: Currency,
+  rates: RonExchangeRates,
+): number {
   if ("USD" === currency) {
-    // TODO: Use API rate instead of EXCHANGE_RATES_TO_RON.USD.
-    return amount * EXCHANGE_RATES_TO_RON.USD;
+    return amount * rates.USD;
   }
-  // TODO: Use API rate instead of EXCHANGE_RATES_TO_RON.EUR.
-  return amount * EXCHANGE_RATES_TO_RON.EUR;
+  if ("EUR" === currency) {
+    return amount * rates.EUR;
+  }
+  return amount;
 }

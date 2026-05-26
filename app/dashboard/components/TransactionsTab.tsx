@@ -990,14 +990,18 @@ export default function TransactionsTab() {
         onConfirm={confirmDeleteTransaction}
         isConfirming={deleteTransactionMutation.isPending}
         onOpenChange={(open) => {
-          if (!open) setDeleteTransactionId(null);
+          if (!open) {
+            setDeleteTransactionId(null);
+          }
         }}
       />
       <NoticeDialog
         message={noticeMessage ?? ""}
         open={noticeMessage !== null}
         onOpenChange={(open) => {
-          if (!open) setNoticeMessage(null);
+          if (!open) {
+            setNoticeMessage(null);
+          }
         }}
       />
     </div>

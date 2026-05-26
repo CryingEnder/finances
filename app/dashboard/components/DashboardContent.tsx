@@ -50,7 +50,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
             <div className="flex justify-between items-center h-16">
               <Link href="/" className="flex items-center gap-3">
                 <Logo size="md" withBorder borderSize="sm" />
-                <h1 className="text-xl font-semibold text-white">
+                <h1 className="hidden sm:block text-xl font-semibold text-white">
                   {t("appTitle")}
                 </h1>
               </Link>
@@ -170,7 +170,7 @@ export default function DashboardContent({ userName }: DashboardContentProps) {
                 fallback={
                   <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4" />
                       <p className="text-zinc-400">{t("loadingDividends")}</p>
                     </div>
                   </div>

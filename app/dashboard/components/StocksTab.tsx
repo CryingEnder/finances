@@ -536,7 +536,7 @@ export default function StocksTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4">
         <Dialog
           open={isCompanyDialogOpen}
           onOpenChange={setIsCompanyDialogOpen}
@@ -882,9 +882,9 @@ export default function StocksTab() {
 
       {(companies.length > 0 || portfolioEntries.length > 0) && (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-end gap-4">
             {availableDates.length > 0 ? (
-              <div className="flex-1">
+              <div className="min-w-0 flex-1 basis-[200px]">
                 <Label htmlFor="date-select" className="text-white font-medium">
                   {t("selectPortfolioDate")}
                 </Label>
@@ -911,7 +911,7 @@ export default function StocksTab() {
             )}
 
             {companies.length > 0 && (
-              <div className="ml-6 flex items-end">
+              <div className="flex shrink-0 items-end">
                 <Button
                   size="sm"
                   variant={showCompanies ? "outline" : "default"}
@@ -924,9 +924,7 @@ export default function StocksTab() {
                       : TAB_BUTTON_CLASS.stocksDark
                   }`}
                 >
-                  {showCompanies
-                    ? `👁️ ${t("hideCompanies")}`
-                    : `👁️ ${t("showCompanies")}`}
+                  {showCompanies ? t("hideCompanies") : t("showCompanies")}
                 </Button>
               </div>
             )}
@@ -1028,14 +1026,18 @@ export default function StocksTab() {
         isConfirming={isStockDeleteConfirming}
         description={deleteConfirmCopy.description}
         onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
+          if (!open) {
+            setPendingDelete(null);
+          }
         }}
       />
       <NoticeDialog
         message={noticeMessage ?? ""}
         open={noticeMessage !== null}
         onOpenChange={(open) => {
-          if (!open) setNoticeMessage(null);
+          if (!open) {
+            setNoticeMessage(null);
+          }
         }}
       />
     </div>
