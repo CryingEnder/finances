@@ -4,6 +4,7 @@ import type { FundUnit } from "../types";
 
 import { resolveCurrency } from "../currency";
 import { API_ERROR_CODES } from "../api-error-codes";
+import { captureClientError } from "../capture-error";
 import { ApiRequestError } from "../api-request-error";
 
 import {
@@ -70,7 +71,9 @@ const parseFundUnits = (value: unknown): FundUnit[] => {
     try {
       acc.push(parseFundUnit(item));
     } catch (error) {
-      console.error("Skipping invalid fund unit payload", error);
+      captureClientError(error, {
+        message: "Invalid fund unit payload from API",
+      });
     }
     return acc;
   }, []);

@@ -6,6 +6,7 @@ import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../../lib/database";
+import { captureServerError } from "../../../lib/capture-error";
 import { companySchema, formatZodErrors } from "../../../lib/validation";
 
 export async function PUT(
@@ -83,7 +84,7 @@ export async function PUT(
       _id: updatedCompany._id.toString(),
     });
   } catch (error) {
-    console.error("Error updating company:", error);
+    captureServerError(error, { message: "Error updating company:" });
     return apiError(API_ERROR_CODES.failedUpdateCompany, 500);
   }
 }
@@ -110,7 +111,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting company:", error);
+    captureServerError(error, { message: "Error deleting company:" });
     return apiError(API_ERROR_CODES.failedDeleteCompany, 500);
   }
 }

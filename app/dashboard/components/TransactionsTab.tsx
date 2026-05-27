@@ -164,7 +164,6 @@ export default function TransactionsTab() {
       await deleteTransactionMutation.mutateAsync(id);
       setDeleteTransactionId(null);
     } catch (error) {
-      console.error("Error deleting transaction:", error);
       setNoticeMessage(formatError(error, t("failedDelete")));
       setDeleteTransactionId(null);
     }

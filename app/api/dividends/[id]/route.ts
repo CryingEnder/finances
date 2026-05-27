@@ -5,6 +5,7 @@ import { requireAuth } from "../../../lib/auth";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
+import { captureServerError } from "../../../lib/capture-error";
 import { dividendSchema, formatZodErrors } from "../../../lib/validation";
 import {
   type DatabaseDividend,
@@ -115,7 +116,7 @@ export async function PUT(
 
     return NextResponse.json(serialized);
   } catch (error) {
-    console.error("Error updating dividend:", error);
+    captureServerError(error, { message: "Error updating dividend:" });
     return apiError(API_ERROR_CODES.failedUpdateDividend, 500);
   }
 }
@@ -142,7 +143,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting dividend:", error);
+    captureServerError(error, { message: "Error deleting dividend:" });
     return apiError(API_ERROR_CODES.failedDeleteDividend, 500);
   }
 }

@@ -4,6 +4,7 @@ import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
 import { getDepositsCollection } from "../../lib/database";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
+import { captureServerError } from "../../lib/capture-error";
 import { depositSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(serializedDeposits);
   } catch (error) {
-    console.error("Error fetching deposits:", error);
+    captureServerError(error, { message: "Error fetching deposits:" });
     return apiError(API_ERROR_CODES.failedFetchDeposits, 500);
   }
 }
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating deposit:", error);
+    captureServerError(error, { message: "Error creating deposit:" });
     return apiError(API_ERROR_CODES.failedCreateDeposit, 500);
   }
 }

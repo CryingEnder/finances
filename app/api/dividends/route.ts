@@ -4,6 +4,7 @@ import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getDividendsCollection } from "../../lib/database";
+import { captureServerError } from "../../lib/capture-error";
 import { dividendSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -32,7 +33,7 @@ export async function GET() {
 
     return NextResponse.json(serialized);
   } catch (error) {
-    console.error("Error fetching dividends:", error);
+    captureServerError(error, { message: "Error fetching dividends:" });
     return apiError(API_ERROR_CODES.failedFetchDividends, 500);
   }
 }
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating dividend:", error);
+    captureServerError(error, { message: "Error creating dividend:" });
     return apiError(API_ERROR_CODES.failedCreateDividend, 500);
   }
 }

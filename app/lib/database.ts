@@ -12,6 +12,7 @@ import type {
 } from "./types";
 
 import { DATABASE_CONFIG } from "./config";
+import { captureServerError } from "./capture-error";
 
 type DatabaseCompany = Omit<Company, "_id" | "userId"> & { _id?: ObjectId };
 type DatabasePortfolioEntry = Omit<PortfolioEntry, "_id" | "userId"> & {
@@ -93,7 +94,7 @@ export async function connectToGlobalDatabase(): Promise<Db> {
     globalDb = client.db(dbName);
     return globalDb;
   } catch (error) {
-    console.error("Failed to connect to MongoDB:", error);
+    captureServerError(error, { message: "Failed to connect to MongoDB" });
     throw error;
   }
 }
@@ -110,7 +111,7 @@ export async function connectToUserDatabase(userId: string): Promise<Db> {
     const userDbName = `${dbName}_user_${userId}`;
     return client.db(userDbName);
   } catch (error) {
-    console.error("Failed to connect to user database:", error);
+    captureServerError(error, { message: "Failed to connect to user database" });
     throw error;
   }
 }

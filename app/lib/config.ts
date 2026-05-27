@@ -10,3 +10,9 @@ export const DATABASE_CONFIG = {
   MONGODB_URI: process.env.MONGODB_URI,
   MONGODB_DB_NAME: process.env.MONGODB_DB_NAME,
 } as const;
+
+export const SENTRY_CONFIG = {
+  DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  ORG: process.env.SENTRY_ORG,
+  PROJECT: process.env.SENTRY_PROJECT,
+} as const;

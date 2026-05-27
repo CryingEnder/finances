@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
+import { captureServerError } from "../../lib/capture-error";
 import { formatZodErrors, transactionSchema } from "../../lib/validation";
 import {
   type DatabaseTransaction,
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(serializedTransactions);
   } catch (error) {
-    console.error("Error fetching transactions:", error);
+    captureServerError(error, { message: "Error fetching transactions:" });
     return apiError(API_ERROR_CODES.failedFetchTransactions, 500);
   }
 }
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating transaction:", error);
+    captureServerError(error, { message: "Error creating transaction:" });
     return apiError(API_ERROR_CODES.failedCreateTransaction, 500);
   }
 }

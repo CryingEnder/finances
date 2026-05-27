@@ -181,7 +181,6 @@ export default function StocksTab() {
       }
       setPendingDelete(null);
     } catch (error) {
-      console.error(error);
       setNoticeMessage(
         formatError(
           error,

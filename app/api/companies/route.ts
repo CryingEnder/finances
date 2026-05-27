@@ -4,6 +4,7 @@ import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../lib/database";
+import { captureServerError } from "../../lib/capture-error";
 import { companySchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -22,7 +23,7 @@ export async function GET() {
 
     return NextResponse.json(serializedCompanies);
   } catch (error) {
-    console.error("Error fetching companies:", error);
+    captureServerError(error, { message: "Error fetching companies:" });
     return apiError(API_ERROR_CODES.failedFetchCompanies, 500);
   }
 }
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating company:", error);
+    captureServerError(error, { message: "Error creating company:" });
     return apiError(API_ERROR_CODES.failedCreateCompany, 500);
   }
 }

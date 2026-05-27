@@ -528,5 +528,10 @@
     "bondsPercentMax": "Bonds percentage cannot exceed 100%",
     "investedAmountNegative": "Invested amount cannot be negative",
     "validationUnknown": "Invalid value"
+  },
+  "Errors": {
+    "dashboardTitle": "Something went wrong",
+    "dashboardDescription": "An unexpected error occurred while loading the dashboard.",
+    "tryAgain": "Try again"
   }
 }

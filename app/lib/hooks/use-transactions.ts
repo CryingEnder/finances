@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Transaction } from "../types";
 
 import { API_ERROR_CODES } from "../api-error-codes";
+import { captureClientError } from "../capture-error";
 import { ApiRequestError } from "../api-request-error";
 
 import {
@@ -117,7 +118,9 @@ const parseTransactions = (value: unknown): Transaction[] => {
     try {
       acc.push(parseTransaction(item));
     } catch (error) {
-      console.error("Skipping invalid transaction payload", error);
+      captureClientError(error, {
+        message: "Invalid transaction payload from API",
+      });
     }
     return acc;
   }, []);

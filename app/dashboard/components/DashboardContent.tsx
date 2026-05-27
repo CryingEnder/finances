@@ -3,15 +3,15 @@
 import Link from "next/link";
 
 import { User } from "lucide-react";
-import { lazy, Suspense } from "react";
 import { useTranslations } from "next-intl";
+import { lazy, Suspense, useEffect } from "react";
 
 import Logo from "../../components/Logo";
 import LogoutButton from "../../components/LogoutButton";
 import LanguageToggle from "../../components/LanguageToggle";
 
 import { cn } from "../../lib/utils";
-import { ClientProvider } from "../../lib/providers/client-provider";
+import { ClientProvider, setClientSentryUser } from "../../lib/providers/client-provider";
 import {
   Tabs,
   TabsList,
@@ -32,10 +32,18 @@ const dashboardTabTriggerClass =
 
 interface DashboardContentProps {
   userName: string;
+  userId: string;
 }
 
-export default function DashboardContent({ userName }: DashboardContentProps) {
+export default function DashboardContent({
+  userName,
+  userId,
+}: DashboardContentProps) {
   const t = useTranslations("Dashboard");
+
+  useEffect(() => {
+    setClientSentryUser({ id: userId, name: userName });
+  }, [userId, userName]);
 
   return (
     <ClientProvider>

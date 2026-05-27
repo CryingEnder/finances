@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { AUTH_CONFIG } from "./config";
 import { type User, type LoginCredentials } from "./types";
+import { setSentryUser, captureServerError } from "./capture-error";
 import { getUsersCollection, isDatabaseConnectionError } from "./database";
 
 export async function verifyPassword(
@@ -100,6 +101,8 @@ export async function requireAuth(): Promise<User> {
   if (!user) {
     redirect("/");
   }
+
+  setSentryUser({ id: user.id, name: user.name });
   return user;
 }
 
@@ -137,7 +140,7 @@ export async function authenticateUser(
       },
     };
   } catch (error) {
-    console.error("Authentication error:", error);
+    captureServerError(error, { message: "Authentication error" });
     if (isDatabaseConnectionError(error)) {
       return { status: "serviceUnavailable" };
     }

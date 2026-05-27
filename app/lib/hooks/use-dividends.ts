@@ -4,6 +4,7 @@ import type { Dividend } from "../types";
 
 import { isIsoDateString } from "../dates";
 import { API_ERROR_CODES } from "../api-error-codes";
+import { captureClientError } from "../capture-error";
 import { ApiRequestError } from "../api-request-error";
 
 import {
@@ -71,7 +72,9 @@ const parseDividends = (value: unknown): Dividend[] => {
     try {
       acc.push(parseDividend(item));
     } catch (error) {
-      console.error("Skipping invalid dividend payload", error);
+      captureClientError(error, {
+        message: "Invalid dividend payload from API",
+      });
     }
     return acc;
   }, []);

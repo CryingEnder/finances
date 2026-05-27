@@ -5,5 +5,5 @@ import DashboardContent from "./components/DashboardContent";
 export default async function Dashboard() {
   const user = await requireAuth();
 
-  return <DashboardContent userName={user.name} />;
+  return <DashboardContent userId={user.id} userName={user.name} />;
 }

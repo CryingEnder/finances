@@ -240,7 +240,6 @@ export default function FundUnitsTab() {
       await deleteMutation.mutateAsync(id);
       setDeleteTargetId(null);
     } catch (err) {
-      console.error(err);
       setNoticeMessage(formatError(err, t("failedDelete")));
       setDeleteTargetId(null);
     }

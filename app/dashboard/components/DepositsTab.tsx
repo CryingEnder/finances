@@ -128,7 +128,6 @@ export default function DepositsTab() {
       await deleteDepositMutation.mutateAsync(id);
       setDeleteDepositId(null);
     } catch (error) {
-      console.error("Error deleting deposit:", error);
       setNoticeMessage(formatError(error, t("failedDelete")));
       setDeleteDepositId(null);
     }

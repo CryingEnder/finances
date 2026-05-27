@@ -528,5 +528,10 @@
     "bondsPercentMax": "Procentul de obligatiuni nu poate depasi 100%",
     "investedAmountNegative": "Suma investita nu poate fi negativa",
     "validationUnknown": "Valoare invalida"
+  },
+  "Errors": {
+    "dashboardTitle": "A aparut o problema",
+    "dashboardDescription": "A aparut o eroare neasteptata la incarcarea panoului.",
+    "tryAgain": "Incearca din nou"
   }
 }

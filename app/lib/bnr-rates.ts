@@ -1,3 +1,4 @@
+import { captureWarning, captureServerError } from "./capture-error";
 import { FALLBACK_EXCHANGE_RATES_TO_RON } from "./currency-conversion";
 
 const BNR_FX_RATES_URL = "https://www.bnr.ro/nbrfxrates.xml";
@@ -64,13 +65,15 @@ export async function getBnrExchangeRates(): Promise<ExchangeRatesResult> {
     });
 
     if (!response.ok) {
-      console.error("BNR exchange rates fetch failed:", response.status);
+      captureWarning("BNR exchange rates fetch failed", {
+        status: response.status,
+      });
       return fallbackExchangeRates();
     }
 
     const parsed = parseBnrFxRatesXml(await response.text());
     if (!parsed) {
-      console.error("BNR exchange rates XML parse failed");
+      captureWarning("BNR exchange rates XML parse failed");
       return fallbackExchangeRates();
     }
 
@@ -80,7 +83,7 @@ export async function getBnrExchangeRates(): Promise<ExchangeRatesResult> {
       source: "bnr",
     };
   } catch (error) {
-    console.error("BNR exchange rates fetch error:", error);
+    captureServerError(error, { message: "BNR exchange rates fetch error" });
     return fallbackExchangeRates();
   }
 }

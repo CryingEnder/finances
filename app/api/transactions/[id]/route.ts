@@ -5,6 +5,7 @@ import { requireAuth } from "../../../lib/auth";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
+import { captureServerError } from "../../../lib/capture-error";
 import { getTransactionsCollection } from "../../../lib/database";
 import { formatZodErrors, transactionSchema } from "../../../lib/validation";
 
@@ -34,7 +35,7 @@ export async function GET(
       _id: transaction._id.toString(),
     });
   } catch (error) {
-    console.error("Error fetching transaction:", error);
+    captureServerError(error, { message: "Error fetching transaction:" });
     return apiError(API_ERROR_CODES.failedFetchTransaction, 500);
   }
 }
@@ -117,7 +118,7 @@ export async function PUT(
       _id: updatedTransaction._id.toString(),
     });
   } catch (error) {
-    console.error("Error updating transaction:", error);
+    captureServerError(error, { message: "Error updating transaction:" });
     return apiError(API_ERROR_CODES.failedUpdateTransaction, 500);
   }
 }
@@ -146,7 +147,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting transaction:", error);
+    captureServerError(error, { message: "Error deleting transaction:" });
     return apiError(API_ERROR_CODES.failedDeleteTransaction, 500);
   }
 }

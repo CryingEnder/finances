@@ -4,6 +4,7 @@ import type { Etf } from "../types";
 
 import { resolveCurrency } from "../currency";
 import { API_ERROR_CODES } from "../api-error-codes";
+import { captureClientError } from "../capture-error";
 import { ApiRequestError } from "../api-request-error";
 
 import {
@@ -68,7 +69,9 @@ const parseEtfs = (value: unknown): Etf[] => {
     try {
       acc.push(parseEtf(item));
     } catch (error) {
-      console.error("Skipping invalid ETF payload", error);
+      captureClientError(error, {
+        message: "Invalid ETF payload from API",
+      });
     }
     return acc;
   }, []);

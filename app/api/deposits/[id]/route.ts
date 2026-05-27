@@ -6,6 +6,7 @@ import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
 import { getDepositsCollection } from "../../../lib/database";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
+import { captureServerError } from "../../../lib/capture-error";
 import { depositSchema, formatZodErrors } from "../../../lib/validation";
 
 export async function PUT(
@@ -123,7 +124,7 @@ export async function PUT(
       _id: updatedDeposit._id.toString(),
     });
   } catch (error) {
-    console.error("Error updating deposit:", error);
+    captureServerError(error, { message: "Error updating deposit:" });
     return apiError(API_ERROR_CODES.failedUpdateDeposit, 500);
   }
 }
@@ -150,7 +151,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting deposit:", error);
+    captureServerError(error, { message: "Error deleting deposit:" });
     return apiError(API_ERROR_CODES.failedDeleteDeposit, 500);
   }
 }

@@ -5,6 +5,7 @@ import { todayIsoDate } from "../../lib/dates";
 import { apiError } from "../../lib/api-response";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getFundUnitsCollection } from "../../lib/database";
+import { captureServerError } from "../../lib/capture-error";
 import { fundUnitSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -23,7 +24,7 @@ export async function GET() {
 
     return NextResponse.json(serializedFundUnits);
   } catch (error) {
-    console.error("Error fetching fund units:", error);
+    captureServerError(error, { message: "Error fetching fund units:" });
     return apiError(API_ERROR_CODES.failedFetchFundUnits, 500);
   }
 }
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating fund unit:", error);
+    captureServerError(error, { message: "Error creating fund unit:" });
     return apiError(API_ERROR_CODES.failedCreateFundUnit, 500);
   }
 }

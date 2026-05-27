@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Deposit } from "../types";
 
 import { API_ERROR_CODES } from "../api-error-codes";
+import { captureClientError } from "../capture-error";
 import { ApiRequestError } from "../api-request-error";
 
 import {
@@ -89,7 +90,9 @@ const parseDeposits = (value: unknown): Deposit[] => {
     try {
       acc.push(parseDeposit(item));
     } catch (error) {
-      console.error("Skipping invalid deposit payload", error);
+      captureClientError(error, {
+        message: "Invalid deposit payload from API",
+      });
     }
     return acc;
   }, []);

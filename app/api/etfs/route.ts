@@ -5,6 +5,7 @@ import { todayIsoDate } from "../../lib/dates";
 import { apiError } from "../../lib/api-response";
 import { getEtfsCollection } from "../../lib/database";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
+import { captureServerError } from "../../lib/capture-error";
 import { etfSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -20,7 +21,7 @@ export async function GET() {
 
     return NextResponse.json(serializedEtfs);
   } catch (error) {
-    console.error("Error fetching ETFs:", error);
+    captureServerError(error, { message: "Error fetching ETFs:" });
     return apiError(API_ERROR_CODES.failedFetchEtfs, 500);
   }
 }
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating ETF:", error);
+    captureServerError(error, { message: "Error creating ETF:" });
     return apiError(API_ERROR_CODES.failedCreateEtf, 500);
   }
 }

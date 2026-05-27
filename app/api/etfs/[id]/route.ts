@@ -8,6 +8,7 @@ import { isValidObjectId } from "../../../lib/utils";
 import { resolveCurrency } from "../../../lib/currency";
 import { getEtfsCollection } from "../../../lib/database";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
+import { captureServerError } from "../../../lib/capture-error";
 import {
   etfSchema,
   etfHasChanges,
@@ -121,7 +122,7 @@ export async function PUT(
       _id: updatedEtf._id.toString(),
     });
   } catch (error) {
-    console.error("Error updating ETF:", error);
+    captureServerError(error, { message: "Error updating ETF:" });
     return apiError(API_ERROR_CODES.failedUpdateEtf, 500);
   }
 }
@@ -148,7 +149,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting ETF:", error);
+    captureServerError(error, { message: "Error deleting ETF:" });
     return apiError(API_ERROR_CODES.failedDeleteEtf, 500);
   }
 }

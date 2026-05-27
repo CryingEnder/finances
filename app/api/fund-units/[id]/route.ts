@@ -8,6 +8,7 @@ import { isValidObjectId } from "../../../lib/utils";
 import { resolveCurrency } from "../../../lib/currency";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getFundUnitsCollection } from "../../../lib/database";
+import { captureServerError } from "../../../lib/capture-error";
 import {
   fundUnitSchema,
   formatZodErrors,
@@ -125,7 +126,7 @@ export async function PUT(
       _id: updatedFundUnit._id.toString(),
     });
   } catch (error) {
-    console.error("Error updating fund unit:", error);
+    captureServerError(error, { message: "Error updating fund unit:" });
     return apiError(API_ERROR_CODES.failedUpdateFundUnit, 500);
   }
 }
@@ -152,7 +153,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting fund unit:", error);
+    captureServerError(error, { message: "Error deleting fund unit:" });
     return apiError(API_ERROR_CODES.failedDeleteFundUnit, 500);
   }
 }
