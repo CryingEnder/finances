@@ -513,7 +513,11 @@ export default function StocksTab() {
         ) : (
           <div className="text-zinc-400 text-center py-8">
             <p>{t("emptyDateTitle")}</p>
-            <p className="text-sm">{t("emptyDateHint")}</p>
+            <p className="text-sm">
+              {0 === companies.length
+                ? t("emptyDateHintNoCompanies")
+                : t("emptyDateHint")}
+            </p>
           </div>
         )}
       </div>
@@ -657,6 +661,7 @@ export default function StocksTab() {
         >
           <DialogTrigger asChild>
             <Button
+              disabled={0 === companies.length}
               onClick={resetPortfolioForm}
               className={TAB_BUTTON_CLASS.stocks}
             >
@@ -723,7 +728,7 @@ export default function StocksTab() {
                         ))
                       ) : (
                         <div className="px-2 py-1.5 text-sm text-zinc-400">
-                          {tc("noCompaniesAvailable")}
+                          {t("noCompaniesHint")}
                         </div>
                       )}
                     </SelectContent>
@@ -905,7 +910,11 @@ export default function StocksTab() {
               </div>
             ) : (
               <div className="flex-1">
-                <p className="text-zinc-400 text-sm">{t("noPortfolioYet")}</p>
+                <p className="text-zinc-400 text-sm">
+                  {0 === companies.length
+                    ? t("noPortfolioYetNoCompanies")
+                    : t("noPortfolioYet")}
+                </p>
               </div>
             )}
 

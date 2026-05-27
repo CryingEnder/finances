@@ -55,7 +55,9 @@ const EMPTY_DIVIDEND_FORM: DividendFormState = {
 
 export default function DividendsTab() {
   const t = useTranslations("Dividends");
+  const tDashboard = useTranslations("Dashboard");
   const tc = useTranslations("Common");
+  const portfolioTab = tDashboard("tabPortfolio");
   const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
@@ -269,7 +271,7 @@ export default function DividendsTab() {
                       ))
                     ) : (
                       <div className="px-2 py-1.5 text-sm text-zinc-400">
-                        {t("noCompaniesHint")}
+                        {t("noCompaniesHint", { portfolioTab })}
                       </div>
                     )}
                   </SelectContent>
@@ -382,7 +384,7 @@ export default function DividendsTab() {
             </p>
             <p className="text-sm text-zinc-500">
               {0 === companies.length
-                ? t("emptyHintNoCompanies")
+                ? t("emptyHintNoCompanies", { portfolioTab })
                 : t("emptyHintAdd")}
             </p>
           </div>

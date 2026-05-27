@@ -42,7 +42,9 @@ import {
 
 export default function TransactionsTab() {
   const t = useTranslations("Transactions");
+  const tDashboard = useTranslations("Dashboard");
   const tc = useTranslations("Common");
+  const portfolioTab = tDashboard("tabPortfolio");
   const formatError = useApiErrorMessage();
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
@@ -277,6 +279,7 @@ export default function TransactionsTab() {
         >
           <DialogTrigger asChild>
             <Button
+              disabled={0 === companies.length}
               onClick={resetTransactionForm}
               className={TAB_BUTTON_CLASS.stocks}
             >
@@ -340,7 +343,7 @@ export default function TransactionsTab() {
                         ))
                       ) : (
                         <div className="px-2 py-1.5 text-sm text-zinc-400">
-                          {tc("noCompaniesAvailable")}
+                          {t("noCompaniesHint", { portfolioTab })}
                         </div>
                       )}
                     </SelectContent>
@@ -977,7 +980,11 @@ export default function TransactionsTab() {
             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
               {t("emptyBody")}
             </p>
-            <p className="text-sm text-zinc-500">{t("emptyHint")}</p>
+            <p className="text-sm text-zinc-500">
+              {0 === companies.length
+                ? t("emptyHintNoCompanies", { portfolioTab })
+                : t("emptyHintAdd")}
+            </p>
           </div>
         </div>
       )}
