@@ -509,7 +509,7 @@ export default function DepositsTab() {
                     id="isActive"
                     type="checkbox"
                     checked={depositForm.isActive}
-                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
+                    className="w-4 h-4 cursor-pointer text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
@@ -517,7 +517,7 @@ export default function DepositsTab() {
                       }));
                     }}
                   />
-                  <Label htmlFor="isActive" className="text-sm">
+                  <Label htmlFor="isActive" className="cursor-pointer text-sm">
                     {t("activeTermDeposit")}
                   </Label>
                 </div>
@@ -526,7 +526,7 @@ export default function DepositsTab() {
                     id="autoRenew"
                     type="checkbox"
                     checked={depositForm.autoRenew}
-                    className="w-4 h-4 text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
+                    className="w-4 h-4 cursor-pointer text-teal-600 bg-zinc-700 border-zinc-600 rounded focus:ring-teal-600"
                     onChange={(e) => {
                       setDepositForm((prev) => ({
                         ...prev,
@@ -536,7 +536,7 @@ export default function DepositsTab() {
                   />
                   <Label
                     htmlFor="autoRenew"
-                    className="text-sm flex items-center gap-2"
+                    className="cursor-pointer text-sm flex items-center gap-2"
                   >
                     {t("autoRenew")}
                     <InfoTooltip content={t("autoRenewTooltip")} />

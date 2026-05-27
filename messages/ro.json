@@ -301,6 +301,8 @@
     "pieBonds": "Obligatiuni",
     "pieStocks": "Actiuni",
     "pieFundAllocationTitle": "Alocare active unitati de fond (medie)",
+    "pieEtfAllocationTitle": "Alocare cost ETF-uri",
+    "pieEtfOriginalCurrency": "Moneda originala",
     "etfs": "ETF-uri",
     "fundUnits": "Unitati de fond",
     "costLabel": "Cost:",

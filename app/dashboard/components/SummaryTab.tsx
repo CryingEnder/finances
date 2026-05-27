@@ -48,6 +48,8 @@ interface SummaryPieRow {
   value: number;
   color: string;
   legendOrder?: number;
+  originalValue?: number;
+  originalCurrency?: Currency;
   [key: string]: string | number | undefined;
 }
 
@@ -65,9 +67,25 @@ interface SummaryDistributionPieProps {
   title: string;
   toggleItems?: PieToggleItem[];
   onToggleItem?: (id: string) => void;
+  displayInOriginalCurrency?: boolean;
+  onDisplayInOriginalCurrencyChange?: (checked: boolean) => void;
+  originalCurrencyCheckboxId?: string;
 }
 
 const COLORS = TAB_COLORS;
+
+function etfPieSliceColor(index: number, total: number): string {
+  const hue = 243;
+  const saturation = 75;
+  if (total <= 1) {
+    return COLORS.etfs;
+  }
+  const minLightness = 38;
+  const maxLightness = 72;
+  const lightness =
+    minLightness + (index / (total - 1)) * (maxLightness - minLightness);
+  return `hsl(${String(hue)}, ${String(saturation)}%, ${String(lightness)}%)`;
+}
 
 type CurrencySummaries<T> = Partial<Record<Currency, T>>;
 
@@ -271,9 +289,7 @@ function CurrencyBreakdown({
 interface PieTooltipPayload {
   name: string;
   value: number;
-  payload: {
-    color: string;
-  };
+  payload: SummaryPieRow;
 }
 
 interface SummaryPieTooltipProps {
@@ -281,6 +297,7 @@ interface SummaryPieTooltipProps {
   payload?: PieTooltipPayload[];
   totalValue: number;
   valueLabel: string;
+  displayInOriginalCurrency?: boolean;
 }
 
 interface SummaryExchangeRatesProps {
@@ -326,11 +343,32 @@ function SummaryExchangeRates({
   );
 }
 
+function formatPieRowAmount(
+  row: SummaryPieRow,
+  displayInOriginalCurrency: boolean,
+  numberFormat: string,
+): string {
+  if (
+    displayInOriginalCurrency &&
+    undefined !== row.originalValue &&
+    undefined !== row.originalCurrency
+  ) {
+    return formatCurrencyDisplay(
+      row.originalValue,
+      row.originalCurrency,
+      numberFormat,
+    );
+  }
+
+  return formatCurrencyDisplay(row.value, "RON", numberFormat);
+}
+
 function SummaryPieTooltip({
   active,
   payload,
   totalValue,
   valueLabel,
+  displayInOriginalCurrency = false,
 }: SummaryPieTooltipProps) {
   const tc = useTranslations("Common");
   const locale = useLocale();
@@ -352,7 +390,12 @@ function SummaryPieTooltip({
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
       <p className="text-white font-medium mb-2">{data.name}</p>
       <p className="text-sm" style={{ color: data.payload.color }}>
-        {valueLabel}: {formatCurrencyDisplay(data.value, "RON", numberFormat)}
+        {valueLabel}:{" "}
+        {formatPieRowAmount(
+          data.payload,
+          displayInOriginalCurrency,
+          numberFormat,
+        )}
       </p>
       <p className="text-sm text-zinc-400">
         {tc("percentage")}: {percentage}%
@@ -411,8 +454,9 @@ function SummaryVerticalLegend(props: {
     color?: string;
     payload?: unknown;
   }[];
+  displayInOriginalCurrency?: boolean;
 }) {
-  const { payload } = props;
+  const { payload, displayInOriginalCurrency = false } = props;
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -436,11 +480,14 @@ function SummaryVerticalLegend(props: {
             : "string" === typeof item.value
               ? item.value
               : "";
-        const amount = "number" === typeof row?.value ? row.value : 0;
         const fill =
           "string" === typeof item.color && item.color.length > 0
             ? item.color
             : (row?.color ?? "#71717a");
+        const amountText =
+          row !== undefined
+            ? formatPieRowAmount(row, displayInOriginalCurrency, numberFormat)
+            : formatCurrencyDisplay(0, "RON", numberFormat);
 
         return (
           <div
@@ -453,7 +500,7 @@ function SummaryVerticalLegend(props: {
               className="mt-1.5 size-2.5 shrink-0 rounded-sm"
             />
             <span className="min-w-0 leading-snug">
-              {label}: {formatCurrencyDisplay(amount, "RON", numberFormat)}
+              {label}: {amountText}
             </span>
           </div>
         );
@@ -506,6 +553,33 @@ function SummaryPieToggleBar({
   );
 }
 
+function SummaryPieOriginalCurrencyCheckbox({
+  id,
+  checked,
+  onChange,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const t = useTranslations("Summary");
+
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => { onChange(e.target.checked); }}
+        className="size-4 cursor-pointer rounded border-zinc-600 bg-zinc-700 text-indigo-600 focus:ring-indigo-600"
+      />
+      <label htmlFor={id} className="cursor-pointer text-sm text-zinc-300">
+        {t("pieEtfOriginalCurrency")}
+      </label>
+    </div>
+  );
+}
+
 function SummaryDistributionPie({
   data,
   tooltipValueLabel,
@@ -513,13 +587,26 @@ function SummaryDistributionPie({
   title,
   toggleItems,
   onToggleItem,
+  displayInOriginalCurrency = false,
+  onDisplayInOriginalCurrencyChange,
+  originalCurrencyCheckboxId,
 }: SummaryDistributionPieProps) {
   const t = useTranslations("Summary");
+
+  const originalCurrencyControl =
+    onDisplayInOriginalCurrencyChange && originalCurrencyCheckboxId ? (
+      <SummaryPieOriginalCurrencyCheckbox
+        id={originalCurrencyCheckboxId}
+        checked={displayInOriginalCurrency}
+        onChange={onDisplayInOriginalCurrencyChange}
+      />
+    ) : null;
 
   if (0 === data.length || totalValue <= 0) {
     return (
       <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+        {originalCurrencyControl}
         {toggleItems && onToggleItem && (
           <SummaryPieToggleBar items={toggleItems} onToggleItem={onToggleItem} />
         )}
@@ -535,6 +622,7 @@ function SummaryDistributionPie({
   return (
     <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
       <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      {originalCurrencyControl}
       {toggleItems && onToggleItem && (
         <SummaryPieToggleBar items={toggleItems} onToggleItem={onToggleItem} />
       )}
@@ -563,10 +651,18 @@ function SummaryDistributionPie({
                 <SummaryPieTooltip
                   totalValue={totalValue}
                   valueLabel={tooltipValueLabel}
+                  displayInOriginalCurrency={displayInOriginalCurrency}
                 />
               }
             />
-            <Legend content={SummaryVerticalLegend} />
+            <Legend
+              content={(legendProps) => (
+                <SummaryVerticalLegend
+                  {...legendProps}
+                  displayInOriginalCurrency={displayInOriginalCurrency}
+                />
+              )}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -762,12 +858,13 @@ export default function SummaryTab() {
   const [wealthHiddenIds, setWealthHiddenIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [etfPieOriginalCurrency, setEtfPieOriginalCurrency] = useState(true);
 
   const togglePieItem = useCallback(
     (
       id: string,
       allRows: SummaryPieRow[],
-      hiddenIds: Set<string>,
+      _hiddenIds: Set<string>,
       setHiddenIds: Dispatch<SetStateAction<Set<string>>>,
     ) => {
       setHiddenIds((prev) => {
@@ -943,6 +1040,31 @@ export default function SummaryTab() {
     ].filter((item) => item.value > 0);
   }, [fundAllocation, t]);
 
+  const pieEtfAllocationData = useMemo((): SummaryPieRow[] => {
+    const rows = etfs
+      .map((etf) => {
+        const purchaseCost = etf.volume * etf.openingPrice;
+        const valueRon = convertToRon(purchaseCost, etf.currency, ronExchangeRates);
+        return {
+          id: etf._id ?? etf.symbol,
+          name: etf.label,
+          value: valueRon,
+          originalValue: purchaseCost,
+          originalCurrency: etf.currency,
+          color: COLORS.etfs,
+          legendOrder: 0,
+        };
+      })
+      .filter((row) => row.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    return rows.map((row, index) => ({
+      ...row,
+      color: etfPieSliceColor(index, rows.length),
+      legendOrder: index + 1,
+    }));
+  }, [etfs, ronExchangeRates]);
+
   const pieBasisTotal = useMemo(
     () => pieBasisData.reduce((s, r) => s + r.value, 0),
     [pieBasisData],
@@ -956,6 +1078,11 @@ export default function SummaryTab() {
   const pieFundAllocationTotal = useMemo(
     () => pieFundAllocationData.reduce((s, r) => s + r.value, 0),
     [pieFundAllocationData],
+  );
+
+  const pieEtfAllocationTotal = useMemo(
+    () => pieEtfAllocationData.reduce((s, r) => s + r.value, 0),
+    [pieEtfAllocationData],
   );
 
   const hasEtfSections = CURRENCIES.some(
@@ -1277,14 +1404,27 @@ export default function SummaryTab() {
               }
             />
           </div>
-          {fundAllocation && (
+          {(pieEtfAllocationTotal > 0 || fundAllocation) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SummaryDistributionPie
-                data={pieFundAllocationData}
-                tooltipValueLabel={t("amount")}
-                title={t("pieFundAllocationTitle")}
-                totalValue={pieFundAllocationTotal}
-              />
+              {pieEtfAllocationTotal > 0 && (
+                <SummaryDistributionPie
+                  data={pieEtfAllocationData}
+                  tooltipValueLabel={t("amount")}
+                  title={t("pieEtfAllocationTitle")}
+                  totalValue={pieEtfAllocationTotal}
+                  displayInOriginalCurrency={etfPieOriginalCurrency}
+                  onDisplayInOriginalCurrencyChange={setEtfPieOriginalCurrency}
+                  originalCurrencyCheckboxId="summary-etf-pie-original-currency"
+                />
+              )}
+              {fundAllocation && (
+                <SummaryDistributionPie
+                  data={pieFundAllocationData}
+                  tooltipValueLabel={t("amount")}
+                  title={t("pieFundAllocationTitle")}
+                  totalValue={pieFundAllocationTotal}
+                />
+              )}
             </div>
           )}
         </div>

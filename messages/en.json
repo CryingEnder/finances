@@ -301,6 +301,8 @@
     "pieBonds": "Bonds",
     "pieStocks": "Stocks",
     "pieFundAllocationTitle": "Fund Units Asset Allocation (average)",
+    "pieEtfAllocationTitle": "ETF Cost Basis Allocation",
+    "pieEtfOriginalCurrency": "Original currency",
     "etfs": "ETFs",
     "fundUnits": "Fund Units",
     "costLabel": "Cost:",
