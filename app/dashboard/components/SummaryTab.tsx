@@ -10,7 +10,15 @@ import {
   PieChart,
   ResponsiveContainer,
 } from "recharts";
-import { useMemo, useState, useCallback, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  memo,
+  useMemo,
+  useState,
+  useCallback,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
 import type {
   Etf,
@@ -27,9 +35,9 @@ import { useDeposits } from "../../lib/hooks/use-deposits";
 import { useDividends } from "../../lib/hooks/use-dividends";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { useFundUnits } from "../../lib/hooks/use-fund-units";
-import { TAB_COLORS, TAB_ICON_CLASS } from "../../lib/tab-colors";
 import { usePortfolioEntries } from "../../lib/hooks/use-portfolio";
 import { useExchangeRates } from "../../lib/hooks/use-exchange-rates";
+import { TAB_ICON_CLASS, TAB_COLORS as COLORS } from "../../lib/tab-colors";
 import {
   profitReturnPercent,
   formatCurrencyDisplay,
@@ -70,9 +78,10 @@ interface SummaryDistributionPieProps {
   displayInOriginalCurrency?: boolean;
   onDisplayInOriginalCurrencyChange?: (checked: boolean) => void;
   originalCurrencyCheckboxId?: string;
+  useDefaultAmountTextColor?: boolean;
 }
 
-const COLORS = TAB_COLORS;
+const DEFAULT_AMOUNT_TEXT_COLOR = "#fff";
 
 function etfPieSliceColor(index: number, total: number): string {
   const hue = 243;
@@ -286,20 +295,6 @@ function CurrencyBreakdown({
   );
 }
 
-interface PieTooltipPayload {
-  name: string;
-  value: number;
-  payload: SummaryPieRow;
-}
-
-interface SummaryPieTooltipProps {
-  active?: boolean;
-  payload?: PieTooltipPayload[];
-  totalValue: number;
-  valueLabel: string;
-  displayInOriginalCurrency?: boolean;
-}
-
 interface SummaryExchangeRatesProps {
   rates: RonExchangeRates;
   rateDate: string | null;
@@ -363,12 +358,28 @@ function formatPieRowAmount(
   return formatCurrencyDisplay(row.value, "RON", numberFormat);
 }
 
+interface PieTooltipPayload {
+  name: string;
+  value: number;
+  payload: SummaryPieRow;
+}
+
+interface SummaryPieTooltipProps {
+  active?: boolean;
+  payload?: PieTooltipPayload[];
+  totalValue: number;
+  valueLabel: string;
+  displayInOriginalCurrency?: boolean;
+  useDefaultAmountTextColor?: boolean;
+}
+
 function SummaryPieTooltip({
   active,
   payload,
   totalValue,
   valueLabel,
   displayInOriginalCurrency = false,
+  useDefaultAmountTextColor = false,
 }: SummaryPieTooltipProps) {
   const tc = useTranslations("Common");
   const locale = useLocale();
@@ -389,7 +400,14 @@ function SummaryPieTooltip({
   return (
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
       <p className="text-white font-medium mb-2">{data.name}</p>
-      <p className="text-sm" style={{ color: data.payload.color }}>
+      <p
+        className="text-sm"
+        style={{
+          color: useDefaultAmountTextColor
+            ? DEFAULT_AMOUNT_TEXT_COLOR
+            : data.payload.color,
+        }}
+      >
         {valueLabel}:{" "}
         {formatPieRowAmount(
           data.payload,
@@ -455,8 +473,13 @@ function SummaryVerticalLegend(props: {
     payload?: unknown;
   }[];
   displayInOriginalCurrency?: boolean;
+  useDefaultAmountTextColor?: boolean;
 }) {
-  const { payload, displayInOriginalCurrency = false } = props;
+  const {
+    payload,
+    displayInOriginalCurrency = false,
+    useDefaultAmountTextColor = false,
+  } = props;
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
@@ -500,7 +523,16 @@ function SummaryVerticalLegend(props: {
               className="mt-1.5 size-2.5 shrink-0 rounded-sm"
             />
             <span className="min-w-0 leading-snug">
-              {label}: {amountText}
+              {label}:{" "}
+              <span
+                style={{
+                  color: useDefaultAmountTextColor
+                    ? DEFAULT_AMOUNT_TEXT_COLOR
+                    : undefined,
+                }}
+              >
+                {amountText}
+              </span>
             </span>
           </div>
         );
@@ -527,9 +559,13 @@ function SummaryPieToggleBar({
           key={item.id}
           type="button"
           aria-pressed={item.enabled}
-          onClick={() => { onToggleItem(item.id); }}
+          onClick={() => {
+            onToggleItem(item.id);
+          }}
           style={
-            item.enabled ? { backgroundColor: item.color } : { color: item.color }
+            item.enabled
+              ? { backgroundColor: item.color }
+              : { color: item.color }
           }
           className={cn(
             "cursor-pointer rounded-full border py-1 text-xs font-medium transition-all",
@@ -542,7 +578,10 @@ function SummaryPieToggleBar({
           <span className="inline-flex items-center gap-0.5">
             {item.label}
             {item.enabled && (
-              <span aria-hidden className="text-[0.8125rem] leading-none opacity-80">
+              <span
+                aria-hidden
+                className="text-[0.8125rem] leading-none opacity-80"
+              >
                 ×
               </span>
             )}
@@ -570,7 +609,9 @@ function SummaryPieOriginalCurrencyCheckbox({
         id={id}
         type="checkbox"
         checked={checked}
-        onChange={(e) => { onChange(e.target.checked); }}
+        onChange={(e) => {
+          onChange(e.target.checked);
+        }}
         className="size-4 cursor-pointer rounded border-zinc-600 bg-zinc-700 text-indigo-600 focus:ring-indigo-600"
       />
       <label htmlFor={id} className="cursor-pointer text-sm text-zinc-300">
@@ -590,6 +631,7 @@ function SummaryDistributionPie({
   displayInOriginalCurrency = false,
   onDisplayInOriginalCurrencyChange,
   originalCurrencyCheckboxId,
+  useDefaultAmountTextColor = false,
 }: SummaryDistributionPieProps) {
   const t = useTranslations("Summary");
 
@@ -608,7 +650,10 @@ function SummaryDistributionPie({
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
         {originalCurrencyControl}
         {toggleItems && onToggleItem && (
-          <SummaryPieToggleBar items={toggleItems} onToggleItem={onToggleItem} />
+          <SummaryPieToggleBar
+            items={toggleItems}
+            onToggleItem={onToggleItem}
+          />
         )}
         <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-zinc-700 py-12">
           <p className="text-sm text-zinc-500 text-center px-4">
@@ -635,14 +680,18 @@ function SummaryDistributionPie({
               data={data}
               fill="#8884d8"
               dataKey="value"
+              cursor="default"
               labelLine={false}
               outerRadius={124}
+              activeShape={false}
               label={PieSliceLabel}
+              isAnimationActive={false}
             >
               {data.map((entry, index) => (
                 <Cell
                   fill={entry.color}
                   key={`cell-${entry.name}-${String(index)}`}
+                  style={{ cursor: "default", outline: "none" }}
                 />
               ))}
             </Pie>
@@ -652,6 +701,7 @@ function SummaryDistributionPie({
                   totalValue={totalValue}
                   valueLabel={tooltipValueLabel}
                   displayInOriginalCurrency={displayInOriginalCurrency}
+                  useDefaultAmountTextColor={useDefaultAmountTextColor}
                 />
               }
             />
@@ -660,6 +710,7 @@ function SummaryDistributionPie({
                 <SummaryVerticalLegend
                   {...legendProps}
                   displayInOriginalCurrency={displayInOriginalCurrency}
+                  useDefaultAmountTextColor={useDefaultAmountTextColor}
                 />
               )}
             />
@@ -670,6 +721,38 @@ function SummaryDistributionPie({
   );
 }
 
+function EtfAllocationPieCard({
+  data,
+  totalValue,
+  title,
+  tooltipValueLabel,
+  useDefaultAmountTextColor = true,
+}: {
+  data: SummaryPieRow[];
+  totalValue: number;
+  title: string;
+  tooltipValueLabel: string;
+  useDefaultAmountTextColor?: boolean;
+}) {
+  const [displayInOriginalCurrency, setDisplayInOriginalCurrency] =
+    useState(true);
+
+  return (
+    <SummaryDistributionPie
+      data={data}
+      title={title}
+      totalValue={totalValue}
+      tooltipValueLabel={tooltipValueLabel}
+      displayInOriginalCurrency={displayInOriginalCurrency}
+      useDefaultAmountTextColor={useDefaultAmountTextColor}
+      originalCurrencyCheckboxId="summary-etf-pie-original-currency"
+      onDisplayInOriginalCurrencyChange={setDisplayInOriginalCurrency}
+    />
+  );
+}
+
+const MemoizedSummaryDistributionPie = memo(SummaryDistributionPie);
+
 export default function SummaryTab() {
   const t = useTranslations("Summary");
   const locale = useLocale();
@@ -677,7 +760,8 @@ export default function SummaryTab() {
 
   const { data: exchangeRatesData, isError: exchangeRatesError } =
     useExchangeRates();
-  const ronExchangeRates = exchangeRatesData?.rates ?? FALLBACK_EXCHANGE_RATES_TO_RON;
+  const ronExchangeRates =
+    exchangeRatesData?.rates ?? FALLBACK_EXCHANGE_RATES_TO_RON;
   const exchangeRateDate = exchangeRatesData?.rateDate ?? null;
   const exchangeRatesApiFailed =
     exchangeRatesError || "fallback" === exchangeRatesData?.source;
@@ -858,8 +942,6 @@ export default function SummaryTab() {
   const [wealthHiddenIds, setWealthHiddenIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [etfPieOriginalCurrency, setEtfPieOriginalCurrency] = useState(true);
-
   const togglePieItem = useCallback(
     (
       id: string,
@@ -1044,7 +1126,11 @@ export default function SummaryTab() {
     const rows = etfs
       .map((etf) => {
         const purchaseCost = etf.volume * etf.openingPrice;
-        const valueRon = convertToRon(purchaseCost, etf.currency, ronExchangeRates);
+        const valueRon = convertToRon(
+          purchaseCost,
+          etf.currency,
+          ronExchangeRates,
+        );
         return {
           id: etf._id ?? etf.symbol,
           name: etf.label,
@@ -1239,7 +1325,9 @@ export default function SummaryTab() {
                 summaries={fundUnitSummariesByCurrency}
                 ronCurrentValue={fundUnitsInRon.currentValue}
                 icon={
-                  <TrendingUp className={`h-5 w-5 ${TAB_ICON_CLASS.fundUnits}`} />
+                  <TrendingUp
+                    className={`h-5 w-5 ${TAB_ICON_CLASS.fundUnits}`}
+                  />
                 }
               />
             )}
@@ -1373,52 +1461,51 @@ export default function SummaryTab() {
       {hasData ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SummaryDistributionPie
+            <MemoizedSummaryDistributionPie
               data={pieBasisData}
               totalValue={pieBasisTotal}
               title={t("pieInvestedTitle")}
               tooltipValueLabel={t("amount")}
               toggleItems={pieBasisToggleItems}
-              onToggleItem={(id) =>
-                { togglePieItem(
+              onToggleItem={(id) => {
+                togglePieItem(
                   id,
                   pieBasisDataAll,
                   basisHiddenIds,
                   setBasisHiddenIds,
-                ); }
-              }
+                );
+              }}
             />
-            <SummaryDistributionPie
+            <MemoizedSummaryDistributionPie
               data={pieWealthData}
               title={t("pieWealthTitle")}
               totalValue={pieWealthTotal}
               tooltipValueLabel={t("amount")}
               toggleItems={pieWealthToggleItems}
-              onToggleItem={(id) =>
-                { togglePieItem(
+              onToggleItem={(id) => {
+                togglePieItem(
                   id,
                   pieWealthDataAll,
                   wealthHiddenIds,
                   setWealthHiddenIds,
-                ); }
-              }
+                );
+              }}
             />
           </div>
           {(pieEtfAllocationTotal > 0 || fundAllocation) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {pieEtfAllocationTotal > 0 && (
-                <SummaryDistributionPie
+                <EtfAllocationPieCard
+                  useDefaultAmountTextColor
                   data={pieEtfAllocationData}
                   tooltipValueLabel={t("amount")}
                   title={t("pieEtfAllocationTitle")}
                   totalValue={pieEtfAllocationTotal}
-                  displayInOriginalCurrency={etfPieOriginalCurrency}
-                  onDisplayInOriginalCurrencyChange={setEtfPieOriginalCurrency}
-                  originalCurrencyCheckboxId="summary-etf-pie-original-currency"
                 />
               )}
               {fundAllocation && (
-                <SummaryDistributionPie
+                <MemoizedSummaryDistributionPie
+                  useDefaultAmountTextColor
                   data={pieFundAllocationData}
                   tooltipValueLabel={t("amount")}
                   title={t("pieFundAllocationTitle")}
