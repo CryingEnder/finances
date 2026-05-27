@@ -83,14 +83,41 @@ const getDatabaseConfig = (): { uri: string; dbName: string } => {
   return { uri, dbName };
 };
 
-async function getMongoClient(): Promise<MongoClient> {
-  const { uri } = getDatabaseConfig();
+function clearMongoClientPromise(): void {
+  globalMongo.mongoClientPromise = undefined;
+}
+
+async function getMongoClient(reconnect = false): Promise<MongoClient> {
+  const { uri, dbName } = getDatabaseConfig();
+
+  if (reconnect) {
+    clearMongoClientPromise();
+  }
 
   if (!globalMongo.mongoClientPromise) {
     globalMongo.mongoClientPromise = new MongoClient(uri).connect();
   }
 
-  return await globalMongo.mongoClientPromise;
+  try {
+    const client = await globalMongo.mongoClientPromise;
+    await client.db(dbName).command({ ping: 1 });
+    return client;
+  } catch (error) {
+    clearMongoClientPromise();
+
+    if (!reconnect) {
+      return await getMongoClient(true);
+    }
+
+    throw error;
+  }
+}
+
+// per-user DB name (max 64 chars)
+export function getUserDatabaseName(userId: string): string {
+  const { dbName } = getDatabaseConfig();
+  const compactUserId = userId.replace(/-/g, "");
+  return `${dbName}_u_${compactUserId}`;
 }
 
 export async function connectToGlobalDatabase(): Promise<Db> {
@@ -106,14 +133,13 @@ export async function connectToGlobalDatabase(): Promise<Db> {
 }
 
 export async function connectToUserDatabase(userId: string): Promise<Db> {
-  const { dbName } = getDatabaseConfig();
-
   try {
     const mongoClient = await getMongoClient();
-    const userDbName = `${dbName}_user_${userId}`;
-    return mongoClient.db(userDbName);
+    return mongoClient.db(getUserDatabaseName(userId));
   } catch (error) {
-    captureServerError(error, { message: "Failed to connect to user database" });
+    captureServerError(error, {
+      message: "Failed to connect to user database",
+    });
     throw error;
   }
 }

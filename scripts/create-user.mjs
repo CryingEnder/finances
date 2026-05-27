@@ -53,7 +53,7 @@ try {
   console.log(`  name:  ${user.name}`);
   console.log(`  db:    ${dbName} (collection: users)`);
   console.log(
-    `  data:  ${dbName}_user_${user.id} (created when they add portfolio data)`,
+    `  data:  ${dbName}_u_${user.id.replace(/-/g, "")} (created when they add portfolio data)`,
   );
 } finally {
   await client.close();
