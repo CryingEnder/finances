@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AUTH_CONFIG } from "./config";
-import { getUsersCollection } from "./database";
 import { type User, type LoginCredentials } from "./types";
+import { getUsersCollection, isDatabaseConnectionError } from "./database";
 
 export async function verifyPassword(
   password: string,
@@ -103,15 +103,20 @@ export async function requireAuth(): Promise<User> {
   return user;
 }
 
+export type AuthenticateUserResult =
+  | { status: "success"; user: User }
+  | { status: "invalidCredentials" }
+  | { status: "serviceUnavailable" };
+
 export async function authenticateUser(
   credentials: LoginCredentials,
-): Promise<User | null> {
+): Promise<AuthenticateUserResult> {
   try {
     const usersCollection = await getUsersCollection();
     const user = await usersCollection.findOne({ email: credentials.email });
 
     if (!user) {
-      return null;
+      return { status: "invalidCredentials" };
     }
 
     const isValidPassword = await verifyPassword(
@@ -120,16 +125,22 @@ export async function authenticateUser(
     );
 
     if (!isValidPassword) {
-      return null;
+      return { status: "invalidCredentials" };
     }
 
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
+      status: "success",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
     };
   } catch (error) {
     console.error("Authentication error:", error);
-    return null;
+    if (isDatabaseConnectionError(error)) {
+      return { status: "serviceUnavailable" };
+    }
+    throw error;
   }
 }

@@ -11,7 +11,13 @@ import {
 
 export type LoginActionResult =
   | { success: true }
-  | { success?: false; errorCode: "missingFields" | "invalidCredentials" };
+  | {
+      success?: false;
+      errorCode:
+        | "missingFields"
+        | "invalidCredentials"
+        | "serviceUnavailable";
+    };
 
 export async function loginAction(
   formData: FormData,
@@ -25,15 +31,18 @@ export async function loginAction(
     };
   }
 
-  const user = await authenticateUser({ email, password });
+  const authResult = await authenticateUser({ email, password });
 
-  if (!user) {
+  if ("success" !== authResult.status) {
     return {
-      errorCode: "invalidCredentials",
+      errorCode:
+        "serviceUnavailable" === authResult.status
+          ? "serviceUnavailable"
+          : "invalidCredentials",
     };
   }
 
-  const token = generateJWT(user);
+  const token = generateJWT(authResult.user);
   await setAuthCookie(token);
 
   revalidatePath("/");

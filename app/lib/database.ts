@@ -30,6 +30,41 @@ type DatabaseFundUnit = Omit<FundUnit, "_id" | "userId"> & { _id?: ObjectId };
 let client: MongoClient | null = null;
 let globalDb: Db | null = null;
 
+const CONNECTION_ERROR_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+  "ECONNRESET",
+]);
+
+export function isDatabaseConnectionError(error: unknown): boolean {
+  if (!error || "object" !== typeof error) {
+    return false;
+  }
+
+  const err = error as { code?: string; name?: string; message?: string };
+
+  if (err.code && CONNECTION_ERROR_CODES.has(err.code)) {
+    return true;
+  }
+
+  if (
+    "MongoServerSelectionError" === err.name ||
+    "MongoNetworkError" === err.name
+  ) {
+    return true;
+  }
+
+  const message = err.message ?? "";
+  return (
+    message.includes("querySrv") ||
+    message.includes("ENOTFOUND") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("failed to connect")
+  );
+}
+
 const getDatabaseConfig = (): { uri: string; dbName: string } => {
   const uri = DATABASE_CONFIG.MONGODB_URI;
   const dbName = DATABASE_CONFIG.MONGODB_DB_NAME;

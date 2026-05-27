@@ -46,6 +46,7 @@
     "errors": {
       "missingFields": "Email and password are required",
       "invalidCredentials": "Invalid email or password",
+      "serviceUnavailable": "Unable to reach the database. Check your connection and try again.",
       "unexpected": "An unexpected error occurred"
     }
   },

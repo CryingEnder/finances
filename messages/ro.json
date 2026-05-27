@@ -46,6 +46,7 @@
     "errors": {
       "missingFields": "Email si parola sunt obligatorii",
       "invalidCredentials": "Email sau parola incorecta",
+      "serviceUnavailable": "Nu se poate conecta la baza de date. Verifica conexiunea si incearca din nou.",
       "unexpected": "Eroare neasteptata"
     }
   },

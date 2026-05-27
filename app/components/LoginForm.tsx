@@ -23,11 +23,13 @@ export default function LoginForm() {
       const result = await loginAction(formData);
 
       if ("errorCode" in result) {
-        setError(
+        const message =
           "missingFields" === result.errorCode
             ? t("errors.missingFields")
-            : t("errors.invalidCredentials"),
-        );
+            : "serviceUnavailable" === result.errorCode
+              ? t("errors.serviceUnavailable")
+              : t("errors.invalidCredentials");
+        setError(message);
         return;
       }
 
