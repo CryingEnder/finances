@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "create-user": "node --env-file=.env.local scripts/create-user.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
