@@ -28,8 +28,9 @@ export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
 type DatabaseEtf = Omit<Etf, "_id" | "userId"> & { _id?: ObjectId };
 type DatabaseFundUnit = Omit<FundUnit, "_id" | "userId"> & { _id?: ObjectId };
 
-let client: MongoClient | null = null;
-let globalDb: Db | null = null;
+const globalMongo = globalThis as typeof globalThis & {
+  mongoClientPromise?: Promise<MongoClient>;
+};
 
 const CONNECTION_ERROR_CODES = new Set([
   "ECONNREFUSED",
@@ -62,7 +63,8 @@ export function isDatabaseConnectionError(error: unknown): boolean {
     message.includes("querySrv") ||
     message.includes("ENOTFOUND") ||
     message.includes("ECONNREFUSED") ||
-    message.includes("failed to connect")
+    message.includes("failed to connect") ||
+    message.includes("Topology is closed")
   );
 }
 
@@ -81,18 +83,22 @@ const getDatabaseConfig = (): { uri: string; dbName: string } => {
   return { uri, dbName };
 };
 
-export async function connectToGlobalDatabase(): Promise<Db> {
-  if (globalDb) {
-    return globalDb;
+async function getMongoClient(): Promise<MongoClient> {
+  const { uri } = getDatabaseConfig();
+
+  if (!globalMongo.mongoClientPromise) {
+    globalMongo.mongoClientPromise = new MongoClient(uri).connect();
   }
 
-  const { uri, dbName } = getDatabaseConfig();
+  return await globalMongo.mongoClientPromise;
+}
+
+export async function connectToGlobalDatabase(): Promise<Db> {
+  const { dbName } = getDatabaseConfig();
 
   try {
-    client = new MongoClient(uri);
-    await client.connect();
-    globalDb = client.db(dbName);
-    return globalDb;
+    const mongoClient = await getMongoClient();
+    return mongoClient.db(dbName);
   } catch (error) {
     captureServerError(error, { message: "Failed to connect to MongoDB" });
     throw error;
@@ -100,16 +106,12 @@ export async function connectToGlobalDatabase(): Promise<Db> {
 }
 
 export async function connectToUserDatabase(userId: string): Promise<Db> {
-  const { uri, dbName } = getDatabaseConfig();
+  const { dbName } = getDatabaseConfig();
 
   try {
-    if (!client) {
-      client = new MongoClient(uri);
-      await client.connect();
-    }
-
+    const mongoClient = await getMongoClient();
     const userDbName = `${dbName}_user_${userId}`;
-    return client.db(userDbName);
+    return mongoClient.db(userDbName);
   } catch (error) {
     captureServerError(error, { message: "Failed to connect to user database" });
     throw error;

@@ -2,8 +2,8 @@ import type { Filter } from "mongodb";
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
+import { requireApiAuth } from "../../lib/api-auth";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { captureServerError } from "../../lib/capture-error";
 import { formatZodErrors, transactionSchema } from "../../lib/validation";
@@ -14,7 +14,11 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const symbol = searchParams.get("symbol");
@@ -52,7 +56,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const body: unknown = await request.json();
     if ("object" !== typeof body || null === body) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);

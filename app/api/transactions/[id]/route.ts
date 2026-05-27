@@ -1,9 +1,9 @@
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAuth } from "../../../lib/auth";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { requireApiAuth } from "../../../lib/api-auth";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { captureServerError } from "../../../lib/capture-error";
 import { getTransactionsCollection } from "../../../lib/database";
@@ -14,7 +14,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const { id } = await params;
 
     if (!isValidObjectId(id)) {
@@ -45,7 +49,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const { id } = await params;
     const body: unknown = await request.json();
 
@@ -128,7 +136,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const { id } = await params;
 
     if (!isValidObjectId(id)) {

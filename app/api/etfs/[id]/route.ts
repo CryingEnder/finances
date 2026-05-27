@@ -1,10 +1,10 @@
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAuth } from "../../../lib/auth";
 import { todayIsoDate } from "../../../lib/dates";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
+import { requireApiAuth } from "../../../lib/api-auth";
 import { resolveCurrency } from "../../../lib/currency";
 import { getEtfsCollection } from "../../../lib/database";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
@@ -20,7 +20,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
@@ -132,7 +136,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const etfsCollection = await getEtfsCollection(user.id);
     const { id } = await params;
 

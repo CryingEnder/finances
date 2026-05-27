@@ -97,7 +97,7 @@ export default defineConfig([
       "no-var": "warn",
       "object-shorthand": "error",
       "accessor-pairs": "error",
-      curly: ["error", "multi-line"], // Disabled by the Prettier config
+      curly: ["error", "all"],
       "default-case-last": "error",
       "dot-notation": "error",
       eqeqeq: "error",

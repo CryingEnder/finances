@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
+import { requireApiAuth } from "../../lib/api-auth";
 import { getBnrExchangeRates } from "../../lib/bnr-rates";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { captureServerError } from "../../lib/capture-error";
 
 export async function GET() {
   try {
-    await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
     const result = await getBnrExchangeRates();
 
     return NextResponse.json(result);

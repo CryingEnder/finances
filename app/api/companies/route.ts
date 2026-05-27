@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAuth } from "../../lib/auth";
 import { apiError } from "../../lib/api-response";
+import { requireApiAuth } from "../../lib/api-auth";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../lib/database";
 import { captureServerError } from "../../lib/capture-error";
@@ -9,7 +9,11 @@ import { companySchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const companiesCollection = await getCompaniesCollection(user.id);
     const companies = await companiesCollection
       .find({})
@@ -30,7 +34,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const auth = await requireApiAuth();
+    if (!auth.ok) {
+      return auth.response;
+    }
+    const user = auth.user;
     const body: unknown = await request.json();
     if (typeof body !== "object" || null === body) {
       return apiError(API_ERROR_CODES.missingCompanyFields, 400);

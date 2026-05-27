@@ -1,4 +1,5 @@
 export const API_ERROR_CODES = {
+  unauthorized: "unauthorized",
   missingRequiredFields: "missingRequiredFields",
   missingCompanyFields: "missingCompanyFields",
   validationFailed: "validationFailed",
