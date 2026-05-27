@@ -113,11 +113,11 @@ async function getMongoClient(reconnect = false): Promise<MongoClient> {
   }
 }
 
-// per-user DB name (max 64 chars)
 export function getUserDatabaseName(userId: string): string {
   const { dbName } = getDatabaseConfig();
+  const prefix = dbName.slice(0, 3);
   const compactUserId = userId.replace(/-/g, "");
-  return `${dbName}_u_${compactUserId}`;
+  return `${prefix}_u_${compactUserId}`;
 }
 
 export async function connectToGlobalDatabase(): Promise<Db> {
