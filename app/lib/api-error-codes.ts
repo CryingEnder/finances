@@ -8,6 +8,7 @@ export const API_ERROR_CODES = {
   invalidCompanyId: "invalidCompanyId",
   companyNotFound: "companyNotFound",
   companyDuplicateInstrument: "companyDuplicateInstrument",
+  companyDuplicateIsin: "companyDuplicateIsin",
   failedFetchCompanies: "failedFetchCompanies",
   failedCreateCompany: "failedCreateCompany",
   failedUpdateCompany: "failedUpdateCompany",

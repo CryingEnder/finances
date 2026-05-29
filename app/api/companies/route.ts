@@ -75,6 +75,13 @@ export async function POST(request: NextRequest) {
       return apiError(API_ERROR_CODES.companyDuplicateInstrument, 409);
     }
 
+    const existingIsin = await companiesCollection.findOne({
+      isin: validatedData.isin,
+    });
+    if (existingIsin) {
+      return apiError(API_ERROR_CODES.companyDuplicateIsin, 409);
+    }
+
     const company = {
       instrument: validatedData.instrument,
       isin: validatedData.isin,

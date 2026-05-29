@@ -391,6 +391,7 @@
     "invalidCompanyId": "ID companie invalid.",
     "companyNotFound": "Compania nu a fost gasita.",
     "companyDuplicateInstrument": "Exista deja o companie cu acest instrument.",
+    "companyDuplicateIsin": "Exista deja o companie cu acest ISIN.",
     "failedFetchCompanies": "Incarcarea companiilor a esuat.",
     "failedCreateCompany": "Crearea companiei a esuat.",
     "failedUpdateCompany": "Actualizarea companiei a esuat.",
@@ -537,5 +538,10 @@
     "dashboardTitle": "A aparut o problema",
     "dashboardDescription": "A aparut o eroare neasteptata la incarcarea panoului.",
     "tryAgain": "Incearca din nou"
+  },
+  "NotFound": {
+    "title": "Oops",
+    "message": "Pagina gresita. Nu e nimic aici — si nici bani, daca te ajuta.",
+    "backHome": "Inapoi acasa"
   }
 }

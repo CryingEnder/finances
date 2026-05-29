@@ -6,6 +6,9 @@ import { API_ERROR_CODES } from "../api-error-codes";
 import { ApiRequestError } from "../api-request-error";
 import { parseApiErrorPayload } from "../extract-api-error";
 
+import { dividendsKeys } from "./use-dividends";
+import { portfolioKeys } from "./use-portfolio";
+import { transactionsKeys } from "./use-transactions";
 import {
   throwIdRequired,
   throwNetworkError,
@@ -187,6 +190,11 @@ export function useUpdateCompany() {
     mutationFn: updateCompany,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companiesKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: portfolioKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: dividendsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: transactionsKeys.lists(),
+      });
     },
   });
 }

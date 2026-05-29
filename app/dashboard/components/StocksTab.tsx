@@ -18,6 +18,7 @@ import { Button } from "../../components/ui/button";
 import { formatDisplayDate } from "../../lib/dates";
 import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { resolveCompanyFields } from "../../lib/company-fields";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
@@ -56,6 +57,7 @@ type PendingStockDelete =
 
 export default function StocksTab() {
   const t = useTranslations("Stocks");
+  const tDividends = useTranslations("Dividends");
   const tc = useTranslations("Common");
   const formatError = useApiErrorMessage();
   const locale = useLocale();
@@ -90,9 +92,7 @@ export default function StocksTab() {
     useState<PortfolioEntry | null>(null);
   const [portfolioForm, setPortfolioForm] = useState({
     date: "",
-    instrument: "",
     isin: "",
-    issuer: "",
     quantity: "",
     locked: "",
     averagePrice: "",
@@ -131,16 +131,27 @@ export default function StocksTab() {
     }
   };
 
+  const selectedPortfolioCompany = useMemo(
+    () => companies.find((company) => company.isin === portfolioForm.isin),
+    [companies, portfolioForm.isin],
+  );
+
   const handlePortfolioSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPortfolioError("");
 
+    const company = companies.find((c) => c.isin === portfolioForm.isin);
+    if (!company) {
+      setPortfolioError(tDividends("errSelectCompany"));
+      return;
+    }
+
     try {
       const portfolioData = {
         date: portfolioForm.date,
-        instrument: portfolioForm.instrument,
-        isin: portfolioForm.isin,
-        issuer: portfolioForm.issuer,
+        instrument: company.instrument,
+        isin: company.isin,
+        issuer: company.issuer,
         quantity: parseFloat(portfolioForm.quantity),
         locked: parseFloat(portfolioForm.locked),
         averagePrice: parseFloat(portfolioForm.averagePrice),
@@ -224,9 +235,7 @@ export default function StocksTab() {
   const resetPortfolioForm = () => {
     setPortfolioForm({
       date: portfolioForm.date,
-      instrument: "",
       isin: "",
-      issuer: "",
       quantity: "",
       locked: "0",
       averagePrice: "",
@@ -250,9 +259,7 @@ export default function StocksTab() {
     setEditingPortfolio(entry);
     setPortfolioForm({
       date: entry.date,
-      instrument: entry.instrument,
       isin: entry.isin,
-      issuer: entry.issuer,
       quantity: entry.quantity.toString(),
       locked: entry.locked.toString(),
       averagePrice: entry.averagePrice.toString(),
@@ -261,16 +268,11 @@ export default function StocksTab() {
     setIsPortfolioDialogOpen(true);
   };
 
-  const handleCompanySelect = (instrument: string) => {
-    const company = companies.find((c) => c.instrument === instrument);
-    if (company) {
-      setPortfolioForm((prev) => ({
-        ...prev,
-        instrument: company.instrument,
-        isin: company.isin,
-        issuer: company.issuer,
-      }));
-    }
+  const handleCompanySelect = (isin: string) => {
+    setPortfolioForm((prev) => ({
+      ...prev,
+      isin,
+    }));
   };
 
   const renderPortfolioTable = (date: string) => {
@@ -368,14 +370,26 @@ export default function StocksTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dateEntriesWithCalculations.map((entry) => (
+                  {dateEntriesWithCalculations.map((entry) => {
+                    const companyFields = resolveCompanyFields(
+                      companies,
+                      entry.isin,
+                      {
+                        instrument: entry.instrument,
+                        issuer: entry.issuer,
+                      },
+                    );
+
+                    return (
                     <tr key={entry._id} className="border-b border-zinc-700/50">
                       <td className="py-3 px-2 text-white font-medium">
-                        {entry.instrument}
+                        {companyFields.instrument}
                       </td>
-                      <td className="py-3 px-2 text-zinc-300">{entry.isin}</td>
                       <td className="py-3 px-2 text-zinc-300">
-                        {entry.issuer}
+                        {companyFields.isin}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {companyFields.issuer}
                       </td>
                       <td className="py-3 px-2 text-white text-right">
                         {entry.quantity.toLocaleString()}
@@ -449,7 +463,8 @@ export default function StocksTab() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -661,8 +676,8 @@ export default function StocksTab() {
         >
           <DialogTrigger asChild>
             <Button
-              disabled={0 === companies.length}
               onClick={resetPortfolioForm}
+              disabled={0 === companies.length}
               className={TAB_BUTTON_CLASS.stocks}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -706,7 +721,10 @@ export default function StocksTab() {
                   <Label htmlFor="company" className="mb-2 block">
                     {tc("company")}
                   </Label>
-                  <Select onValueChange={handleCompanySelect}>
+                  <Select
+                    value={portfolioForm.isin}
+                    onValueChange={handleCompanySelect}
+                  >
                     <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full">
                       <SelectValue
                         className="truncate"
@@ -718,11 +736,12 @@ export default function StocksTab() {
                         companies.map((company) => (
                           <SelectItem
                             key={company._id}
-                            value={company.instrument}
+                            value={company.isin}
                             className="truncate pr-8 cursor-pointer"
                           >
                             <span className="truncate block max-w-full">
-                              {company.instrument} - {company.issuer}
+                              {company.instrument} - {company.issuer} (
+                              {company.isin})
                             </span>
                           </SelectItem>
                         ))
@@ -735,6 +754,29 @@ export default function StocksTab() {
                   </Select>
                 </div>
               </div>
+
+              {selectedPortfolioCompany && (
+                <div className="grid grid-cols-3 gap-4 rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                  <div>
+                    <p className="text-zinc-400">{tc("instrument")}</p>
+                    <p className="text-white font-medium">
+                      {selectedPortfolioCompany.instrument}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">{tc("isin")}</p>
+                    <p className="text-white font-medium">
+                      {selectedPortfolioCompany.isin}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">{tc("issuer")}</p>
+                    <p className="text-white font-medium">
+                      {selectedPortfolioCompany.issuer}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

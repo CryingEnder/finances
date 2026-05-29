@@ -391,6 +391,7 @@
     "invalidCompanyId": "Invalid company ID.",
     "companyNotFound": "Company not found.",
     "companyDuplicateInstrument": "A company with this instrument already exists.",
+    "companyDuplicateIsin": "A company with this ISIN already exists.",
     "failedFetchCompanies": "Failed to load companies.",
     "failedCreateCompany": "Failed to create company.",
     "failedUpdateCompany": "Failed to update company.",
@@ -537,5 +538,10 @@
     "dashboardTitle": "Something went wrong",
     "dashboardDescription": "An unexpected error occurred while loading the dashboard.",
     "tryAgain": "Try again"
+  },
+  "NotFound": {
+    "title": "Oops",
+    "message": "Wrong page. There's nothing here — and no money either, if that helps.",
+    "backHome": "Back to home"
   }
 }

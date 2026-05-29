@@ -11,6 +11,7 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { resolveCompanyFields } from "../../lib/company-fields";
 import { TAB_ICON_CLASS, TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import { getIsoYear, todayIsoDate, formatDisplayDate } from "../../lib/dates";
@@ -478,14 +479,26 @@ export default function DividendsTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((row) => (
+                    {filtered.map((row) => {
+                      const companyFields = resolveCompanyFields(
+                        companies,
+                        row.isin,
+                        {
+                          instrument: row.instrument,
+                          issuer: row.issuer,
+                        },
+                      );
+
+                      return (
                       <tr key={row._id} className="border-b border-zinc-700/50">
                         <td className="py-3 px-2 text-white font-medium">
-                          {row.instrument}
+                          {companyFields.instrument}
                         </td>
-                        <td className="py-3 px-2 text-zinc-300">{row.isin}</td>
                         <td className="py-3 px-2 text-zinc-300">
-                          {row.issuer}
+                          {companyFields.isin}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-300">
+                          {companyFields.issuer}
                         </td>
                         <td className="py-3 px-2 text-white font-medium">
                           {formatDisplayDate(row.date)}
@@ -525,7 +538,8 @@ export default function DividendsTab() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -14,6 +14,7 @@ import { formatDisplayDate } from "../../lib/dates";
 import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { useCompanies } from "../../lib/hooks/use-companies";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { resolveCompanyFields } from "../../lib/company-fields";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
@@ -43,6 +44,7 @@ import {
 export default function TransactionsTab() {
   const t = useTranslations("Transactions");
   const tDashboard = useTranslations("Dashboard");
+  const tDividends = useTranslations("Dividends");
   const tc = useTranslations("Common");
   const portfolioTab = tDashboard("tabPortfolio");
   const formatError = useApiErrorMessage();
@@ -64,9 +66,7 @@ export default function TransactionsTab() {
     transactionDate: "",
     settlementDate: "",
     type: "BUY" as "BUY" | "SELL",
-    symbol: "",
     isin: "",
-    issuer: "",
     quantity: "",
     unitPrice: "",
     grossAmount: "",
@@ -105,18 +105,29 @@ export default function TransactionsTab() {
     [transactions],
   );
 
+  const selectedCompany = useMemo(
+    () => companies.find((company) => company.isin === transactionForm.isin),
+    [companies, transactionForm.isin],
+  );
+
   const handleTransactionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTransactionError("");
+
+    const company = companies.find((c) => c.isin === transactionForm.isin);
+    if (!company) {
+      setTransactionError(tDividends("errSelectCompany"));
+      return;
+    }
 
     try {
       const transactionData = {
         transactionDate: transactionForm.transactionDate,
         settlementDate: transactionForm.settlementDate,
         type: transactionForm.type,
-        symbol: transactionForm.symbol,
-        isin: transactionForm.isin,
-        issuer: transactionForm.issuer,
+        symbol: company.instrument,
+        isin: company.isin,
+        issuer: company.issuer,
         quantity: parseFloat(transactionForm.quantity),
         unitPrice: parseFloat(transactionForm.unitPrice),
         grossAmount: parseFloat(transactionForm.grossAmount),
@@ -176,9 +187,7 @@ export default function TransactionsTab() {
       transactionDate: "",
       settlementDate: "",
       type: "BUY",
-      symbol: "",
       isin: "",
-      issuer: "",
       quantity: "",
       unitPrice: "",
       grossAmount: "",
@@ -202,9 +211,7 @@ export default function TransactionsTab() {
       transactionDate: transaction.transactionDate,
       settlementDate: transaction.settlementDate,
       type: transaction.type,
-      symbol: transaction.symbol,
       isin: transaction.isin,
-      issuer: transaction.issuer,
       quantity: transaction.quantity.toString(),
       unitPrice: transaction.unitPrice.toString(),
       grossAmount: transaction.grossAmount.toString(),
@@ -222,15 +229,10 @@ export default function TransactionsTab() {
   };
 
   const handleCompanySelect = (isin: string) => {
-    const company = companies.find((c) => c.isin === isin);
-    if (company) {
-      setTransactionForm((prev) => ({
-        ...prev,
-        symbol: company.instrument,
-        isin: company.isin,
-        issuer: company.issuer,
-      }));
-    }
+    setTransactionForm((prev) => ({
+      ...prev,
+      isin,
+    }));
   };
 
   if (companiesLoading || transactionsLoading) {
@@ -279,8 +281,8 @@ export default function TransactionsTab() {
         >
           <DialogTrigger asChild>
             <Button
-              disabled={0 === companies.length}
               onClick={resetTransactionForm}
+              disabled={0 === companies.length}
               className={TAB_BUTTON_CLASS.stocks}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -325,7 +327,10 @@ export default function TransactionsTab() {
                   <Label htmlFor="company" className="mb-2 block">
                     {t("companyIsin")}
                   </Label>
-                  <Select onValueChange={handleCompanySelect}>
+                  <Select
+                    value={transactionForm.isin}
+                    onValueChange={handleCompanySelect}
+                  >
                     <SelectTrigger className="bg-zinc-700 border-zinc-600 text-white cursor-pointer w-full">
                       <SelectValue placeholder={tc("selectCompany")} />
                     </SelectTrigger>
@@ -390,75 +395,43 @@ export default function TransactionsTab() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col justify-end">
-                  <Label htmlFor="symbol" className="mb-2 block">
-                    {t("symbol")}
-                  </Label>
-                  <Input
-                    required
-                    id="symbol"
-                    value={transactionForm.symbol}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setTransactionForm((prev) => ({
-                        ...prev,
-                        symbol: e.target.value,
-                      }));
-                    }}
-                  />
+              {selectedCompany && (
+                <div className="grid grid-cols-3 gap-4 rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                  <div>
+                    <p className="text-zinc-400">{t("symbol")}</p>
+                    <p className="text-white font-medium">
+                      {selectedCompany.instrument}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">{tc("isin")}</p>
+                    <p className="text-white font-medium">
+                      {selectedCompany.isin}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-400">{tc("issuer")}</p>
+                    <p className="text-white font-medium">
+                      {selectedCompany.issuer}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-col justify-end">
-                  <Label htmlFor="isin" className="mb-2 block">
-                    {tc("isin")}
-                  </Label>
-                  <Input
-                    required
-                    id="isin"
-                    maxLength={12}
-                    value={transactionForm.isin}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setTransactionForm((prev) => ({
-                        ...prev,
-                        isin: e.target.value.toUpperCase(),
-                      }));
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col justify-end">
-                  <Label htmlFor="market" className="mb-2 block">
-                    {t("marketMic")}
-                  </Label>
-                  <Input
-                    required
-                    id="market"
-                    value={transactionForm.market}
-                    placeholder={t("marketPlaceholder")}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setTransactionForm((prev) => ({
-                        ...prev,
-                        market: e.target.value.toUpperCase(),
-                      }));
-                    }}
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
-                <Label htmlFor="issuer" className="mb-2 block">
-                  {tc("issuer")}
+                <Label htmlFor="market" className="mb-2 block">
+                  {t("marketMic")}
                 </Label>
                 <Input
                   required
-                  id="issuer"
-                  value={transactionForm.issuer}
+                  id="market"
+                  value={transactionForm.market}
+                  placeholder={t("marketPlaceholder")}
                   className="bg-zinc-700 border-zinc-600 text-white"
                   onChange={(e) => {
                     setTransactionForm((prev) => ({
                       ...prev,
-                      issuer: e.target.value,
+                      market: e.target.value.toUpperCase(),
                     }));
                   }}
                 />
@@ -857,115 +830,129 @@ export default function TransactionsTab() {
                 </tr>
               </thead>
               <tbody>
-                {transactionsWithCalculations.map((transaction) => (
-                  <tr
-                    key={transaction._id}
-                    className="border-b border-zinc-700/50"
-                  >
-                    <td className="py-3 px-2 text-white">
-                      {formatDisplayDate(transaction.settlementDate)}
-                    </td>
-                    <td className="py-3 px-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          "BUY" === transaction.type
-                            ? "bg-green-900/30 text-green-400 border border-green-800"
-                            : "bg-red-900/30 text-red-400 border border-red-800"
-                        }`}
-                      >
-                        {"BUY" === transaction.type ? t("buy") : t("sell")}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2 text-white font-medium">
-                      {transaction.symbol}
-                    </td>
-                    <td className="py-3 px-2 text-zinc-300">
-                      {transaction.isin}
-                    </td>
-                    <td className="py-3 px-2 text-zinc-300">
-                      {transaction.issuer}
-                    </td>
-                    <td className="py-3 px-2 text-white text-right">
-                      {transaction.quantity.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-2 text-white text-right">
-                      {formatPrice(transaction.unitPrice)}
-                    </td>
-                    <td className="py-3 px-2 text-white text-right">
-                      {transaction.grossAmount.toLocaleString(numberFormat, {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </td>
-                    <td className="py-3 px-2 text-white text-right">
-                      {transaction.netAmount.toLocaleString(numberFormat, {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </td>
-                    <td className="py-3 px-2 text-zinc-300 text-right">
-                      {transaction.feesWithoutTax.toLocaleString(numberFormat, {
-                        style: "currency",
-                        currency: "RON",
-                      })}
-                    </td>
-                    <td className="py-3 px-2 text-zinc-300 text-right">
-                      {(transaction.taxWithheld || 0).toLocaleString(
-                        numberFormat,
-                        {
+                {transactionsWithCalculations.map((transaction) => {
+                  const companyFields = resolveCompanyFields(
+                    companies,
+                    transaction.isin,
+                    {
+                      instrument: transaction.symbol,
+                      issuer: transaction.issuer,
+                    },
+                  );
+
+                  return (
+                    <tr
+                      key={transaction._id}
+                      className="border-b border-zinc-700/50"
+                    >
+                      <td className="py-3 px-2 text-white">
+                        {formatDisplayDate(transaction.settlementDate)}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            "BUY" === transaction.type
+                              ? "bg-green-900/30 text-green-400 border border-green-800"
+                              : "bg-red-900/30 text-red-400 border border-red-800"
+                          }`}
+                        >
+                          {"BUY" === transaction.type ? t("buy") : t("sell")}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-white font-medium">
+                        {companyFields.instrument}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {companyFields.isin}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300">
+                        {companyFields.issuer}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {transaction.quantity.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {formatPrice(transaction.unitPrice)}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {transaction.grossAmount.toLocaleString(numberFormat, {
                           style: "currency",
                           currency: "RON",
-                        },
-                      )}
-                    </td>
-                    <td
-                      className={`py-3 px-2 text-right font-medium ${
-                        transaction.realizedProfit !== undefined &&
+                        })}
+                      </td>
+                      <td className="py-3 px-2 text-white text-right">
+                        {transaction.netAmount.toLocaleString(numberFormat, {
+                          style: "currency",
+                          currency: "RON",
+                        })}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300 text-right">
+                        {transaction.feesWithoutTax.toLocaleString(
+                          numberFormat,
+                          {
+                            style: "currency",
+                            currency: "RON",
+                          },
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-zinc-300 text-right">
+                        {(transaction.taxWithheld || 0).toLocaleString(
+                          numberFormat,
+                          {
+                            style: "currency",
+                            currency: "RON",
+                          },
+                        )}
+                      </td>
+                      <td
+                        className={`py-3 px-2 text-right font-medium ${
+                          transaction.realizedProfit !== undefined &&
+                          "number" === typeof transaction.realizedProfit
+                            ? transaction.realizedProfit >= 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                            : "text-zinc-500"
+                        }`}
+                      >
+                        {transaction.realizedProfit !== undefined &&
                         "number" === typeof transaction.realizedProfit
-                          ? transaction.realizedProfit >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                          : "text-zinc-500"
-                      }`}
-                    >
-                      {transaction.realizedProfit !== undefined &&
-                      "number" === typeof transaction.realizedProfit
-                        ? transaction.realizedProfit.toLocaleString(
-                            numberFormat,
-                            {
-                              style: "currency",
-                              currency: "RON",
-                            },
-                          )
-                        : tc("emDash")}
-                    </td>
-                    <td className="py-3 px-2 text-center">
-                      <div className="flex gap-1 justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-                          onClick={() => {
-                            openEditTransaction(transaction);
-                          }}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={deleteTransactionMutation.isPending}
-                          className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
-                          onClick={() => {
-                            setDeleteTransactionId(transaction._id!);
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          ? transaction.realizedProfit.toLocaleString(
+                              numberFormat,
+                              {
+                                style: "currency",
+                                currency: "RON",
+                              },
+                            )
+                          : tc("emDash")}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                            onClick={() => {
+                              openEditTransaction(transaction);
+                            }}
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={deleteTransactionMutation.isPending}
+                            className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-red-900/20 cursor-pointer"
+                            onClick={() => {
+                              setDeleteTransactionId(transaction._id!);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

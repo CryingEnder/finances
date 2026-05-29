@@ -8,6 +8,7 @@ import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getCompaniesCollection } from "../../../lib/database";
 import { captureServerError } from "../../../lib/capture-error";
 import { companySchema, formatZodErrors } from "../../../lib/validation";
+import { syncCompanyFieldsToRelatedRecords } from "../../../lib/sync-company-fields";
 
 export async function PUT(
   request: NextRequest,
@@ -55,12 +56,25 @@ export async function PUT(
 
     const objectId = new ObjectId(id);
 
+    const currentCompany = await companiesCollection.findOne({ _id: objectId });
+    if (!currentCompany) {
+      return apiError(API_ERROR_CODES.companyNotFound, 404);
+    }
+
     const existingCompany = await companiesCollection.findOne({
       instrument: validatedData.instrument,
       _id: { $ne: objectId },
     });
     if (existingCompany) {
       return apiError(API_ERROR_CODES.companyDuplicateInstrument, 409);
+    }
+
+    const existingIsin = await companiesCollection.findOne({
+      isin: validatedData.isin,
+      _id: { $ne: objectId },
+    });
+    if (existingIsin) {
+      return apiError(API_ERROR_CODES.companyDuplicateIsin, 409);
     }
 
     const result = await companiesCollection.updateOne(
@@ -76,6 +90,19 @@ export async function PUT(
 
     if (0 === result.matchedCount) {
       return apiError(API_ERROR_CODES.companyNotFound, 404);
+    }
+
+    const companyFieldsChanged =
+      currentCompany.instrument !== validatedData.instrument ||
+      currentCompany.isin !== validatedData.isin ||
+      currentCompany.issuer !== validatedData.issuer;
+
+    if (companyFieldsChanged) {
+      await syncCompanyFieldsToRelatedRecords(user.id, currentCompany.isin, {
+        instrument: validatedData.instrument,
+        isin: validatedData.isin,
+        issuer: validatedData.issuer,
+      });
     }
 
     const updatedCompany = await companiesCollection.findOne({ _id: objectId });
