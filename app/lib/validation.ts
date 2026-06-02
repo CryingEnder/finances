@@ -268,13 +268,13 @@ export const transactionSchema = z
 export const etfSchema = z.object({
   symbol: z
     .string()
+    .trim()
     .min(1, "Symbol is required")
     .max(30, "Symbol must be 30 characters or less")
     .regex(
-      /^[A-Za-z0-9][A-Za-z0-9._-]*$/,
-      "Symbol must start with a letter or digit and contain only letters, digits, dots, underscores, or hyphens",
+      /^[A-Za-z0-9._-]+$/,
+      "Symbol may only contain letters, numbers, dots, underscores, or hyphens",
     )
-    .trim()
     .transform((val) => val.toUpperCase()),
   label: z
     .string()

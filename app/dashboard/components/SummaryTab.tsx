@@ -54,11 +54,27 @@ interface SummaryPieRow {
   id: string;
   name: string;
   value: number;
+  chartValue?: number;
   color: string;
   legendOrder?: number;
   originalValue?: number;
   originalCurrency?: Currency;
   [key: string]: string | number | undefined;
+}
+
+function pieSliceValue(row: SummaryPieRow): number {
+  return row.chartValue ?? row.value;
+}
+
+function pieChartTotal(data: SummaryPieRow[]): number {
+  return data.reduce((sum, row) => sum + pieSliceValue(row), 0);
+}
+
+function withPieSliceValues(data: SummaryPieRow[]): SummaryPieRow[] {
+  return data.map((row) => ({
+    ...row,
+    sliceValue: pieSliceValue(row),
+  }));
 }
 
 interface PieToggleItem {
@@ -394,8 +410,9 @@ function SummaryPieTooltip({
     return null;
   }
 
+  const sliceValue = pieSliceValue(data.payload);
   const percentage =
-    totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : "0";
+    totalValue > 0 ? ((sliceValue / totalValue) * 100).toFixed(1) : "0";
 
   return (
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 shadow-lg">
@@ -624,7 +641,7 @@ function SummaryPieOriginalCurrencyCheckbox({
 function SummaryDistributionPie({
   data,
   tooltipValueLabel,
-  totalValue,
+  totalValue: _totalValue,
   title,
   toggleItems,
   onToggleItem,
@@ -644,7 +661,10 @@ function SummaryDistributionPie({
       />
     ) : null;
 
-  if (0 === data.length || totalValue <= 0) {
+  const chartTotal = pieChartTotal(data);
+  const pieData = withPieSliceValues(data);
+
+  if (0 === data.length || chartTotal <= 0) {
     return (
       <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6 flex flex-col min-h-128">
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
@@ -677,17 +697,17 @@ function SummaryDistributionPie({
             <Pie
               cx="50%"
               cy="50%"
-              data={data}
+              data={pieData}
               fill="#8884d8"
-              dataKey="value"
               cursor="default"
               labelLine={false}
               outerRadius={124}
               activeShape={false}
+              dataKey="sliceValue"
               label={PieSliceLabel}
               isAnimationActive={false}
             >
-              {data.map((entry, index) => (
+              {pieData.map((entry, index) => (
                 <Cell
                   fill={entry.color}
                   key={`cell-${entry.name}-${String(index)}`}
@@ -698,7 +718,7 @@ function SummaryDistributionPie({
             <Tooltip
               content={
                 <SummaryPieTooltip
-                  totalValue={totalValue}
+                  totalValue={chartTotal}
                   valueLabel={tooltipValueLabel}
                   displayInOriginalCurrency={displayInOriginalCurrency}
                   useDefaultAmountTextColor={useDefaultAmountTextColor}
@@ -1090,14 +1110,28 @@ export default function SummaryTab() {
     const avgStocksPercent = 100 - avgBondsPercent;
     const totalRon = fundUnitsInRon.currentValue;
 
+    let bondsValue = 0;
+    let stocksValue = 0;
+    for (const unit of fundUnits) {
+      const valueRon = convertToRon(
+        unit.totalValue,
+        unit.currency,
+        ronExchangeRates,
+      );
+      bondsValue += valueRon * (unit.bondsPercent / 100);
+      stocksValue += valueRon * ((100 - unit.bondsPercent) / 100);
+    }
+
     return {
       avgBondsPercent,
       avgStocksPercent,
       totalRon,
-      bondsValue: totalRon * (avgBondsPercent / 100),
-      stocksValue: totalRon * (avgStocksPercent / 100),
+      bondsChartValue: totalRon * (avgBondsPercent / 100),
+      stocksChartValue: totalRon * (avgStocksPercent / 100),
+      bondsValue,
+      stocksValue,
     };
-  }, [fundUnits, fundUnitsInRon.currentValue]);
+  }, [fundUnits, fundUnitsInRon.currentValue, ronExchangeRates]);
 
   const pieFundAllocationData = useMemo((): SummaryPieRow[] => {
     if (!fundAllocation) {
@@ -1109,6 +1143,7 @@ export default function SummaryTab() {
         id: "bonds",
         name: t("pieBonds"),
         value: fundAllocation.bondsValue,
+        chartValue: fundAllocation.bondsChartValue,
         color: COLORS.bonds,
         legendOrder: 1,
       },
@@ -1116,6 +1151,7 @@ export default function SummaryTab() {
         id: "stocks",
         name: t("pieStocks"),
         value: fundAllocation.stocksValue,
+        chartValue: fundAllocation.stocksChartValue,
         color: COLORS.stocks,
         legendOrder: 2,
       },

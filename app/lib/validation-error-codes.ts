@@ -73,6 +73,8 @@ export const ZOD_MESSAGE_TO_CODE = {
   "Symbol must be 30 characters or less": "symbolMaxLengthEtf",
   "Symbol must start with a letter or digit and contain only letters, digits, dots, underscores, or hyphens":
     "symbolFormat",
+  "Symbol may only contain letters, numbers, dots, underscores, or hyphens":
+    "symbolFormat",
   "Label is required": "labelRequired",
   "Label must be 200 characters or less": "labelMaxLength",
   "Volume must be greater than 0": "volumeMin",
