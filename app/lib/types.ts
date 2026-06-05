@@ -115,51 +115,82 @@ export type TransactionWithCalculations = Transaction & {
 
 export type Currency = "EUR" | "USD" | "RON";
 
-export interface Etf {
+export type TradeType = "BUY" | "SELL";
+
+export interface EtfTransaction {
   _id?: string;
-  symbol: string; // e.g. IS3N.DE
-  label: string; // e.g. Core MSCI EM IMI
+  type: TradeType;
   volume: number;
   actualPrice: number;
   openingPrice: number;
+  createdAt: string; // ISO datetime for ordering; display date only in UI
+}
+
+export type EtfTransactionWithCalculations = EtfTransaction & {
+  value: number;
+  purchaseCost: number;
+  profitNet: number;
+  profitNetPercent: number;
+};
+
+export interface Etf {
+  _id?: string;
+  symbol: string; // e.g. IS3N.DE — unique per user
+  label: string; // e.g. Core MSCI EM IMI
   currency: Currency;
-  date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
+  statuses: EtfTransaction[];
 }
 
 export type EtfWithCalculations = Etf & {
-  value: number; // volume * actualPrice
-  purchaseCost: number; // volume * openingPrice
-  profitNet: number; // value - purchaseCost
-  profitNetPercent: number; // (profitNet / purchaseCost) * 100
+  latestTransaction?: EtfTransactionWithCalculations;
 };
 
-export interface EtfSummary {
-  totalValue: number;
-  totalPurchaseCost: number;
-  totalProfitNet: number;
-  totalProfitNetPercent: number;
+export interface EtfSummary extends EtfPositionSummary {
+  buyInvested: number;
 }
+
+export interface EtfPositionSummary {
+  buyValue: number;
+  totalSellValue: number;
+  unrealizedProfit: number;
+  unrealizedProfitPercent: number;
+  realizedProfit: number;
+  realizedProfitPercent: number;
+}
+
+export interface FundUnitStatus {
+  _id?: string;
+  type: TradeType;
+  date: string; // ISO datetime; calendar day from user, current time added on save for sorting
+  totalValue: number;
+  profit: number;
+  createdAt?: string; // ISO datetime; when the record was saved in the app
+}
+
+export type FundUnitStatusWithCalculations = FundUnitStatus & {
+  invested: number;
+  profitPercent: number;
+};
 
 export interface FundUnit {
   _id?: string;
-  name: string; // e.g. ERSTE Balanced RON
+  name: string; // e.g. ERSTE Balanced RON — unique per user
   openedDate?: string; // ISO date YYYY-MM-DD; optional, when opened at the bank
-  totalValue: number; // current value including profit
-  profit: number;
   bondsPercent: number; // bonds allocation percentage (0-100)
   currency: Currency;
-  date?: string; // ISO date YYYY-MM-DD; set on create automatically, updated on PUT when data changes
+  date?: string; // ISO date YYYY-MM-DD; updated when fund unit or statuses change
+  statuses: FundUnitStatus[];
 }
 
-export type FundUnitWithCalculations = FundUnit & {
-  stocksPercent: number; // 100 - bondsPercent
-  invested: number; // totalValue - profit
-  profitPercent: number; // (profit / totalValue) * 100
-};
+export interface FundUnitPositionSummary {
+  buyValue: number;
+  totalSellValue: number;
+  unrealizedProfit: number;
+  unrealizedProfitPercent: number;
+  realizedProfit: number;
+  realizedProfitPercent: number;
+}
 
-export interface FundUnitSummary {
-  totalValue: number;
-  totalInvested: number;
-  totalProfit: number;
-  totalProfitPercent: number;
+export interface FundUnitSummary extends FundUnitPositionSummary {
+  buyInvested: number;
 }

@@ -52,6 +52,12 @@ export const API_ERROR_CODES = {
   failedCreateEtf: "failedCreateEtf",
   failedUpdateEtf: "failedUpdateEtf",
   failedDeleteEtf: "failedDeleteEtf",
+  etfMismatch: "etfMismatch",
+  invalidEtfTransactionId: "invalidEtfTransactionId",
+  etfTransactionNotFound: "etfTransactionNotFound",
+  failedCreateEtfTransaction: "failedCreateEtfTransaction",
+  failedUpdateEtfTransaction: "failedUpdateEtfTransaction",
+  failedDeleteEtfTransaction: "failedDeleteEtfTransaction",
 
   invalidFundUnitId: "invalidFundUnitId",
   fundUnitNotFound: "fundUnitNotFound",
@@ -60,6 +66,12 @@ export const API_ERROR_CODES = {
   failedCreateFundUnit: "failedCreateFundUnit",
   failedUpdateFundUnit: "failedUpdateFundUnit",
   failedDeleteFundUnit: "failedDeleteFundUnit",
+  fundUnitMismatch: "fundUnitMismatch",
+  invalidFundUnitStatusId: "invalidFundUnitStatusId",
+  fundUnitStatusNotFound: "fundUnitStatusNotFound",
+  failedCreateFundUnitStatus: "failedCreateFundUnitStatus",
+  failedUpdateFundUnitStatus: "failedUpdateFundUnitStatus",
+  failedDeleteFundUnitStatus: "failedDeleteFundUnitStatus",
 
   failedFetchExchangeRates: "failedFetchExchangeRates",
 

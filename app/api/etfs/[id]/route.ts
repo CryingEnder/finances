@@ -1,17 +1,17 @@
 import { ObjectId } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-import { todayIsoDate } from "../../../lib/dates";
 import { apiError } from "../../../lib/api-response";
 import { isValidObjectId } from "../../../lib/utils";
 import { requireApiAuth } from "../../../lib/api-auth";
 import { resolveCurrency } from "../../../lib/currency";
 import { getEtfsCollection } from "../../../lib/database";
+import { serializeEtf } from "../../../lib/etf-serialization";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { captureServerError } from "../../../lib/capture-error";
 import {
-  etfSchema,
   etfHasChanges,
+  etfUpdateSchema,
   formatZodErrors,
 } from "../../../lib/validation";
 
@@ -31,28 +31,13 @@ export async function PUT(
     }
 
     const payload = body as Record<string, unknown>;
-    const { symbol, label, volume, actualPrice, openingPrice, currency } =
-      payload;
+    const { label, currency } = payload;
 
-    if (
-      !symbol ||
-      !label ||
-      volume === undefined ||
-      actualPrice === undefined ||
-      openingPrice === undefined ||
-      !currency
-    ) {
+    if (!label || !currency) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
-    const validationResult = etfSchema.safeParse({
-      symbol,
-      label,
-      volume: Number(volume),
-      actualPrice: Number(actualPrice),
-      openingPrice: Number(openingPrice),
-      currency,
-    });
+    const validationResult = etfUpdateSchema.safeParse({ label, currency });
 
     if (!validationResult.success) {
       return apiError(
@@ -80,7 +65,7 @@ export async function PUT(
     if (
       !etfHasChanges(
         {
-          ...currentEtf,
+          label: currentEtf.label,
           currency: resolveCurrency(currentEtf.currency, "EUR"),
         },
         validatedData,
@@ -89,25 +74,12 @@ export async function PUT(
       return apiError(API_ERROR_CODES.noChangesToSave, 400);
     }
 
-    const duplicateSymbol = await etfsCollection.findOne({
-      symbol: validatedData.symbol,
-      _id: { $ne: objectId },
-    });
-    if (duplicateSymbol) {
-      return apiError(API_ERROR_CODES.etfDuplicateSymbol, 409);
-    }
-
     const result = await etfsCollection.updateOne(
       { _id: objectId },
       {
         $set: {
-          symbol: validatedData.symbol,
           label: validatedData.label,
-          volume: validatedData.volume,
-          actualPrice: validatedData.actualPrice,
-          openingPrice: validatedData.openingPrice,
           currency: validatedData.currency,
-          date: todayIsoDate(),
         },
       },
     );
@@ -121,10 +93,7 @@ export async function PUT(
       return apiError(API_ERROR_CODES.etfNotFound, 404);
     }
 
-    return NextResponse.json({
-      ...updatedEtf,
-      _id: updatedEtf._id.toString(),
-    });
+    return NextResponse.json(serializeEtf(updatedEtf));
   } catch (error) {
     captureServerError(error, { message: "Error updating ETF:" });
     return apiError(API_ERROR_CODES.failedUpdateEtf, 500);

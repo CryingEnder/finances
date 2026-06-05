@@ -10,11 +10,11 @@ export function isValidObjectId(id: string): boolean {
 }
 
 export function formatPrice(value: number, maxDecimals = 4): string {
-  // round to maxDecimals to avoid floating point precision issues
   const rounded =
     Math.round(value * Math.pow(10, maxDecimals)) / Math.pow(10, maxDecimals);
 
-  // convert to string and remove trailing zeros, but keep at least "0" for zero values
-  const formatted = rounded.toString().replace(/\.?0+$/, "");
+  // Use fixed decimals first so whole numbers like 10 are "10.0000", not "10"
+  // (otherwise /\.?0+$/ would strip the tens digit and show "1").
+  const formatted = rounded.toFixed(maxDecimals).replace(/\.?0+$/, "");
   return "" === formatted ? "0" : formatted;
 }

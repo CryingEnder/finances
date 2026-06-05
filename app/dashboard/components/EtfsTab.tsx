@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, Fragment, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Edit, Plus, Trash2, LineChart } from "lucide-react";
+import { Edit, Plus, Trash2, LineChart, ChevronDown, ChevronRight } from "lucide-react";
 
 import type {
   Etf,
   Currency,
-  EtfSummary,
-  EtfWithCalculations,
+  TradeType,
+  EtfTransaction,
+  EtfTransactionWithCalculations,
 } from "../../lib/types";
 
 import { formatPrice } from "../../lib/utils";
@@ -19,17 +20,12 @@ import { Button } from "../../components/ui/button";
 import { formatDisplayDate } from "../../lib/dates";
 import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { InfoTooltip } from "../../components/ui/info-tooltip";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
 import {
   NoticeDialog,
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
-import {
-  useEtfs,
-  useCreateEtf,
-  useDeleteEtf,
-  useUpdateEtf,
-} from "../../lib/hooks/use-etfs";
 import {
   Select,
   SelectItem,
@@ -44,45 +40,40 @@ import {
   DialogContent,
   DialogTrigger,
 } from "../../components/ui/dialog";
+import {
+  summarizeEtfPosition,
+  transactionDisplayDate,
+  sortEtfTransactionsByNewest,
+  calculateEtfTransactionMetrics,
+} from "../../lib/etf-utils";
+import {
+  useEtfs,
+  useCreateEtf,
+  useDeleteEtf,
+  useUpdateEtf,
+  useCreateEtfTransaction,
+  useDeleteEtfTransaction,
+  useUpdateEtfTransaction,
+} from "../../lib/hooks/use-etfs";
 
-function withCalculations(etf: Etf): EtfWithCalculations {
-  const purchaseCost = etf.volume * etf.openingPrice;
-  const value = etf.volume * etf.actualPrice;
-  const profitNet = value - purchaseCost;
-  const profitNetPercent =
-    purchaseCost > 0 ? (profitNet / purchaseCost) * 100 : 0;
+import {
+  PositionProfitCell,
+  PositionProfitColumnHeader,
+} from "./position-profit-cell";
+
+function withTransactionCalculations(
+  transaction: EtfTransaction,
+): EtfTransactionWithCalculations {
+  const { value, purchaseCost, profitNet, profitNetPercent } =
+    calculateEtfTransactionMetrics(transaction);
 
   return {
-    ...etf,
+    ...transaction,
     value,
     purchaseCost,
     profitNet,
     profitNetPercent,
   };
-}
-
-function summarize(rows: EtfWithCalculations[]): EtfSummary {
-  const summary = rows.reduce(
-    (acc, etf) => ({
-      totalValue: acc.totalValue + etf.value,
-      totalPurchaseCost: acc.totalPurchaseCost + etf.purchaseCost,
-      totalProfitNet: acc.totalProfitNet + etf.profitNet,
-      totalProfitNetPercent: 0,
-    }),
-    {
-      totalValue: 0,
-      totalPurchaseCost: 0,
-      totalProfitNet: 0,
-      totalProfitNetPercent: 0,
-    },
-  );
-
-  summary.totalProfitNetPercent =
-    summary.totalPurchaseCost > 0
-      ? (summary.totalProfitNet / summary.totalPurchaseCost) * 100
-      : 0;
-
-  return summary;
 }
 
 function currencyLabel(
@@ -101,19 +92,27 @@ function currencyLabel(
 interface EtfFormState {
   symbol: string;
   label: string;
+  currency: Currency;
+}
+
+interface TransactionFormState {
+  type: TradeType;
   volume: string;
   actualPrice: string;
   openingPrice: string;
-  currency: Currency;
 }
 
 const EMPTY_ETF_FORM: EtfFormState = {
   symbol: "",
   label: "",
+  currency: "EUR",
+};
+
+const EMPTY_TRANSACTION_FORM: TransactionFormState = {
+  type: "BUY",
   volume: "",
   actualPrice: "",
   openingPrice: "",
-  currency: "EUR",
 };
 
 export default function EtfsTab() {
@@ -123,268 +122,523 @@ export default function EtfsTab() {
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
+  const profitLabels = useMemo(
+    () => ({
+      columnTitle: tc("profit"),
+      tooltip: t("positionProfitTooltip"),
+      unrealized: t("unrealizedProfit"),
+      unrealizedPercent: t("unrealizedProfitPercent"),
+      realized: t("realizedProfit"),
+      realizedPercent: t("realizedProfitPercent"),
+    }),
+    [t, tc],
+  );
+
   const { data: etfs = [], isLoading } = useEtfs();
   const createMutation = useCreateEtf();
   const updateMutation = useUpdateEtf();
   const deleteMutation = useDeleteEtf();
+  const createTransactionMutation = useCreateEtfTransaction();
+  const updateTransactionMutation = useUpdateEtfTransaction();
+  const deleteTransactionMutation = useDeleteEtfTransaction();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Etf | null>(null);
+  const [etfDialogOpen, setEtfDialogOpen] = useState(false);
+  const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [editingEtf, setEditingEtf] = useState<Etf | null>(null);
+  const [transactionEtf, setTransactionEtf] = useState<Etf | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<EtfTransaction | null>(null);
   const [etfForm, setEtfForm] = useState<EtfFormState>(EMPTY_ETF_FORM);
-  const [formError, setFormError] = useState("");
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [transactionForm, setTransactionForm] = useState<TransactionFormState>(
+    EMPTY_TRANSACTION_FORM,
+  );
+  const [etfFormError, setEtfFormError] = useState("");
+  const [transactionFormError, setTransactionFormError] = useState("");
+  const [expandedEtfIds, setExpandedEtfIds] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [deleteEtfId, setDeleteEtfId] = useState<string | null>(null);
+  const [deleteTransactionTarget, setDeleteTransactionTarget] = useState<{
+    etfId: string;
+    transactionId: string;
+  } | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const etfsWithCalculations = useMemo(
-    () => etfs.map(withCalculations),
-    [etfs],
-  );
-
   const byCurrency = useMemo(() => {
-    const grouped: Record<Currency, EtfWithCalculations[]> = {
+    const grouped: Record<Currency, Etf[]> = {
       EUR: [],
       USD: [],
       RON: [],
     };
-    for (const etf of etfsWithCalculations) {
+    for (const etf of etfs) {
       grouped[etf.currency].push(etf);
     }
     return grouped;
-  }, [etfsWithCalculations]);
+  }, [etfs]);
 
   const resetEtfForm = () => {
     setEtfForm(EMPTY_ETF_FORM);
-    setEditing(null);
-    setFormError("");
+    setEditingEtf(null);
+    setEtfFormError("");
   };
 
-  const beginAdd = () => {
+  const resetTransactionForm = () => {
+    setTransactionForm(EMPTY_TRANSACTION_FORM);
+    setTransactionEtf(null);
+    setEditingTransaction(null);
+    setTransactionFormError("");
+  };
+
+  const beginAddEtf = () => {
     resetEtfForm();
   };
 
-  const openEdit = (row: Etf) => {
-    setEditing(row);
+  const openEditEtf = (etf: Etf) => {
+    setEditingEtf(etf);
     setEtfForm({
-      symbol: row.symbol,
-      label: row.label,
-      volume: String(row.volume),
-      actualPrice: String(row.actualPrice),
-      openingPrice: String(row.openingPrice),
-      currency: row.currency,
+      symbol: etf.symbol,
+      label: etf.label,
+      currency: etf.currency,
     });
-    setFormError("");
-    setDialogOpen(true);
+    setEtfFormError("");
+    setEtfDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
+  const openAddTransaction = (etf: Etf) => {
+    setTransactionEtf(etf);
+    setEditingTransaction(null);
+    setTransactionForm(EMPTY_TRANSACTION_FORM);
+    setTransactionFormError("");
+    setTransactionDialogOpen(true);
+  };
 
-    const volume = parseFloat(etfForm.volume);
-    const actualPrice = parseFloat(etfForm.actualPrice);
-    const openingPrice = parseFloat(etfForm.openingPrice);
+  const openEditTransaction = (etf: Etf, transaction: EtfTransaction) => {
+    setTransactionEtf(etf);
+    setEditingTransaction(transaction);
+    setTransactionForm({
+      type: transaction.type,
+      volume: String(transaction.volume),
+      actualPrice: String(transaction.actualPrice),
+      openingPrice: String(transaction.openingPrice),
+    });
+    setTransactionFormError("");
+    setTransactionDialogOpen(true);
+  };
+
+  const toggleExpanded = (etfId: string) => {
+    setExpandedEtfIds((prev) => ({
+      ...prev,
+      [etfId]: !prev[etfId],
+    }));
+  };
+
+  const handleEtfSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEtfFormError("");
+
+    if (!etfForm.symbol.trim() || !etfForm.label.trim()) {
+      setEtfFormError(t("errRequired"));
+      return;
+    }
+
+    try {
+      if (editingEtf) {
+        await updateMutation.mutateAsync({
+          _id: editingEtf._id,
+          label: etfForm.label.trim(),
+          currency: etfForm.currency,
+        });
+      } else {
+        await createMutation.mutateAsync({
+          symbol: etfForm.symbol.trim(),
+          label: etfForm.label.trim(),
+          currency: etfForm.currency,
+        });
+      }
+
+      resetEtfForm();
+      setEtfDialogOpen(false);
+    } catch (err) {
+      setEtfFormError(formatError(err, t("failedSave")));
+    }
+  };
+
+  const handleTransactionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTransactionFormError("");
+
+    if (!transactionEtf?._id) {
+      return;
+    }
+
+    const volume = parseFloat(transactionForm.volume);
+    const actualPrice = parseFloat(transactionForm.actualPrice);
+    const openingPrice = parseFloat(transactionForm.openingPrice);
 
     if (
-      !etfForm.symbol.trim() ||
-      !etfForm.label.trim() ||
       Number.isNaN(volume) ||
       Number.isNaN(actualPrice) ||
       Number.isNaN(openingPrice)
     ) {
-      setFormError(t("errRequired"));
+      setTransactionFormError(t("errRequired"));
       return;
     }
 
-    const payload: Omit<Etf, "_id" | "date"> = {
-      symbol: etfForm.symbol.trim(),
-      label: etfForm.label.trim(),
-      volume,
-      actualPrice,
-      openingPrice,
-      currency: etfForm.currency,
-    };
-
     try {
-      if (editing) {
-        await updateMutation.mutateAsync({ ...payload, _id: editing._id });
+      if (editingTransaction?._id) {
+        await updateTransactionMutation.mutateAsync({
+          etfId: transactionEtf._id,
+          transactionId: editingTransaction._id,
+          type: transactionForm.type,
+          volume,
+          actualPrice,
+          openingPrice,
+        });
       } else {
-        await createMutation.mutateAsync(payload);
+        await createTransactionMutation.mutateAsync({
+          etfId: transactionEtf._id,
+          symbol: transactionEtf.symbol,
+          label: transactionEtf.label,
+          type: transactionForm.type,
+          volume,
+          actualPrice,
+          openingPrice,
+        });
       }
 
-      resetEtfForm();
-      setDialogOpen(false);
+      resetTransactionForm();
+      setTransactionDialogOpen(false);
+      setExpandedEtfIds((prev) => ({
+        ...prev,
+        [transactionEtf._id!]: true,
+      }));
     } catch (err) {
-      setFormError(formatError(err, t("failedSave")));
+      setTransactionFormError(formatError(err, t("failedSaveTransaction")));
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTargetId) {
+  const confirmDeleteEtf = async () => {
+    if (!deleteEtfId) {
       return;
     }
-    const id = deleteTargetId;
+    const id = deleteEtfId;
     try {
       await deleteMutation.mutateAsync(id);
-      setDeleteTargetId(null);
+      setDeleteEtfId(null);
+      setExpandedEtfIds((prev) => {
+        const { [id]: _removed, ...next } = prev;
+        return next;
+      });
     } catch (err) {
       setNoticeMessage(formatError(err, t("failedDelete")));
-      setDeleteTargetId(null);
+      setDeleteEtfId(null);
     }
   };
 
-  const renderSummaryCards = (summary: EtfSummary) => (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalValue")}</p>
-        <p className="text-lg font-bold text-white">
-          {summary.totalValue.toLocaleString(numberFormat, {
+  const confirmDeleteTransaction = async () => {
+    if (!deleteTransactionTarget) {
+      return;
+    }
+    const target = deleteTransactionTarget;
+    try {
+      await deleteTransactionMutation.mutateAsync(target);
+      setDeleteTransactionTarget(null);
+    } catch (err) {
+      setNoticeMessage(formatError(err, t("failedDeleteTransaction")));
+      setDeleteTransactionTarget(null);
+    }
+  };
+
+  const renderTransactionTypeBadge = (type: TradeType) => (
+    <span
+      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+        "BUY" === type
+          ? "bg-green-900/30 text-green-400 border border-green-800"
+          : "bg-red-900/30 text-red-400 border border-red-800"
+      }`}
+    >
+      {"BUY" === type ? t("buy") : t("sell")}
+    </span>
+  );
+
+  const renderColumnHeader = (label: string, tooltip: string) => (
+    <span className="inline-flex items-center justify-start gap-1">
+      {label}
+      <InfoTooltip content={tooltip} placement="bottom" />
+    </span>
+  );
+
+  const renderAmount = (value: number) =>
+    value.toLocaleString(numberFormat, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const renderTransactions = (etf: Etf) => {
+    const statuses = sortEtfTransactionsByNewest(etf.statuses).map(
+      withTransactionCalculations,
+    );
+
+    if (0 === statuses.length) {
+      return (
+        <tr>
+          <td colSpan={11} className="py-4 px-6 text-sm text-zinc-400 italic">
+            {t("noTransactionsYet")}
+          </td>
+        </tr>
+      );
+    }
+
+    return statuses.map((transaction) => (
+      <tr
+        key={transaction._id}
+        className="border-b border-zinc-700/30 bg-zinc-900/30"
+      >
+        <td className="py-2.5 px-6 pl-12">
+          {renderTransactionTypeBadge(transaction.type)}
+        </td>
+        <td className="py-2.5 px-2 text-zinc-300">
+          {formatDisplayDate(transactionDisplayDate(transaction.createdAt))}
+        </td>
+        <td className="py-2.5 px-2 text-white text-right font-medium">
+          {transaction.volume.toLocaleString(numberFormat, {
+            maximumFractionDigits: 4,
+          })}
+        </td>
+        <td className="py-2.5 px-2 text-white text-right font-medium">
+          {formatPrice(transaction.actualPrice)}
+        </td>
+        <td className="py-2.5 px-2 text-white text-right font-medium">
+          {formatPrice(transaction.openingPrice)}
+        </td>
+        <td className="py-2.5 px-2 text-white text-right font-medium">
+          {transaction.value.toLocaleString(numberFormat, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalCost")}</p>
-        <p className="text-lg font-bold text-white">
-          {summary.totalPurchaseCost.toLocaleString(numberFormat, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalProfitNet")}</p>
-        <p
-          className={`text-lg font-bold ${
-            summary.totalProfitNet >= 0 ? "text-green-400" : "text-red-400"
+        </td>
+        <td
+          className={`py-2.5 px-2 text-right font-semibold ${
+            transaction.profitNet >= 0 ? "text-green-400" : "text-red-400"
           }`}
         >
-          {summary.totalProfitNet.toLocaleString(numberFormat, {
+          {transaction.profitNet.toLocaleString(numberFormat, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">
-          {t("totalProfitNetPercent")}
-        </p>
-        <p
-          className={`text-lg font-bold ${
-            summary.totalProfitNetPercent >= 0
+        </td>
+        <td
+          className={`py-2.5 px-2 text-right font-semibold ${
+            transaction.profitNetPercent >= 0
               ? "text-green-400"
               : "text-red-400"
           }`}
         >
-          {summary.totalProfitNetPercent.toFixed(2)}%
-        </p>
-      </div>
-    </div>
-  );
+          {transaction.profitNetPercent.toFixed(2)}%
+        </td>
+        <td className="py-2.5 px-2 text-center">
+          <div className="flex gap-1 justify-center">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+              onClick={() => {
+                openEditTransaction(etf, transaction);
+              }}
+            >
+              <Edit className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={deleteTransactionMutation.isPending}
+              className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
+              onClick={() => {
+                if (etf._id && transaction._id) {
+                  setDeleteTransactionTarget({
+                    etfId: etf._id,
+                    transactionId: transaction._id,
+                  });
+                }
+              }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </td>
+      </tr>
+    ));
+  };
 
-  const renderTable = (rows: EtfWithCalculations[]) => (
+  const renderEtfTable = (rows: Etf[]) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-zinc-700">
-            <th className="text-left py-3 px-2 text-zinc-300">
+            <th className="w-10 py-3 pl-2 pr-0" />
+            <th className="py-3 pl-1 pr-6 text-left text-zinc-300 whitespace-nowrap">
               {t("position")}
             </th>
-            <th className="text-left py-3 px-2 text-zinc-300">{t("date")}</th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("volume")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {t("transactionsCount")}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">{t("value")}</th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("actualPrice")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {renderColumnHeader(t("buyValue"), t("buyValueTooltip"))}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("openingPrice")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {renderColumnHeader(t("totalSellValue"), t("totalSellValueTooltip"))}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("profitNet")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              <PositionProfitColumnHeader labels={profitLabels} />
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("profitNetPercent")}
-            </th>
-            <th className="text-center py-3 px-2 text-zinc-300">
+            <th className="w-full py-3 px-0" />
+            <th className="py-3 pl-2 pr-2 text-right text-zinc-300 whitespace-nowrap">
               {tc("actions")}
             </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((etf) => (
-            <tr key={etf._id} className="border-b border-zinc-700/50">
-              <td className="py-3 px-2">
-                <div className="font-semibold text-white">{etf.label}</div>
-                <div className="text-xs text-zinc-400 mt-0.5">{etf.symbol}</div>
-              </td>
-              <td className="py-3 px-2 text-zinc-300">
-                {etf.date ? formatDisplayDate(etf.date) : tc("emDash")}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {etf.volume.toLocaleString(numberFormat, {
-                  maximumFractionDigits: 4,
-                })}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {etf.value.toLocaleString(numberFormat, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {formatPrice(etf.actualPrice)}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {formatPrice(etf.openingPrice)}
-              </td>
-              <td
-                className={`py-3 px-2 text-right font-semibold ${
-                  etf.profitNet >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {etf.profitNet.toLocaleString(numberFormat, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-              <td
-                className={`py-3 px-2 text-right font-semibold ${
-                  etf.profitNetPercent >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {etf.profitNetPercent.toFixed(2)}%
-              </td>
-              <td className="py-3 px-2 text-center">
-                <div className="flex gap-1 justify-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      openEdit(etf);
-                    }}
-                    className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+          {rows.map((etf) => {
+            const isExpanded = Boolean(etf._id && expandedEtfIds[etf._id]);
+            const positionSummary = summarizeEtfPosition(etf);
+            const toggleRow = () => {
+              if (etf._id) {
+                toggleExpanded(etf._id);
+              }
+            };
+            const handleRowPointerDown = (
+              e: React.PointerEvent<HTMLTableRowElement>,
+            ) => {
+              if (0 !== e.button) {
+                return;
+              }
+              if ((e.target as HTMLElement).closest("[data-etf-row-action]")) {
+                return;
+              }
+              toggleRow();
+            };
+
+            return (
+              <Fragment key={etf._id}>
+                <tr
+                  onPointerDown={handleRowPointerDown}
+                  className="border-b border-zinc-700/50 hover:bg-zinc-900/40 transition-colors cursor-pointer"
+                >
+                  <td className="py-3 pl-2 pr-0 align-middle">
+                    <span className="inline-flex p-1 text-zinc-400">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </span>
+                  </td>
+                  <td className="py-3 pl-1 pr-6 align-middle whitespace-nowrap">
+                    <div className="font-semibold text-white">{etf.label}</div>
+                    <div className="text-xs text-zinc-400 mt-0.5">{etf.symbol}</div>
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-zinc-300">
+                    {etf.statuses.length}
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-left text-white font-medium">
+                    {renderAmount(positionSummary.buyValue)}
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-left text-white font-medium">
+                    {renderAmount(positionSummary.totalSellValue)}
+                  </td>
+                  <td className="py-3 px-4 align-middle">
+                    <PositionProfitCell
+                      labels={profitLabels}
+                      summary={positionSummary}
+                      numberFormat={numberFormat}
+                    />
+                  </td>
+                  <td className="w-full p-0" />
+                  <td
+                    data-etf-row-action
+                    className="py-3 pl-2 pr-2 align-middle whitespace-nowrap text-right"
                   >
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={deleteMutation.isPending}
-                    className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
-                    onClick={() => {
-                      if (etf._id) {
-                        setDeleteTargetId(etf._id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={t("addTransaction")}
+                        onClick={() => {
+                          openAddTransaction(etf);
+                        }}
+                        className="h-8 w-8 p-0 border-zinc-600 text-indigo-300 hover:bg-zinc-700 hover:text-indigo-200 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                        onClick={() => {
+                          openEditEtf(etf);
+                        }}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={deleteMutation.isPending}
+                        className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
+                        onClick={() => {
+                          if (etf._id) {
+                            setDeleteEtfId(etf._id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+                {isExpanded && etf._id ? (
+                  <tr key={`${etf._id}-statuses`} className="border-b border-zinc-700/50">
+                    <td colSpan={8} className="p-0">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-700/50 bg-zinc-900/20">
+                            <th className="text-left py-2 px-6 pl-12 text-zinc-400 text-xs font-medium">
+                              {t("type")}
+                            </th>
+                            <th className="text-left py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("date")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("volume")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("actualPrice")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("openingPrice")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("value")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("profitNet")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("profitNetPercent")}
+                            </th>
+                            <th className="text-center py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {tc("actions")}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>{renderTransactions(etf)}</tbody>
+                      </table>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -407,16 +661,16 @@ export default function EtfsTab() {
     <div className="space-y-6">
       <div className="flex gap-4 justify-between items-center flex-wrap">
         <Dialog
-          open={dialogOpen}
+          open={etfDialogOpen}
           onOpenChange={(open) => {
-            setDialogOpen(open);
+            setEtfDialogOpen(open);
             if (!open) {
               resetEtfForm();
             }
           }}
         >
           <DialogTrigger asChild>
-            <Button onClick={beginAdd} className={TAB_BUTTON_CLASS.etfs}>
+            <Button onClick={beginAddEtf} className={TAB_BUTTON_CLASS.etfs}>
               <Plus className="w-4 h-4 mr-2" />
               {t("addEtf")}
             </Button>
@@ -424,36 +678,40 @@ export default function EtfsTab() {
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editing ? t("editEtf") : t("addNewEtf")}
+                {editingEtf ? t("editEtf") : t("addNewEtf")}
               </DialogTitle>
             </DialogHeader>
             <form
               className="space-y-4"
               onSubmit={(e) => {
-                void handleSubmit(e);
+                void handleEtfSubmit(e);
               }}
             >
-              <div>
-                <Label htmlFor="etfSymbol" className="mb-2 block">
-                  {t("symbol")}
-                </Label>
-                <Input
-                  required
-                  id="etfSymbol"
-                  maxLength={30}
-                  value={etfForm.symbol}
-                  disabled={Boolean(editing)}
-                  className="bg-zinc-700 border-zinc-600 text-white disabled:opacity-60"
-                  onChange={(e) => {
-                    setEtfForm((prev) => ({ ...prev, symbol: e.target.value }));
-                  }}
-                />
-                {editing ? (
-                  <p className="text-xs text-zinc-400 mt-1">
-                    {t("symbolLocked")}
-                  </p>
-                ) : null}
-              </div>
+              {editingEtf ? (
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                  <p className="text-zinc-400">{t("symbol")}</p>
+                  <p className="text-white font-medium">{etfForm.symbol}</p>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="etfSymbol" className="mb-2 block">
+                    {t("symbol")}
+                  </Label>
+                  <Input
+                    required
+                    id="etfSymbol"
+                    maxLength={30}
+                    value={etfForm.symbol}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setEtfForm((prev) => ({
+                        ...prev,
+                        symbol: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor="etfLabel" className="mb-2 block">
                   {t("label")}
@@ -497,71 +755,9 @@ export default function EtfsTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="etfVolume" className="mb-2 block">
-                    {t("volume")}
-                  </Label>
-                  <Input
-                    required
-                    step="any"
-                    min="0.0001"
-                    type="number"
-                    id="etfVolume"
-                    value={etfForm.volume}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setEtfForm((prev) => ({
-                        ...prev,
-                        volume: e.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block" htmlFor="etfActualPrice">
-                    {t("actualPrice")}
-                  </Label>
-                  <Input
-                    required
-                    step="any"
-                    min="0.0001"
-                    type="number"
-                    id="etfActualPrice"
-                    value={etfForm.actualPrice}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setEtfForm((prev) => ({
-                        ...prev,
-                        actualPrice: e.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block" htmlFor="etfOpeningPrice">
-                    {t("openingPrice")}
-                  </Label>
-                  <Input
-                    required
-                    step="any"
-                    min="0.0001"
-                    type="number"
-                    id="etfOpeningPrice"
-                    value={etfForm.openingPrice}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setEtfForm((prev) => ({
-                        ...prev,
-                        openingPrice: e.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-              </div>
 
-              {formError ? (
-                <p className="text-sm text-red-400">{formError}</p>
+              {etfFormError ? (
+                <p className="text-sm text-red-400">{etfFormError}</p>
               ) : null}
 
               <div className="flex justify-end gap-2">
@@ -570,7 +766,7 @@ export default function EtfsTab() {
                   variant="outline"
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                   onClick={() => {
-                    setDialogOpen(false);
+                    setEtfDialogOpen(false);
                   }}
                 >
                   {tc("cancel")}
@@ -584,7 +780,7 @@ export default function EtfsTab() {
                 >
                   {createMutation.isPending || updateMutation.isPending
                     ? tc("saving")
-                    : editing
+                    : editingEtf
                       ? tc("update")
                       : tc("add")}
                 </Button>
@@ -594,15 +790,184 @@ export default function EtfsTab() {
         </Dialog>
       </div>
 
-      {etfsWithCalculations.length > 0 ? (
+      <Dialog
+        open={transactionDialogOpen}
+        onOpenChange={(open) => {
+          setTransactionDialogOpen(open);
+          if (!open) {
+            resetTransactionForm();
+          }
+        }}
+      >
+        <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTransaction
+                ? t("editTransaction")
+                : t("addTransaction")}
+            </DialogTitle>
+          </DialogHeader>
+          {transactionEtf ? (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                void handleTransactionSubmit(e);
+              }}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                <div>
+                  <p className="text-zinc-400">{t("symbol")}</p>
+                  <p className="text-white font-medium">
+                    {transactionEtf.symbol}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">{t("label")}</p>
+                  <p className="text-white font-medium">
+                    {transactionEtf.label}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">{t("currency")}</p>
+                  <p className="text-white font-medium">
+                    {currencyLabel(transactionEtf.currency, t)}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <Label className="mb-2 block" htmlFor="etfTransactionType">
+                  {t("type")}
+                </Label>
+                <Select
+                  value={transactionForm.type}
+                  onValueChange={(value: TradeType) => {
+                    setTransactionForm((prev) => ({ ...prev, type: value }));
+                  }}
+                >
+                  <SelectTrigger
+                    id="etfTransactionType"
+                    className="bg-zinc-700 border-zinc-600 text-white w-full cursor-pointer"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                    <SelectItem value="BUY">{t("buy")}</SelectItem>
+                    <SelectItem value="SELL">{t("sell")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="mb-2 block" htmlFor="etfTransactionVolume">
+                    {t("volume")}
+                  </Label>
+                  <Input
+                    required
+                    step="any"
+                    min="0.0001"
+                    type="number"
+                    id="etfTransactionVolume"
+                    value={transactionForm.volume}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setTransactionForm((prev) => ({
+                        ...prev,
+                        volume: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="mb-2 block"
+                    htmlFor="etfTransactionActualPrice"
+                  >
+                    {t("actualPrice")}
+                  </Label>
+                  <Input
+                    required
+                    step="any"
+                    min="0.0001"
+                    type="number"
+                    id="etfTransactionActualPrice"
+                    value={transactionForm.actualPrice}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setTransactionForm((prev) => ({
+                        ...prev,
+                        actualPrice: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label
+                    className="mb-2 block"
+                    htmlFor="etfTransactionOpeningPrice"
+                  >
+                    {t("openingPrice")}
+                  </Label>
+                  <Input
+                    required
+                    step="any"
+                    min="0.0001"
+                    type="number"
+                    id="etfTransactionOpeningPrice"
+                    value={transactionForm.openingPrice}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setTransactionForm((prev) => ({
+                        ...prev,
+                        openingPrice: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              {transactionFormError ? (
+                <p className="text-sm text-red-400">{transactionFormError}</p>
+              ) : null}
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setTransactionDialogOpen(false);
+                  }}
+                >
+                  {tc("cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  className={TAB_BUTTON_CLASS.etfs}
+                  disabled={
+                    createTransactionMutation.isPending ||
+                    updateTransactionMutation.isPending
+                  }
+                >
+                  {createTransactionMutation.isPending ||
+                  updateTransactionMutation.isPending
+                    ? tc("saving")
+                    : editingTransaction
+                      ? tc("update")
+                      : tc("add")}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {etfs.length > 0 ? (
         <div className="space-y-8">
           {CURRENCIES.map((currency) => {
             const rows = byCurrency[currency];
             if (0 === rows.length) {
               return null;
             }
-
-            const summary = summarize(rows);
 
             return (
               <section
@@ -612,8 +977,7 @@ export default function EtfsTab() {
                 <h3 className="text-lg font-semibold text-white pb-4 mb-4 border-b border-zinc-700">
                   {currencyLabel(currency, t)}
                 </h3>
-                {renderSummaryCards(summary)}
-                {renderTable(rows)}
+                {renderEtfTable(rows)}
               </section>
             );
           })}
@@ -633,14 +997,29 @@ export default function EtfsTab() {
       <ConfirmDialog
         title={t("deleteTitle")}
         confirmLabel={tc("delete")}
-        open={Boolean(deleteTargetId)}
+        open={Boolean(deleteEtfId)}
         description={t("deleteDescription")}
         onConfirm={() => {
-          void confirmDelete();
+          void confirmDeleteEtf();
         }}
         onOpenChange={(open) => {
           if (!open) {
-            setDeleteTargetId(null);
+            setDeleteEtfId(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        confirmLabel={tc("delete")}
+        title={t("deleteTransactionTitle")}
+        open={Boolean(deleteTransactionTarget)}
+        description={t("deleteTransactionDescription")}
+        onConfirm={() => {
+          void confirmDeleteTransaction();
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTransactionTarget(null);
           }
         }}
       />

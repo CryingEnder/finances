@@ -87,6 +87,8 @@ export const ZOD_MESSAGE_TO_CODE = {
   "Name is required": "nameRequired",
   "Name must be 200 characters or less": "nameMaxLength",
   "Opened date must be in YYYY-MM-DD format": "openedDateFormat",
+  "Status date is required": "statusDateRequired",
+  "Status date must be in YYYY-MM-DD format": "statusDateFormat",
   "Total value must be at least 0.01 RON": "totalValueMin",
   "Total value cannot exceed 100,000,000 RON": "totalValueMax",
   "Profit cannot be less than -100,000,000 RON": "profitMin",

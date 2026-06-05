@@ -9,10 +9,11 @@ import { resolveCurrency } from "../../../lib/currency";
 import { API_ERROR_CODES } from "../../../lib/api-error-codes";
 import { getFundUnitsCollection } from "../../../lib/database";
 import { captureServerError } from "../../../lib/capture-error";
+import { serializeFundUnit } from "../../../lib/fund-unit-serialization";
 import {
-  fundUnitSchema,
   formatZodErrors,
   fundUnitHasChanges,
+  fundUnitUpdateSchema,
 } from "../../../lib/validation";
 
 export async function PUT(
@@ -31,24 +32,14 @@ export async function PUT(
     }
 
     const payload = body as Record<string, unknown>;
-    const { name, openedDate, totalValue, profit, bondsPercent, currency } =
-      payload;
+    const { openedDate, bondsPercent, currency } = payload;
 
-    if (
-      !name ||
-      totalValue === undefined ||
-      profit === undefined ||
-      bondsPercent === undefined ||
-      !currency
-    ) {
+    if (bondsPercent === undefined || !currency) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
-    const validationResult = fundUnitSchema.safeParse({
-      name,
+    const validationResult = fundUnitUpdateSchema.safeParse({
       openedDate,
-      totalValue: Number(totalValue),
-      profit: Number(profit),
       bondsPercent: Number(bondsPercent),
       currency,
     });
@@ -81,7 +72,8 @@ export async function PUT(
     if (
       !fundUnitHasChanges(
         {
-          ...currentFundUnit,
+          openedDate: currentFundUnit.openedDate,
+          bondsPercent: currentFundUnit.bondsPercent,
           currency: resolveCurrency(currentFundUnit.currency),
         },
         validatedData,
@@ -90,23 +82,11 @@ export async function PUT(
       return apiError(API_ERROR_CODES.noChangesToSave, 400);
     }
 
-    const duplicateName = await fundUnitsCollection.findOne({
-      name: validatedData.name,
-      currency: validatedData.currency,
-      _id: { $ne: objectId },
-    });
-    if (duplicateName) {
-      return apiError(API_ERROR_CODES.fundUnitDuplicateName, 409);
-    }
-
     const result = await fundUnitsCollection.updateOne(
       { _id: objectId },
       {
         $set: {
-          name: validatedData.name,
           openedDate: validatedData.openedDate,
-          totalValue: validatedData.totalValue,
-          profit: validatedData.profit,
           bondsPercent: validatedData.bondsPercent,
           currency: validatedData.currency,
           date: todayIsoDate(),
@@ -125,10 +105,7 @@ export async function PUT(
       return apiError(API_ERROR_CODES.fundUnitNotFound, 404);
     }
 
-    return NextResponse.json({
-      ...updatedFundUnit,
-      _id: updatedFundUnit._id.toString(),
-    });
+    return NextResponse.json(serializeFundUnit(updatedFundUnit));
   } catch (error) {
     captureServerError(error, { message: "Error updating fund unit:" });
     return apiError(API_ERROR_CODES.failedUpdateFundUnit, 500);

@@ -8,6 +8,8 @@ import type {
   Dividend,
   FundUnit,
   Transaction,
+  EtfTransaction,
+  FundUnitStatus,
   PortfolioEntry,
 } from "./types";
 
@@ -25,8 +27,20 @@ type DatabaseDeposit = Omit<Deposit, "_id" | "userId"> & { _id?: ObjectId };
 export type DatabaseTransaction = Omit<Transaction, "_id" | "userId"> & {
   _id?: ObjectId;
 };
-type DatabaseEtf = Omit<Etf, "_id" | "userId"> & { _id?: ObjectId };
-type DatabaseFundUnit = Omit<FundUnit, "_id" | "userId"> & { _id?: ObjectId };
+export type DatabaseEtfTransaction = Omit<EtfTransaction, "_id"> & {
+  _id?: ObjectId;
+};
+export type DatabaseEtf = Omit<Etf, "_id" | "statuses"> & {
+  _id?: ObjectId;
+  statuses?: DatabaseEtfTransaction[];
+};
+export type DatabaseFundUnitStatus = Omit<FundUnitStatus, "_id"> & {
+  _id?: ObjectId;
+};
+export type DatabaseFundUnit = Omit<FundUnit, "_id" | "statuses"> & {
+  _id?: ObjectId;
+  statuses?: DatabaseFundUnitStatus[];
+};
 
 const globalMongo = globalThis as typeof globalThis & {
   mongoClientPromise?: Promise<MongoClient>;

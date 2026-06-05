@@ -53,10 +53,12 @@ function TabsTrigger({
 
 function TabsContent({
   className,
+  tabIndex = -1,
   ...props
 }: ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
+      tabIndex={tabIndex}
       data-slot="tabs-content"
       className={cn(
         "flex-1 outline-none data-[state=inactive]:hidden",

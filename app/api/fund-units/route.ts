@@ -6,6 +6,7 @@ import { requireApiAuth } from "../../lib/api-auth";
 import { API_ERROR_CODES } from "../../lib/api-error-codes";
 import { getFundUnitsCollection } from "../../lib/database";
 import { captureServerError } from "../../lib/capture-error";
+import { serializeFundUnit } from "../../lib/fund-unit-serialization";
 import { fundUnitSchema, formatZodErrors } from "../../lib/validation";
 
 export async function GET() {
@@ -21,12 +22,7 @@ export async function GET() {
       .sort({ name: 1 })
       .toArray();
 
-    const serializedFundUnits = fundUnits.map((fundUnit) => ({
-      ...fundUnit,
-      _id: fundUnit._id.toString(),
-    }));
-
-    return NextResponse.json(serializedFundUnits);
+    return NextResponse.json(fundUnits.map(serializeFundUnit));
   } catch (error) {
     captureServerError(error, { message: "Error fetching fund units:" });
     return apiError(API_ERROR_CODES.failedFetchFundUnits, 500);
@@ -46,24 +42,15 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = body as Record<string, unknown>;
-    const { name, openedDate, totalValue, profit, bondsPercent, currency } =
-      payload;
+    const { name, openedDate, bondsPercent, currency } = payload;
 
-    if (
-      !name ||
-      totalValue === undefined ||
-      profit === undefined ||
-      bondsPercent === undefined ||
-      !currency
-    ) {
+    if (!name || bondsPercent === undefined || !currency) {
       return apiError(API_ERROR_CODES.missingRequiredFields, 400);
     }
 
     const validationResult = fundUnitSchema.safeParse({
       name,
       openedDate,
-      totalValue: Number(totalValue),
-      profit: Number(profit),
       bondsPercent: Number(bondsPercent),
       currency,
     });
@@ -81,7 +68,6 @@ export async function POST(request: NextRequest) {
 
     const existingFundUnit = await fundUnitsCollection.findOne({
       name: validatedData.name,
-      currency: validatedData.currency,
     });
     if (existingFundUnit) {
       return apiError(API_ERROR_CODES.fundUnitDuplicateName, 409);
@@ -90,17 +76,16 @@ export async function POST(request: NextRequest) {
     const fundUnit = {
       name: validatedData.name,
       openedDate: validatedData.openedDate,
-      totalValue: validatedData.totalValue,
-      profit: validatedData.profit,
       bondsPercent: validatedData.bondsPercent,
       currency: validatedData.currency,
       date: todayIsoDate(),
+      statuses: [],
     };
 
     const result = await fundUnitsCollection.insertOne(fundUnit);
 
     return NextResponse.json(
-      { ...fundUnit, _id: result.insertedId.toString() },
+      serializeFundUnit({ ...fundUnit, _id: result.insertedId }),
       { status: 201 },
     );
   } catch (error) {

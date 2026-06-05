@@ -1,24 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, Fragment, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Edit, Plus, Trash2, Landmark } from "lucide-react";
+import {
+  Edit,
+  Plus,
+  Trash2,
+  Landmark,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 import type {
   Currency,
   FundUnit,
-  FundUnitSummary,
-  FundUnitWithCalculations,
+  TradeType,
+  FundUnitStatus,
+  FundUnitStatusWithCalculations,
 } from "../../lib/types";
 
 import { CURRENCIES } from "../../lib/currency";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
-import { formatDisplayDate } from "../../lib/dates";
 import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
+import { InfoTooltip } from "../../components/ui/info-tooltip";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
+import { todayIsoDate, toIsoDateOnly, formatDisplayDate } from "../../lib/dates";
 import {
   NoticeDialog,
   ConfirmDialog,
@@ -38,48 +47,36 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import {
+  statusDisplayDate,
+  summarizeFundUnitPosition,
+  sortFundUnitStatusesByNewest,
+  calculateFundUnitStatusMetrics,
+} from "../../lib/fund-unit-utils";
+import {
   useFundUnits,
   useCreateFundUnit,
   useDeleteFundUnit,
   useUpdateFundUnit,
+  useCreateFundUnitStatus,
+  useDeleteFundUnitStatus,
+  useUpdateFundUnitStatus,
 } from "../../lib/hooks/use-fund-units";
 
-function withCalculations(fundUnit: FundUnit): FundUnitWithCalculations {
-  const stocksPercent = 100 - fundUnit.bondsPercent;
-  const invested = fundUnit.totalValue - fundUnit.profit;
-  const profitPercent =
-    fundUnit.totalValue > 0 ? (fundUnit.profit / fundUnit.totalValue) * 100 : 0;
+import {
+  PositionProfitCell,
+  PositionProfitColumnHeader,
+} from "./position-profit-cell";
+
+function withStatusCalculations(
+  status: FundUnitStatus,
+): FundUnitStatusWithCalculations {
+  const { invested, profitPercent } = calculateFundUnitStatusMetrics(status);
 
   return {
-    ...fundUnit,
-    stocksPercent,
+    ...status,
     invested,
     profitPercent,
   };
-}
-
-function summarize(rows: FundUnitWithCalculations[]): FundUnitSummary {
-  const summary = rows.reduce(
-    (acc, row) => ({
-      totalValue: acc.totalValue + row.totalValue,
-      totalInvested: acc.totalInvested + row.invested,
-      totalProfit: acc.totalProfit + row.profit,
-      totalProfitPercent: 0,
-    }),
-    {
-      totalValue: 0,
-      totalInvested: 0,
-      totalProfit: 0,
-      totalProfitPercent: 0,
-    },
-  );
-
-  summary.totalProfitPercent =
-    summary.totalValue > 0
-      ? (summary.totalProfit / summary.totalValue) * 100
-      : 0;
-
-  return summary;
 }
 
 function currencyLabel(
@@ -98,19 +95,29 @@ function currencyLabel(
 interface FundUnitFormState {
   name: string;
   openedDate: string;
-  totalValue: string;
-  profit: string;
   bondsPercent: string;
   currency: Currency;
+}
+
+interface StatusFormState {
+  type: TradeType;
+  date: string;
+  totalValue: string;
+  profit: string;
 }
 
 const EMPTY_FUND_UNIT_FORM: FundUnitFormState = {
   name: "",
   openedDate: "",
-  totalValue: "",
-  profit: "",
   bondsPercent: "",
   currency: "EUR",
+};
+
+const EMPTY_STATUS_FORM: StatusFormState = {
+  type: "BUY",
+  date: "",
+  totalValue: "",
+  profit: "",
 };
 
 export default function FundUnitsTab() {
@@ -120,35 +127,59 @@ export default function FundUnitsTab() {
   const locale = useLocale();
   const numberFormat = numberFormatLocale(locale);
 
+  const profitLabels = useMemo(
+    () => ({
+      columnTitle: tc("profit"),
+      tooltip: t("positionProfitTooltip"),
+      unrealized: t("unrealizedProfit"),
+      unrealizedPercent: t("unrealizedProfitPercent"),
+      realized: t("realizedProfit"),
+      realizedPercent: t("realizedProfitPercent"),
+    }),
+    [t, tc],
+  );
+
   const { data: fundUnits = [], isLoading } = useFundUnits();
   const createMutation = useCreateFundUnit();
   const updateMutation = useUpdateFundUnit();
   const deleteMutation = useDeleteFundUnit();
+  const createStatusMutation = useCreateFundUnitStatus();
+  const updateStatusMutation = useUpdateFundUnitStatus();
+  const deleteStatusMutation = useDeleteFundUnitStatus();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<FundUnit | null>(null);
+  const [fundUnitDialogOpen, setFundUnitDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [editingFundUnit, setEditingFundUnit] = useState<FundUnit | null>(null);
+  const [statusFundUnit, setStatusFundUnit] = useState<FundUnit | null>(null);
+  const [editingStatus, setEditingStatus] = useState<FundUnitStatus | null>(
+    null,
+  );
   const [fundUnitForm, setFundUnitForm] =
     useState<FundUnitFormState>(EMPTY_FUND_UNIT_FORM);
-  const [formError, setFormError] = useState("");
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [statusForm, setStatusForm] = useState<StatusFormState>(EMPTY_STATUS_FORM);
+  const [fundUnitFormError, setFundUnitFormError] = useState("");
+  const [statusFormError, setStatusFormError] = useState("");
+  const [expandedFundUnitIds, setExpandedFundUnitIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [deleteFundUnitId, setDeleteFundUnitId] = useState<string | null>(null);
+  const [deleteStatusTarget, setDeleteStatusTarget] = useState<{
+    fundUnitId: string;
+    statusId: string;
+  } | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
-  const fundUnitsWithCalculations = useMemo(
-    () => fundUnits.map(withCalculations),
-    [fundUnits],
-  );
-
   const byCurrency = useMemo(() => {
-    const grouped: Record<Currency, FundUnitWithCalculations[]> = {
+    const grouped: Record<Currency, FundUnit[]> = {
       EUR: [],
       USD: [],
       RON: [],
     };
-    for (const fundUnit of fundUnitsWithCalculations) {
+    for (const fundUnit of fundUnits) {
       grouped[fundUnit.currency].push(fundUnit);
     }
     return grouped;
-  }, [fundUnitsWithCalculations]);
+  }, [fundUnits]);
 
   const formStocksPercent = useMemo(() => {
     const bonds = parseFloat(fundUnitForm.bondsPercent);
@@ -161,238 +192,476 @@ export default function FundUnitsTab() {
 
   const resetFundUnitForm = () => {
     setFundUnitForm(EMPTY_FUND_UNIT_FORM);
-    setEditing(null);
-    setFormError("");
+    setEditingFundUnit(null);
+    setFundUnitFormError("");
   };
 
-  const beginAdd = () => {
+  const resetStatusForm = () => {
+    setStatusForm(EMPTY_STATUS_FORM);
+    setStatusFundUnit(null);
+    setEditingStatus(null);
+    setStatusFormError("");
+  };
+
+  const beginAddFundUnit = () => {
     resetFundUnitForm();
   };
 
-  const openEdit = (row: FundUnit) => {
-    setEditing(row);
+  const openEditFundUnit = (fundUnit: FundUnit) => {
+    setEditingFundUnit(fundUnit);
     setFundUnitForm({
-      name: row.name,
-      openedDate: row.openedDate ?? "",
-      totalValue: String(row.totalValue),
-      profit: String(row.profit),
-      bondsPercent: String(row.bondsPercent),
-      currency: row.currency,
+      name: fundUnit.name,
+      openedDate: fundUnit.openedDate ?? "",
+      bondsPercent: String(fundUnit.bondsPercent),
+      currency: fundUnit.currency,
     });
-    setFormError("");
-    setDialogOpen(true);
+    setFundUnitFormError("");
+    setFundUnitDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
+  const openAddStatus = (fundUnit: FundUnit) => {
+    setStatusFundUnit(fundUnit);
+    setEditingStatus(null);
+    setStatusForm({
+      ...EMPTY_STATUS_FORM,
+      date: todayIsoDate(),
+    });
+    setStatusFormError("");
+    setStatusDialogOpen(true);
+  };
 
-    const totalValue = parseFloat(fundUnitForm.totalValue);
-    const profit = parseFloat(fundUnitForm.profit);
+  const openEditStatus = (fundUnit: FundUnit, status: FundUnitStatus) => {
+    setStatusFundUnit(fundUnit);
+    setEditingStatus(status);
+    setStatusForm({
+      type: status.type,
+      date: toIsoDateOnly(status.date),
+      totalValue: String(status.totalValue),
+      profit: String(status.profit),
+    });
+    setStatusFormError("");
+    setStatusDialogOpen(true);
+  };
+
+  const toggleExpanded = (fundUnitId: string) => {
+    setExpandedFundUnitIds((prev) => ({
+      ...prev,
+      [fundUnitId]: !prev[fundUnitId],
+    }));
+  };
+
+  const handleFundUnitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFundUnitFormError("");
+
     const bondsPercent = parseFloat(fundUnitForm.bondsPercent);
 
     if (
       !fundUnitForm.name.trim() ||
-      Number.isNaN(totalValue) ||
-      Number.isNaN(profit) ||
       Number.isNaN(bondsPercent) ||
       bondsPercent < 0 ||
       bondsPercent > 100
     ) {
-      setFormError(t("errRequired"));
+      setFundUnitFormError(t("errRequired"));
       return;
     }
 
-    if (totalValue - profit < 0) {
-      setFormError(t("errInvestedNegative"));
-      return;
-    }
-
-    const payload: Omit<FundUnit, "_id" | "date"> = {
+    const payload = {
       name: fundUnitForm.name.trim(),
       openedDate: fundUnitForm.openedDate.trim() || undefined,
-      totalValue,
-      profit,
       bondsPercent,
       currency: fundUnitForm.currency,
     };
 
     try {
-      if (editing) {
-        await updateMutation.mutateAsync({ ...payload, _id: editing._id });
+      if (editingFundUnit) {
+        await updateMutation.mutateAsync({
+          _id: editingFundUnit._id,
+          ...payload,
+        });
       } else {
         await createMutation.mutateAsync(payload);
       }
 
       resetFundUnitForm();
-      setDialogOpen(false);
+      setFundUnitDialogOpen(false);
     } catch (err) {
-      setFormError(formatError(err, t("failedSave")));
+      setFundUnitFormError(formatError(err, t("failedSave")));
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTargetId) {
+  const handleStatusSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatusFormError("");
+
+    if (!statusFundUnit?._id) {
       return;
     }
-    const id = deleteTargetId;
+
+    const totalValue = parseFloat(statusForm.totalValue);
+    const profit = parseFloat(statusForm.profit);
+
+    if (
+      !statusForm.date.trim() ||
+      Number.isNaN(totalValue) ||
+      Number.isNaN(profit)
+    ) {
+      setStatusFormError(t("errRequired"));
+      return;
+    }
+
+    if (totalValue - profit < 0) {
+      setStatusFormError(t("errInvestedNegative"));
+      return;
+    }
+
+    const date = statusForm.date.trim();
+
     try {
-      await deleteMutation.mutateAsync(id);
-      setDeleteTargetId(null);
+      if (editingStatus?._id) {
+        await updateStatusMutation.mutateAsync({
+          fundUnitId: statusFundUnit._id,
+          statusId: editingStatus._id,
+          type: statusForm.type,
+          date,
+          totalValue,
+          profit,
+        });
+      } else {
+        await createStatusMutation.mutateAsync({
+          fundUnitId: statusFundUnit._id,
+          name: statusFundUnit.name,
+          type: statusForm.type,
+          date,
+          totalValue,
+          profit,
+        });
+      }
+
+      resetStatusForm();
+      setStatusDialogOpen(false);
+      setExpandedFundUnitIds((prev) => ({
+        ...prev,
+        [statusFundUnit._id!]: true,
+      }));
     } catch (err) {
-      setNoticeMessage(formatError(err, t("failedDelete")));
-      setDeleteTargetId(null);
+      setStatusFormError(formatError(err, t("failedSaveStatus")));
     }
   };
 
-  const renderSummaryCards = (rowSummary: FundUnitSummary) => (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalValue")}</p>
-        <p className="text-lg font-bold text-white">
-          {rowSummary.totalValue.toLocaleString(numberFormat, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalInvested")}</p>
-        <p className="text-lg font-bold text-white">
-          {rowSummary.totalInvested.toLocaleString(numberFormat, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalProfit")}</p>
-        <p
-          className={`text-lg font-bold ${
-            rowSummary.totalProfit >= 0 ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          {rowSummary.totalProfit.toLocaleString(numberFormat, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </p>
-      </div>
-      <div className="bg-zinc-900/50 border border-zinc-700/80 rounded-lg p-3">
-        <p className="text-zinc-400 text-xs mb-1">{t("totalProfitPercent")}</p>
-        <p
-          className={`text-lg font-bold ${
-            rowSummary.totalProfitPercent >= 0
-              ? "text-green-400"
-              : "text-red-400"
-          }`}
-        >
-          {rowSummary.totalProfitPercent.toFixed(2)}%
-        </p>
-      </div>
-    </div>
+  const confirmDeleteFundUnit = async () => {
+    if (!deleteFundUnitId) {
+      return;
+    }
+    const id = deleteFundUnitId;
+    try {
+      await deleteMutation.mutateAsync(id);
+      setDeleteFundUnitId(null);
+      setExpandedFundUnitIds((prev) => {
+        const { [id]: _removed, ...next } = prev;
+        return next;
+      });
+    } catch (err) {
+      setNoticeMessage(formatError(err, t("failedDelete")));
+      setDeleteFundUnitId(null);
+    }
+  };
+
+  const confirmDeleteStatus = async () => {
+    if (!deleteStatusTarget) {
+      return;
+    }
+    const target = deleteStatusTarget;
+    try {
+      await deleteStatusMutation.mutateAsync(target);
+      setDeleteStatusTarget(null);
+    } catch (err) {
+      setNoticeMessage(formatError(err, t("failedDeleteStatus")));
+      setDeleteStatusTarget(null);
+    }
+  };
+
+  const renderStatusTypeBadge = (type: TradeType) => (
+    <span
+      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+        "BUY" === type
+          ? "bg-green-900/30 text-green-400 border border-green-800"
+          : "bg-red-900/30 text-red-400 border border-red-800"
+      }`}
+    >
+      {"BUY" === type ? t("buy") : t("sell")}
+    </span>
   );
 
-  const renderTable = (rows: FundUnitWithCalculations[]) => (
+  const renderColumnHeader = (label: string, tooltip: string) => (
+    <span className="inline-flex items-center justify-start gap-1">
+      {label}
+      <InfoTooltip content={tooltip} placement="bottom" />
+    </span>
+  );
+
+  const renderAmount = (value: number) =>
+    value.toLocaleString(numberFormat, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const renderStatuses = (fundUnit: FundUnit) => {
+    const statuses = sortFundUnitStatusesByNewest(fundUnit.statuses).map(
+      withStatusCalculations,
+    );
+
+    if (0 === statuses.length) {
+      return (
+        <tr>
+          <td colSpan={6} className="py-4 px-6 text-sm text-zinc-400 italic">
+            {t("noStatusesYet")}
+          </td>
+        </tr>
+      );
+    }
+
+    return statuses.map((status) => (
+      <tr
+        key={status._id}
+        className="border-b border-zinc-700/30 bg-zinc-900/30"
+      >
+        <td className="py-2.5 px-6 pl-12">
+          {renderStatusTypeBadge(status.type)}
+        </td>
+        <td className="py-2.5 px-2 text-zinc-300">
+          {formatDisplayDate(statusDisplayDate(status))}
+        </td>
+        <td className="py-2.5 px-2 text-white text-right font-medium">
+          {renderAmount(status.totalValue)}
+        </td>
+        <td
+          className={`py-2.5 px-2 text-right font-semibold ${
+            status.profit >= 0 ? "text-green-400" : "text-red-400"
+          }`}
+        >
+          {renderAmount(status.profit)}
+        </td>
+        <td
+          className={`py-2.5 px-2 text-right font-semibold ${
+            status.profitPercent >= 0 ? "text-green-400" : "text-red-400"
+          }`}
+        >
+          {status.profitPercent.toFixed(2)}%
+        </td>
+        <td className="py-2.5 px-2 text-center">
+          <div className="flex gap-1 justify-center">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                openEditStatus(fundUnit, status);
+              }}
+              className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+            >
+              <Edit className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={deleteStatusMutation.isPending}
+              className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
+              onClick={() => {
+                if (fundUnit._id && status._id) {
+                  setDeleteStatusTarget({
+                    fundUnitId: fundUnit._id,
+                    statusId: status._id,
+                  });
+                }
+              }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </td>
+      </tr>
+    ));
+  };
+
+  const renderFundUnitTable = (rows: FundUnit[]) => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-zinc-700">
-            <th className="text-left py-3 px-2 text-zinc-300">{t("name")}</th>
-            <th className="text-left py-3 px-2 text-zinc-300">
-              {t("openedDate")}
+            <th className="w-10 py-3 pl-2 pr-0" />
+            <th className="py-3 pl-1 pr-6 text-left text-zinc-300 whitespace-nowrap">
+              {t("position")}
             </th>
-            <th className="text-left py-3 px-2 text-zinc-300">{t("date")}</th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("totalValue")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {t("statusesCount")}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {tc("profit")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {renderColumnHeader(t("buyValue"), t("buyValueTooltip"))}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {tc("profitPercent")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              {renderColumnHeader(
+                t("totalSellValue"),
+                t("totalSellValueTooltip"),
+              )}
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("bondsPercent")}
+            <th className="py-3 px-4 text-left text-zinc-300 whitespace-nowrap">
+              <PositionProfitColumnHeader labels={profitLabels} />
             </th>
-            <th className="text-right py-3 px-2 text-zinc-300">
-              {t("stocksPercent")}
-            </th>
-            <th className="text-center py-3 px-2 text-zinc-300">
+            <th className="w-full py-3 px-0" />
+            <th className="py-3 pl-2 pr-2 text-right text-zinc-300 whitespace-nowrap">
               {tc("actions")}
             </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row._id} className="border-b border-zinc-700/50">
-              <td className="py-3 px-2 font-semibold text-white">{row.name}</td>
-              <td className="py-3 px-2 text-zinc-300">
-                {row.openedDate
-                  ? formatDisplayDate(row.openedDate)
-                  : tc("emDash")}
-              </td>
-              <td className="py-3 px-2 text-zinc-300">
-                {row.date ? formatDisplayDate(row.date) : tc("emDash")}
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {row.totalValue.toLocaleString(numberFormat, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-              <td
-                className={`py-3 px-2 text-right font-semibold ${
-                  row.profit >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {row.profit.toLocaleString(numberFormat, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-              <td
-                className={`py-3 px-2 text-right font-semibold ${
-                  row.profitPercent >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {row.profitPercent.toFixed(2)}%
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {row.bondsPercent.toFixed(2)}%
-              </td>
-              <td className="py-3 px-2 text-white text-right font-medium">
-                {row.stocksPercent.toFixed(2)}%
-              </td>
-              <td className="py-3 px-2 text-center">
-                <div className="flex gap-1 justify-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      openEdit(row);
-                    }}
-                    className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+          {rows.map((fundUnit) => {
+            const isExpanded = Boolean(
+              fundUnit._id && expandedFundUnitIds[fundUnit._id],
+            );
+            const positionSummary = summarizeFundUnitPosition(fundUnit);
+            const stocksPercent = 100 - fundUnit.bondsPercent;
+
+            return (
+              <Fragment key={fundUnit._id}>
+                <tr
+                  className="border-b border-zinc-700/50 hover:bg-zinc-900/40 transition-colors cursor-pointer"
+                  onPointerDown={(e) => {
+                    if (0 !== e.button) {
+                      return;
+                    }
+                    if (
+                      (e.target as HTMLElement).closest(
+                        "[data-fund-unit-row-action]",
+                      )
+                    ) {
+                      return;
+                    }
+                    if (fundUnit._id) {
+                      toggleExpanded(fundUnit._id);
+                    }
+                  }}
+                >
+                  <td className="py-3 pl-2 pr-0 align-middle">
+                    <span className="inline-flex p-1 text-zinc-400">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </span>
+                  </td>
+                  <td className="py-3 pl-1 pr-6 align-middle max-w-md min-w-[14rem]">
+                    <div className="font-semibold text-white">{fundUnit.name}</div>
+                    <div className="text-xs text-zinc-400 mt-0.5 space-y-0.5 whitespace-normal">
+                      {fundUnit.openedDate ? (
+                        <div>
+                          {t("openedDate")}:{" "}
+                          {formatDisplayDate(fundUnit.openedDate)}
+                        </div>
+                      ) : null}
+                      <div>
+                        {t("bondsPercent")} {fundUnit.bondsPercent.toFixed(0)}%
+                        {" · "}
+                        {t("stocksPercent")} {stocksPercent.toFixed(0)}%
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-zinc-300">
+                    {fundUnit.statuses.length}
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-left text-white font-medium">
+                    {renderAmount(positionSummary.buyValue)}
+                  </td>
+                  <td className="py-3 px-4 align-middle whitespace-nowrap tabular-nums text-left text-white font-medium">
+                    {renderAmount(positionSummary.totalSellValue)}
+                  </td>
+                  <td className="py-3 px-4 align-middle">
+                    <PositionProfitCell
+                      labels={profitLabels}
+                      summary={positionSummary}
+                      numberFormat={numberFormat}
+                    />
+                  </td>
+                  <td className="w-full p-0" />
+                  <td
+                    data-fund-unit-row-action
+                    className="py-3 pl-2 pr-2 align-middle whitespace-nowrap text-right"
                   >
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={deleteMutation.isPending}
-                    className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
-                    onClick={() => {
-                      if (row._id) {
-                        setDeleteTargetId(row._id);
-                      }
-                    }}
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={t("addStatus")}
+                        onClick={() => {
+                          openAddStatus(fundUnit);
+                        }}
+                        className="h-8 w-8 p-0 border-zinc-600 text-green-300 hover:bg-zinc-700 hover:text-green-200 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                        onClick={() => {
+                          openEditFundUnit(fundUnit);
+                        }}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={deleteMutation.isPending}
+                        className="h-8 w-8 p-0 border-zinc-600 text-red-400 hover:bg-zinc-700 hover:text-red-300 cursor-pointer"
+                        onClick={() => {
+                          if (fundUnit._id) {
+                            setDeleteFundUnitId(fundUnit._id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+                {isExpanded && fundUnit._id ? (
+                  <tr
+                    key={`${fundUnit._id}-statuses`}
+                    className="border-b border-zinc-700/50"
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
+                    <td colSpan={8} className="p-0">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-700/50 bg-zinc-900/20">
+                            <th className="text-left py-2 px-6 pl-12 text-zinc-400 text-xs font-medium">
+                              {t("type")}
+                            </th>
+                            <th className="text-left py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("statusDate")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {t("totalValue")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {tc("profit")}
+                            </th>
+                            <th className="text-right py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {tc("profitPercent")}
+                            </th>
+                            <th className="text-center py-2 px-2 text-zinc-400 text-xs font-medium">
+                              {tc("actions")}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>{renderStatuses(fundUnit)}</tbody>
+                      </table>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -415,16 +684,16 @@ export default function FundUnitsTab() {
     <div className="space-y-6">
       <div className="flex gap-4 justify-between items-center flex-wrap">
         <Dialog
-          open={dialogOpen}
+          open={fundUnitDialogOpen}
           onOpenChange={(open) => {
-            setDialogOpen(open);
+            setFundUnitDialogOpen(open);
             if (!open) {
               resetFundUnitForm();
             }
           }}
         >
           <DialogTrigger asChild>
-            <Button onClick={beginAdd} className={TAB_BUTTON_CLASS.fundUnits}>
+            <Button onClick={beginAddFundUnit} className={TAB_BUTTON_CLASS.fundUnits}>
               <Plus className="w-4 h-4 mr-2" />
               {t("addFundUnit")}
             </Button>
@@ -432,39 +701,41 @@ export default function FundUnitsTab() {
           <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>
-                {editing ? t("editFundUnit") : t("addNewFundUnit")}
+                {editingFundUnit ? t("editFundUnit") : t("addNewFundUnit")}
               </DialogTitle>
             </DialogHeader>
             <form
               className="space-y-4"
               onSubmit={(e) => {
-                void handleSubmit(e);
+                void handleFundUnitSubmit(e);
               }}
             >
-              <div>
-                <Label className="mb-2 block" htmlFor="fundUnitName">
-                  {t("name")}
-                </Label>
-                <Input
-                  required
-                  maxLength={200}
-                  id="fundUnitName"
-                  value={fundUnitForm.name}
-                  disabled={Boolean(editing)}
-                  className="bg-zinc-700 border-zinc-600 text-white disabled:opacity-60"
-                  onChange={(e) => {
-                    setFundUnitForm((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }));
-                  }}
-                />
-                {editing ? (
-                  <p className="text-xs text-zinc-400 mt-1">
-                    {t("nameLocked")}
-                  </p>
-                ) : null}
-              </div>
+              {editingFundUnit ? (
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                  <p className="text-zinc-400">{t("name")}</p>
+                  <p className="text-white font-medium">{fundUnitForm.name}</p>
+                </div>
+              ) : (
+                <div>
+                  <Label className="mb-2 block" htmlFor="fundUnitName">
+                    {t("name")}
+                  </Label>
+                  <Input
+                    required
+                    maxLength={200}
+                    id="fundUnitName"
+                    value={fundUnitForm.name}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setFundUnitForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }));
+                    }}
+                  />
+                  <p className="text-xs text-zinc-400 mt-1">{t("nameUnique")}</p>
+                </div>
+              )}
               <div>
                 <Label className="mb-2 block" htmlFor="fundUnitCurrency">
                   {t("currency")}
@@ -512,47 +783,6 @@ export default function FundUnitsTab() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="mb-2 block" htmlFor="fundUnitTotalValue">
-                    {t("totalValue")}
-                  </Label>
-                  <Input
-                    required
-                    min="0.01"
-                    step="any"
-                    type="number"
-                    id="fundUnitTotalValue"
-                    value={fundUnitForm.totalValue}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setFundUnitForm((prev) => ({
-                        ...prev,
-                        totalValue: e.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block" htmlFor="fundUnitProfit">
-                    {tc("profit")}
-                  </Label>
-                  <Input
-                    required
-                    step="any"
-                    type="number"
-                    id="fundUnitProfit"
-                    value={fundUnitForm.profit}
-                    className="bg-zinc-700 border-zinc-600 text-white"
-                    onChange={(e) => {
-                      setFundUnitForm((prev) => ({
-                        ...prev,
-                        profit: e.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
                   <Label className="mb-2 block" htmlFor="fundUnitBondsPercent">
                     {t("bondsPercent")}
                   </Label>
@@ -586,8 +816,8 @@ export default function FundUnitsTab() {
                 </div>
               </div>
 
-              {formError ? (
-                <p className="text-sm text-red-400">{formError}</p>
+              {fundUnitFormError ? (
+                <p className="text-sm text-red-400">{fundUnitFormError}</p>
               ) : null}
 
               <div className="flex justify-end gap-2">
@@ -596,7 +826,7 @@ export default function FundUnitsTab() {
                   variant="outline"
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
                   onClick={() => {
-                    setDialogOpen(false);
+                    setFundUnitDialogOpen(false);
                   }}
                 >
                   {tc("cancel")}
@@ -610,7 +840,7 @@ export default function FundUnitsTab() {
                 >
                   {createMutation.isPending || updateMutation.isPending
                     ? tc("saving")
-                    : editing
+                    : editingFundUnit
                       ? tc("update")
                       : tc("add")}
                 </Button>
@@ -620,15 +850,157 @@ export default function FundUnitsTab() {
         </Dialog>
       </div>
 
-      {fundUnitsWithCalculations.length > 0 ? (
+      <Dialog
+        open={statusDialogOpen}
+        onOpenChange={(open) => {
+          setStatusDialogOpen(open);
+          if (!open) {
+            resetStatusForm();
+          }
+        }}
+      >
+        <DialogContent className="bg-zinc-800 border-zinc-700 text-white max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              {editingStatus ? t("editStatus") : t("addStatus")}
+            </DialogTitle>
+          </DialogHeader>
+          {statusFundUnit ? (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                void handleStatusSubmit(e);
+              }}
+            >
+              <div className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-3 text-sm">
+                <p className="text-zinc-400">{t("name")}</p>
+                <p className="text-white font-medium">{statusFundUnit.name}</p>
+              </div>
+              <div>
+                <Label htmlFor="statusType" className="mb-2 block">
+                  {t("type")}
+                </Label>
+                <Select
+                  value={statusForm.type}
+                  onValueChange={(value: TradeType) => {
+                    setStatusForm((prev) => ({ ...prev, type: value }));
+                  }}
+                >
+                  <SelectTrigger
+                    id="statusType"
+                    className="bg-zinc-700 border-zinc-600 text-white w-full cursor-pointer"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+                    <SelectItem value="BUY">{t("buy")}</SelectItem>
+                    <SelectItem value="SELL">{t("sell")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="statusDate" className="mb-2 block">
+                  {t("statusDate")}
+                </Label>
+                <Input
+                  required
+                  type="date"
+                  id="statusDate"
+                  value={statusForm.date}
+                  className="bg-zinc-700 border-zinc-600 text-white [&::-webkit-calendar-picker-indicator]:invert"
+                  onChange={(e) => {
+                    setStatusForm((prev) => ({
+                      ...prev,
+                      date: e.target.value,
+                    }));
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-2 block" htmlFor="statusTotalValue">
+                    {t("totalValue")}
+                  </Label>
+                  <Input
+                    required
+                    min="0.01"
+                    step="any"
+                    type="number"
+                    id="statusTotalValue"
+                    value={statusForm.totalValue}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setStatusForm((prev) => ({
+                        ...prev,
+                        totalValue: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block" htmlFor="statusProfit">
+                    {tc("profit")}
+                  </Label>
+                  <Input
+                    required
+                    step="any"
+                    type="number"
+                    id="statusProfit"
+                    value={statusForm.profit}
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    onChange={(e) => {
+                      setStatusForm((prev) => ({
+                        ...prev,
+                        profit: e.target.value,
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              {statusFormError ? (
+                <p className="text-sm text-red-400">{statusFormError}</p>
+              ) : null}
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                  onClick={() => {
+                    setStatusDialogOpen(false);
+                  }}
+                >
+                  {tc("cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  className={TAB_BUTTON_CLASS.fundUnits}
+                  disabled={
+                    createStatusMutation.isPending ||
+                    updateStatusMutation.isPending
+                  }
+                >
+                  {createStatusMutation.isPending ||
+                  updateStatusMutation.isPending
+                    ? tc("saving")
+                    : editingStatus
+                      ? tc("update")
+                      : tc("add")}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {fundUnits.length > 0 ? (
         <div className="space-y-8">
           {CURRENCIES.map((currency) => {
             const rows = byCurrency[currency];
             if (0 === rows.length) {
               return null;
             }
-
-            const currencySummary = summarize(rows);
 
             return (
               <section
@@ -638,8 +1010,7 @@ export default function FundUnitsTab() {
                 <h3 className="text-lg font-semibold text-white pb-4 mb-4 border-b border-zinc-700">
                   {currencyLabel(currency, t)}
                 </h3>
-                {renderSummaryCards(currencySummary)}
-                {renderTable(rows)}
+                {renderFundUnitTable(rows)}
               </section>
             );
           })}
@@ -659,14 +1030,29 @@ export default function FundUnitsTab() {
       <ConfirmDialog
         title={t("deleteTitle")}
         confirmLabel={tc("delete")}
-        open={Boolean(deleteTargetId)}
+        open={Boolean(deleteFundUnitId)}
         description={t("deleteDescription")}
         onConfirm={() => {
-          void confirmDelete();
+          void confirmDeleteFundUnit();
         }}
         onOpenChange={(open) => {
           if (!open) {
-            setDeleteTargetId(null);
+            setDeleteFundUnitId(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        confirmLabel={tc("delete")}
+        title={t("deleteStatusTitle")}
+        open={Boolean(deleteStatusTarget)}
+        description={t("deleteStatusDescription")}
+        onConfirm={() => {
+          void confirmDeleteStatus();
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteStatusTarget(null);
           }
         }}
       />

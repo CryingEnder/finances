@@ -85,6 +85,9 @@ export default function TransactionsTab() {
     null,
   );
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<
+    "all" | "BUY" | "SELL"
+  >("all");
 
   const transactionsWithCalculations: TransactionWithCalculations[] = useMemo(
     () =>
@@ -271,6 +274,26 @@ export default function TransactionsTab() {
     0,
   );
   const totalFees = totalFeesWithoutTax + totalTax;
+
+  const buyCount = transactionsWithCalculations.filter(
+    (tx) => "BUY" === tx.type,
+  ).length;
+  const sellCount = transactionsWithCalculations.filter(
+    (tx) => "SELL" === tx.type,
+  ).length;
+  const filteredTransactions = transactionsWithCalculations.filter((tx) => {
+    if ("all" === selectedTypeFilter) {
+      return true;
+    }
+    return tx.type === selectedTypeFilter;
+  });
+  const showTypeColumn = "all" === selectedTypeFilter;
+  const tableHeading =
+    "BUY" === selectedTypeFilter
+      ? t("buyTransactions")
+      : "SELL" === selectedTypeFilter
+        ? t("sellTransactions")
+        : t("allTransactions");
 
   return (
     <div className="space-y-6">
@@ -779,11 +802,61 @@ export default function TransactionsTab() {
         </div>
       )}
 
+      {transactionsWithCalculations.length > 0 && (
+        <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant={"all" === selectedTypeFilter ? "default" : "outline"}
+              onClick={() => {
+                setSelectedTypeFilter("all");
+              }}
+              className={`cursor-pointer ${
+                "all" === selectedTypeFilter
+                  ? TAB_BUTTON_CLASS.stocks
+                  : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+              }`}
+            >
+              {t("filterAllCount", { count: transactionsWithCalculations.length })}
+            </Button>
+            <Button
+              size="sm"
+              variant={"BUY" === selectedTypeFilter ? "default" : "outline"}
+              onClick={() => {
+                setSelectedTypeFilter("BUY");
+              }}
+              className={`cursor-pointer ${
+                "BUY" === selectedTypeFilter
+                  ? TAB_BUTTON_CLASS.stocks
+                  : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+              }`}
+            >
+              {t("filterBuyCount", { count: buyCount })}
+            </Button>
+            <Button
+              size="sm"
+              variant={"SELL" === selectedTypeFilter ? "default" : "outline"}
+              onClick={() => {
+                setSelectedTypeFilter("SELL");
+              }}
+              className={`cursor-pointer ${
+                "SELL" === selectedTypeFilter
+                  ? TAB_BUTTON_CLASS.stocks
+                  : "border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+              }`}
+            >
+              {t("filterSellCount", { count: sellCount })}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {transactionsWithCalculations.length > 0 ? (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">
-            {t("allTransactions")}
+            {tableHeading}
           </h3>
+          {filteredTransactions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -791,9 +864,11 @@ export default function TransactionsTab() {
                   <th className="text-left py-3 px-2 text-zinc-300">
                     {t("settlementDate")}
                   </th>
-                  <th className="text-left py-3 px-2 text-zinc-300">
-                    {t("type")}
-                  </th>
+                  {showTypeColumn && (
+                    <th className="text-left py-3 px-2 text-zinc-300">
+                      {t("type")}
+                    </th>
+                  )}
                   <th className="text-left py-3 px-2 text-zinc-300">
                     {t("symbol")}
                   </th>
@@ -830,7 +905,7 @@ export default function TransactionsTab() {
                 </tr>
               </thead>
               <tbody>
-                {transactionsWithCalculations.map((transaction) => {
+                {filteredTransactions.map((transaction) => {
                   const companyFields = resolveCompanyFields(
                     companies,
                     transaction.isin,
@@ -848,17 +923,19 @@ export default function TransactionsTab() {
                       <td className="py-3 px-2 text-white">
                         {formatDisplayDate(transaction.settlementDate)}
                       </td>
-                      <td className="py-3 px-2">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            "BUY" === transaction.type
-                              ? "bg-green-900/30 text-green-400 border border-green-800"
-                              : "bg-red-900/30 text-red-400 border border-red-800"
-                          }`}
-                        >
-                          {"BUY" === transaction.type ? t("buy") : t("sell")}
-                        </span>
-                      </td>
+                      {showTypeColumn && (
+                        <td className="py-3 px-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                              "BUY" === transaction.type
+                                ? "bg-green-900/30 text-green-400 border border-green-800"
+                                : "bg-red-900/30 text-red-400 border border-red-800"
+                            }`}
+                          >
+                            {"BUY" === transaction.type ? t("buy") : t("sell")}
+                          </span>
+                        </td>
+                      )}
                       <td className="py-3 px-2 text-white font-medium">
                         {companyFields.instrument}
                       </td>
@@ -956,6 +1033,11 @@ export default function TransactionsTab() {
               </tbody>
             </table>
           </div>
+          ) : (
+            <div className="text-zinc-400 text-center py-8">
+              <p>{t("noFiltered")}</p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-12">

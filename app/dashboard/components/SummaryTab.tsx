@@ -44,6 +44,16 @@ import {
   formatSignedCurrencyAmount,
 } from "../../lib/currency-format";
 import {
+  summarizeEtfPosition,
+  getLatestBuyTransaction,
+  calculateEtfTransactionMetrics,
+} from "../../lib/etf-utils";
+import {
+  getLatestBuyStatus,
+  summarizeFundUnitPosition,
+  calculateFundUnitStatusMetrics,
+} from "../../lib/fund-unit-utils";
+import {
   convertToRon,
   formatExchangeRate,
   type RonExchangeRates,
@@ -115,66 +125,98 @@ function etfPieSliceColor(index: number, total: number): string {
 type CurrencySummaries<T> = Partial<Record<Currency, T>>;
 
 function summarizeEtfs(rows: Etf[]): EtfSummary {
-  return rows.reduce(
-    (acc, etf) => {
-      const purchaseCost = etf.volume * etf.openingPrice;
-      const value = etf.volume * etf.actualPrice;
-      const profitNet = value - purchaseCost;
-      return {
-        totalValue: acc.totalValue + value,
-        totalPurchaseCost: acc.totalPurchaseCost + purchaseCost,
-        totalProfitNet: acc.totalProfitNet + profitNet,
-        totalProfitNetPercent: 0,
-      };
-    },
-    {
-      totalValue: 0,
-      totalPurchaseCost: 0,
-      totalProfitNet: 0,
-      totalProfitNetPercent: 0,
-    },
-  );
+  let buyValue = 0;
+  let totalSellValue = 0;
+  let unrealizedProfit = 0;
+  let realizedProfit = 0;
+  let buyInvested = 0;
+  let sellInvested = 0;
+
+  for (const etf of rows) {
+    const position = summarizeEtfPosition(etf);
+    buyValue += position.buyValue;
+    totalSellValue += position.totalSellValue;
+    unrealizedProfit += position.unrealizedProfit;
+    realizedProfit += position.realizedProfit;
+
+    const latestBuy = getLatestBuyTransaction(etf);
+    if (latestBuy) {
+      buyInvested += calculateEtfTransactionMetrics(latestBuy).purchaseCost;
+    }
+
+    for (const transaction of etf.statuses) {
+      if ("SELL" !== transaction.type) {
+        continue;
+      }
+      sellInvested += calculateEtfTransactionMetrics(transaction).purchaseCost;
+    }
+  }
+
+  return {
+    buyValue,
+    totalSellValue,
+    unrealizedProfit,
+    unrealizedProfitPercent:
+      buyInvested > 0 ? (unrealizedProfit / buyInvested) * 100 : 0,
+    realizedProfit,
+    realizedProfitPercent:
+      sellInvested > 0 ? (realizedProfit / sellInvested) * 100 : 0,
+    buyInvested,
+  };
 }
 
 function summarizeFundUnits(rows: FundUnit[]): FundUnitSummary {
-  return rows.reduce(
-    (acc, row) => {
-      const invested = row.totalValue - row.profit;
-      return {
-        totalValue: acc.totalValue + row.totalValue,
-        totalInvested: acc.totalInvested + invested,
-        totalProfit: acc.totalProfit + row.profit,
-        totalProfitPercent: 0,
-      };
-    },
-    {
-      totalValue: 0,
-      totalInvested: 0,
-      totalProfit: 0,
-      totalProfitPercent: 0,
-    },
-  );
-}
+  let buyValue = 0;
+  let totalSellValue = 0;
+  let unrealizedProfit = 0;
+  let realizedProfit = 0;
+  let buyInvested = 0;
+  let latestBuyTotalValue = 0;
+  let sellInvested = 0;
 
-function withProfitPercent(
-  summary: EtfSummary,
-  profit: number,
-  basis: number,
-): EtfSummary {
-  return {
-    ...summary,
-    totalProfitNetPercent: basis > 0 ? (profit / basis) * 100 : 0,
-  };
-}
+  for (const fundUnit of rows) {
+    const position = summarizeFundUnitPosition(fundUnit);
+    buyValue += position.buyValue;
+    totalSellValue += position.totalSellValue;
+    unrealizedProfit += position.unrealizedProfit;
+    realizedProfit += position.realizedProfit;
 
-function withFundProfitPercent(summary: FundUnitSummary): FundUnitSummary {
+    const latestBuy = getLatestBuyStatus(fundUnit);
+    if (latestBuy) {
+      buyInvested += latestBuy.totalValue - latestBuy.profit;
+      latestBuyTotalValue += latestBuy.totalValue;
+    }
+
+    for (const status of fundUnit.statuses) {
+      if ("SELL" !== status.type) {
+        continue;
+      }
+      sellInvested += calculateFundUnitStatusMetrics(status).invested;
+    }
+  }
+
   return {
-    ...summary,
-    totalProfitPercent:
-      summary.totalValue > 0
-        ? (summary.totalProfit / summary.totalValue) * 100
+    buyValue,
+    totalSellValue,
+    unrealizedProfit,
+    unrealizedProfitPercent:
+      latestBuyTotalValue > 0
+        ? (unrealizedProfit / latestBuyTotalValue) * 100
         : 0,
+    realizedProfit,
+    realizedProfitPercent:
+      sellInvested > 0 ? (realizedProfit / sellInvested) * 100 : 0,
+    buyInvested,
   };
+}
+
+function hasPositionSummary(summary: EtfSummary | FundUnitSummary): boolean {
+  return (
+    summary.buyValue > 0 ||
+    summary.totalSellValue > 0 ||
+    0 !== summary.unrealizedProfit ||
+    0 !== summary.realizedProfit
+  );
 }
 
 function groupByCurrency<T extends { currency: Currency }>(
@@ -210,7 +252,7 @@ function CurrencyBreakdown({
 
   const sections = CURRENCIES.filter((currency) => {
     const summary = summaries[currency];
-    return undefined !== summary && summary.totalValue > 0;
+    return undefined !== summary && hasPositionSummary(summary);
   });
 
   if (0 === sections.length) {
@@ -230,19 +272,6 @@ function CurrencyBreakdown({
             return null;
           }
 
-          const invested =
-            "etf" === variant
-              ? (summary as EtfSummary).totalPurchaseCost
-              : (summary as FundUnitSummary).totalInvested;
-          const profit =
-            "etf" === variant
-              ? (summary as EtfSummary).totalProfitNet
-              : (summary as FundUnitSummary).totalProfit;
-          const profitPercent =
-            "etf" === variant
-              ? (summary as EtfSummary).totalProfitNetPercent
-              : (summary as FundUnitSummary).totalProfitPercent;
-
           return (
             <div
               key={currency}
@@ -253,7 +282,7 @@ function CurrencyBreakdown({
               </span>
               <p className="text-xl font-bold text-white">
                 {formatCurrencyDisplay(
-                  summary.totalValue,
+                  summary.buyValue,
                   currency,
                   numberFormat,
                 )}
@@ -261,16 +290,46 @@ function CurrencyBreakdown({
               <div className="mt-1 space-y-0.5 text-xs text-zinc-400">
                 <p>
                   {"etf" === variant ? t("costLabel") : t("investedLabel")}{" "}
-                  {formatCurrencyDisplay(invested, currency, numberFormat)}
+                  {formatCurrencyDisplay(
+                    summary.buyInvested,
+                    currency,
+                    numberFormat,
+                  )}
                 </p>
                 <p>
-                  {t("profitLabel")}{" "}
+                  {t("unrealizedLabel")}{" "}
                   <span
-                    className={profit >= 0 ? "text-green-400" : "text-red-400"}
+                    className={
+                      summary.unrealizedProfit >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }
                   >
-                    {formatSignedCurrencyAmount(profit, currency, numberFormat)}
+                    {formatSignedCurrencyAmount(
+                      summary.unrealizedProfit,
+                      currency,
+                      numberFormat,
+                    )}
                     {"\u00A0("}
-                    {profitPercent.toFixed(2)}%)
+                    {summary.unrealizedProfitPercent.toFixed(2)}%)
+                  </span>
+                </p>
+                <p>
+                  {t("realizedLabel")}{" "}
+                  <span
+                    className={
+                      summary.realizedProfit >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }
+                  >
+                    {formatSignedCurrencyAmount(
+                      summary.realizedProfit,
+                      currency,
+                      numberFormat,
+                    )}
+                    {"\u00A0("}
+                    {summary.realizedProfitPercent.toFixed(2)}%)
                   </span>
                 </p>
               </div>
@@ -802,12 +861,7 @@ export default function SummaryTab() {
       if (0 === rows.length) {
         continue;
       }
-      const summary = summarizeEtfs(rows);
-      summaries[currency] = withProfitPercent(
-        summary,
-        summary.totalProfitNet,
-        summary.totalPurchaseCost,
-      );
+      summaries[currency] = summarizeEtfs(rows);
     }
 
     return summaries;
@@ -823,7 +877,7 @@ export default function SummaryTab() {
         if (0 === rows.length) {
           continue;
         }
-        summaries[currency] = withFundProfitPercent(summarizeFundUnits(rows));
+        summaries[currency] = summarizeFundUnits(rows);
       }
 
       return summaries;
@@ -839,18 +893,14 @@ export default function SummaryTab() {
       if (!summary) {
         continue;
       }
-      invested += convertToRon(
-        summary.totalPurchaseCost,
-        currency,
-        ronExchangeRates,
-      );
+      invested += convertToRon(summary.buyInvested, currency, ronExchangeRates);
       currentValue += convertToRon(
-        summary.totalValue,
+        summary.buyValue,
         currency,
         ronExchangeRates,
       );
       profit += convertToRon(
-        summary.totalProfitNet,
+        summary.unrealizedProfit + summary.realizedProfit,
         currency,
         ronExchangeRates,
       );
@@ -869,17 +919,17 @@ export default function SummaryTab() {
       if (!summary) {
         continue;
       }
-      invested += convertToRon(
-        summary.totalInvested,
-        currency,
-        ronExchangeRates,
-      );
+      invested += convertToRon(summary.buyInvested, currency, ronExchangeRates);
       currentValue += convertToRon(
-        summary.totalValue,
+        summary.buyValue,
         currency,
         ronExchangeRates,
       );
-      profit += convertToRon(summary.totalProfit, currency, ronExchangeRates);
+      profit += convertToRon(
+        summary.unrealizedProfit + summary.realizedProfit,
+        currency,
+        ronExchangeRates,
+      );
     }
 
     return { invested, currentValue, profit };
@@ -1100,21 +1150,20 @@ export default function SummaryTab() {
   );
 
   const fundAllocation = useMemo(() => {
-    if (0 === fundUnits.length || fundUnitsInRon.currentValue <= 0) {
+    const buyFundUnits = fundUnits.flatMap((unit) => {
+      const latestBuy = getLatestBuyStatus(unit);
+      return latestBuy ? [{ unit, latestBuy }] : [];
+    });
+
+    if (0 === buyFundUnits.length) {
       return null;
     }
 
-    const avgBondsPercent =
-      fundUnits.reduce((sum, unit) => sum + unit.bondsPercent, 0) /
-      fundUnits.length;
-    const avgStocksPercent = 100 - avgBondsPercent;
-    const totalRon = fundUnitsInRon.currentValue;
-
     let bondsValue = 0;
     let stocksValue = 0;
-    for (const unit of fundUnits) {
+    for (const { unit, latestBuy } of buyFundUnits) {
       const valueRon = convertToRon(
-        unit.totalValue,
+        latestBuy.totalValue,
         unit.currency,
         ronExchangeRates,
       );
@@ -1122,16 +1171,12 @@ export default function SummaryTab() {
       stocksValue += valueRon * ((100 - unit.bondsPercent) / 100);
     }
 
-    return {
-      avgBondsPercent,
-      avgStocksPercent,
-      totalRon,
-      bondsChartValue: totalRon * (avgBondsPercent / 100),
-      stocksChartValue: totalRon * (avgStocksPercent / 100),
-      bondsValue,
-      stocksValue,
-    };
-  }, [fundUnits, fundUnitsInRon.currentValue, ronExchangeRates]);
+    if (bondsValue + stocksValue <= 0) {
+      return null;
+    }
+
+    return { bondsValue, stocksValue };
+  }, [fundUnits, ronExchangeRates]);
 
   const pieFundAllocationData = useMemo((): SummaryPieRow[] => {
     if (!fundAllocation) {
@@ -1143,7 +1188,6 @@ export default function SummaryTab() {
         id: "bonds",
         name: t("pieBonds"),
         value: fundAllocation.bondsValue,
-        chartValue: fundAllocation.bondsChartValue,
         color: COLORS.bonds,
         legendOrder: 1,
       },
@@ -1151,7 +1195,6 @@ export default function SummaryTab() {
         id: "stocks",
         name: t("pieStocks"),
         value: fundAllocation.stocksValue,
-        chartValue: fundAllocation.stocksChartValue,
         color: COLORS.stocks,
         legendOrder: 2,
       },
@@ -1160,24 +1203,33 @@ export default function SummaryTab() {
 
   const pieEtfAllocationData = useMemo((): SummaryPieRow[] => {
     const rows = etfs
-      .map((etf) => {
-        const purchaseCost = etf.volume * etf.openingPrice;
+      .flatMap((etf): SummaryPieRow[] => {
+        const latestBuy = getLatestBuyTransaction(etf);
+        if (!latestBuy) {
+          return [];
+        }
+        const purchaseCost =
+          calculateEtfTransactionMetrics(latestBuy).purchaseCost;
         const valueRon = convertToRon(
           purchaseCost,
           etf.currency,
           ronExchangeRates,
         );
-        return {
-          id: etf._id ?? etf.symbol,
-          name: etf.label,
-          value: valueRon,
-          originalValue: purchaseCost,
-          originalCurrency: etf.currency,
-          color: COLORS.etfs,
-          legendOrder: 0,
-        };
+        if (valueRon <= 0) {
+          return [];
+        }
+        return [
+          {
+            id: etf._id ?? etf.symbol,
+            name: etf.label,
+            value: valueRon,
+            originalValue: purchaseCost,
+            originalCurrency: etf.currency,
+            color: COLORS.etfs,
+            legendOrder: 0,
+          },
+        ];
       })
-      .filter((row) => row.value > 0)
       .sort((a, b) => b.value - a.value);
 
     return rows.map((row, index) => ({
@@ -1207,12 +1259,18 @@ export default function SummaryTab() {
     [pieEtfAllocationData],
   );
 
-  const hasEtfSections = CURRENCIES.some(
-    (currency) => (etfSummariesByCurrency[currency]?.totalValue ?? 0) > 0,
-  );
-  const hasFundUnitSections = CURRENCIES.some(
-    (currency) => (fundUnitSummariesByCurrency[currency]?.totalValue ?? 0) > 0,
-  );
+  const hasEtfSections = CURRENCIES.some((currency) => {
+    const currencySummary = etfSummariesByCurrency[currency];
+    return (
+      undefined !== currencySummary && hasPositionSummary(currencySummary)
+    );
+  });
+  const hasFundUnitSections = CURRENCIES.some((currency) => {
+    const currencySummary = fundUnitSummariesByCurrency[currency];
+    return (
+      undefined !== currencySummary && hasPositionSummary(currencySummary)
+    );
+  });
 
   if (
     depositsLoading ||

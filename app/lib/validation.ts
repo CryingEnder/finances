@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { isIsoDateAfter } from "./dates";
 import { zodMessageToCode } from "./validation-error-codes";
+import { toIsoDateOnly, isIsoDateAfter, isIsoDateString } from "./dates";
 
 export const companySchema = z.object({
   instrument: z
@@ -265,6 +265,14 @@ export const transactionSchema = z
     },
   );
 
+export const tradeTypeSchema = z.enum(["BUY", "SELL"], {
+  message: "Type must be either BUY or SELL",
+});
+
+export function resolveTradeType(value: unknown): "BUY" | "SELL" {
+  return "SELL" === value ? "SELL" : "BUY";
+}
+
 export const etfSchema = z.object({
   symbol: z
     .string()
@@ -281,6 +289,39 @@ export const etfSchema = z.object({
     .min(1, "Label is required")
     .max(200, "Label must be 200 characters or less")
     .trim(),
+  currency: z.enum(["EUR", "USD", "RON"], {
+    message: "Currency must be EUR, USD, or RON",
+  }),
+});
+
+export type EtfInput = z.infer<typeof etfSchema>;
+
+export const etfUpdateSchema = z.object({
+  label: z
+    .string()
+    .min(1, "Label is required")
+    .max(200, "Label must be 200 characters or less")
+    .trim(),
+  currency: z.enum(["EUR", "USD", "RON"], {
+    message: "Currency must be EUR, USD, or RON",
+  }),
+});
+
+export type EtfUpdateInput = z.infer<typeof etfUpdateSchema>;
+
+export type EtfComparableFields = EtfUpdateInput;
+
+export function etfHasChanges(
+  existing: EtfComparableFields,
+  updated: EtfComparableFields,
+): boolean {
+  return (
+    existing.label !== updated.label || existing.currency !== updated.currency
+  );
+}
+
+const etfTransactionFieldsSchema = z.object({
+  type: tradeTypeSchema,
   volume: z
     .number()
     .min(0.0001, "Volume must be greater than 0")
@@ -293,52 +334,49 @@ export const etfSchema = z.object({
     .number()
     .min(0.0001, "Opening price must be greater than 0")
     .max(1000000, "Opening price cannot exceed 1,000,000"),
-  currency: z.enum(["EUR", "USD", "RON"], {
-    message: "Currency must be EUR, USD, or RON",
-  }),
 });
 
-export type EtfInput = z.infer<typeof etfSchema>;
+export const etfTransactionSchema = etfTransactionFieldsSchema;
 
-export type EtfComparableFields = Pick<
-  EtfInput,
-  "symbol" | "label" | "volume" | "actualPrice" | "openingPrice" | "currency"
+export type EtfTransactionInput = z.infer<typeof etfTransactionSchema>;
+
+export const etfTransactionCreateSchema = etfTransactionFieldsSchema.extend({
+  symbol: etfSchema.shape.symbol,
+  label: etfSchema.shape.label,
+});
+
+export type EtfTransactionCreateInput = z.infer<
+  typeof etfTransactionCreateSchema
 >;
 
-export function etfHasChanges(
-  existing: EtfComparableFields,
-  updated: EtfComparableFields,
+export type EtfTransactionComparableFields = EtfTransactionInput;
+
+export function etfTransactionHasChanges(
+  existing: EtfTransactionComparableFields,
+  updated: EtfTransactionComparableFields,
 ): boolean {
   return (
-    existing.symbol !== updated.symbol ||
-    existing.label !== updated.label ||
+    existing.type !== updated.type ||
     existing.volume !== updated.volume ||
     existing.actualPrice !== updated.actualPrice ||
-    existing.openingPrice !== updated.openingPrice ||
-    existing.currency !== updated.currency
+    existing.openingPrice !== updated.openingPrice
   );
 }
 
+const fundUnitNameSchema = z
+  .string()
+  .min(1, "Name is required")
+  .max(200, "Name must be 200 characters or less")
+  .trim();
+
 export const fundUnitSchema = z
   .object({
-    name: z
-      .string()
-      .min(1, "Name is required")
-      .max(200, "Name must be 200 characters or less")
-      .trim(),
+    name: fundUnitNameSchema,
     openedDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Opened date must be in YYYY-MM-DD format")
       .optional()
       .or(z.literal("")),
-    totalValue: z
-      .number()
-      .min(0.01, "Total value must be at least 0.01 RON")
-      .max(100000000, "Total value cannot exceed 100,000,000 RON"),
-    profit: z
-      .number()
-      .min(-100000000, "Profit cannot be less than -100,000,000 RON")
-      .max(100000000, "Profit cannot exceed 100,000,000 RON"),
     bondsPercent: z
       .number()
       .min(0, "Bonds percentage must be 0 or greater")
@@ -347,10 +385,6 @@ export const fundUnitSchema = z
       message: "Currency must be EUR, USD, or RON",
     }),
   })
-  .refine((data) => data.totalValue - data.profit >= 0, {
-    message: "Invested amount cannot be negative",
-    path: ["profit"],
-  })
   .transform((data) => ({
     ...data,
     openedDate: "" === data.openedDate ? undefined : data.openedDate,
@@ -358,26 +392,100 @@ export const fundUnitSchema = z
 
 export type FundUnitInput = z.infer<typeof fundUnitSchema>;
 
-export interface FundUnitComparableFields {
-  name: string;
-  openedDate?: string;
-  totalValue: number;
-  profit: number;
-  bondsPercent: number;
-  currency: "EUR" | "USD" | "RON";
-}
+export const fundUnitUpdateSchema = z
+  .object({
+    openedDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Opened date must be in YYYY-MM-DD format")
+      .optional()
+      .or(z.literal("")),
+    bondsPercent: z
+      .number()
+      .min(0, "Bonds percentage must be 0 or greater")
+      .max(100, "Bonds percentage cannot exceed 100%"),
+    currency: z.enum(["EUR", "USD", "RON"], {
+      message: "Currency must be EUR, USD, or RON",
+    }),
+  })
+  .transform((data) => ({
+    ...data,
+    openedDate: "" === data.openedDate ? undefined : data.openedDate,
+  }));
+
+export type FundUnitUpdateInput = z.infer<typeof fundUnitUpdateSchema>;
+
+export type FundUnitComparableFields = FundUnitUpdateInput;
 
 export function fundUnitHasChanges(
   existing: FundUnitComparableFields,
   updated: FundUnitComparableFields,
 ): boolean {
   return (
-    existing.name !== updated.name ||
     (existing.openedDate ?? "") !== (updated.openedDate ?? "") ||
-    existing.totalValue !== updated.totalValue ||
-    existing.profit !== updated.profit ||
     existing.bondsPercent !== updated.bondsPercent ||
     existing.currency !== updated.currency
+  );
+}
+
+const fundUnitStatusDateSchema = z
+  .string()
+  .min(1, "Status date is required")
+  .refine((value) => isIsoDateString(value), {
+    message: "Status date must be in YYYY-MM-DD format",
+  });
+
+const fundUnitStatusFieldsSchema = z.object({
+  type: tradeTypeSchema,
+  date: fundUnitStatusDateSchema,
+  totalValue: z
+    .number()
+    .min(0.01, "Total value must be at least 0.01")
+    .max(100000000, "Total value cannot exceed 100,000,000"),
+  profit: z
+    .number()
+    .min(-100000000, "Profit cannot be less than -100,000,000")
+    .max(100000000, "Profit cannot exceed 100,000,000"),
+});
+
+const withFundUnitStatusProfitRefine = <
+  T extends z.ZodType<{ totalValue: number; profit: number }>,
+>(
+  schema: T,
+) =>
+  schema.refine((data) => data.totalValue - data.profit >= 0, {
+    message: "Invested amount cannot be negative",
+    path: ["profit"],
+  });
+
+const fundUnitStatusCreateFieldsSchema = fundUnitStatusFieldsSchema.extend({
+  name: fundUnitNameSchema,
+});
+
+export const fundUnitStatusCreateSchema = withFundUnitStatusProfitRefine(
+  fundUnitStatusCreateFieldsSchema,
+);
+
+export type FundUnitStatusCreateInput = z.infer<
+  typeof fundUnitStatusCreateSchema
+>;
+
+export const fundUnitStatusSchema = withFundUnitStatusProfitRefine(
+  fundUnitStatusFieldsSchema,
+);
+
+export type FundUnitStatusInput = z.infer<typeof fundUnitStatusSchema>;
+
+export type FundUnitStatusComparableFields = FundUnitStatusInput;
+
+export function fundUnitStatusHasChanges(
+  existing: FundUnitStatusComparableFields,
+  updated: FundUnitStatusComparableFields,
+): boolean {
+  return (
+    existing.type !== updated.type ||
+    toIsoDateOnly(existing.date) !== updated.date ||
+    existing.totalValue !== updated.totalValue ||
+    existing.profit !== updated.profit
   );
 }
 

@@ -614,6 +614,61 @@ export default function DepositsTab() {
 
       {deposits.length > 0 && (
         <>
+          {showChart && (
+            <DepositsChart
+              summary={summary}
+              deposits={depositsWithCalculations}
+            />
+          )}
+
+          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              {t("summaryHeading")}
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-zinc-400">{t("totalPrincipal")}</p>
+                <p className="text-white font-medium">
+                  {summary.totalPrincipal.toLocaleString(numberFormat, {
+                    style: "currency",
+                    currency: "RON",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-400">{t("totalCurrentBalance")}</p>
+                <p className="text-white font-medium">
+                  {summary.totalCurrentBalance.toLocaleString(numberFormat, {
+                    style: "currency",
+                    currency: "RON",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-400">{t("totalEarnedInterest")}</p>
+                <p className="text-green-400 font-medium">
+                  {summary.totalEarnedInterest.toLocaleString(numberFormat, {
+                    style: "currency",
+                    currency: "RON",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-400">{t("totalReturnPercent")}</p>
+                <p
+                  className={`font-medium ${
+                    summary.totalReturnPercent >= 0
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {summary.totalReturnPercent.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-4">
             <div className="flex flex-col gap-3">
               <div className="flex gap-2">
@@ -739,61 +794,6 @@ export default function DepositsTab() {
                 >
                   {t("termXlong")}
                 </Button>
-              </div>
-            </div>
-          </div>
-
-          {showChart && (
-            <DepositsChart
-              summary={summary}
-              deposits={depositsWithCalculations}
-            />
-          )}
-
-          <div className="bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              {t("summaryHeading")}
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-zinc-400">{t("totalPrincipal")}</p>
-                <p className="text-white font-medium">
-                  {summary.totalPrincipal.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className="text-zinc-400">{t("totalCurrentBalance")}</p>
-                <p className="text-white font-medium">
-                  {summary.totalCurrentBalance.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className="text-zinc-400">{t("totalEarnedInterest")}</p>
-                <p className="text-green-400 font-medium">
-                  {summary.totalEarnedInterest.toLocaleString(numberFormat, {
-                    style: "currency",
-                    currency: "RON",
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className="text-zinc-400">{t("totalReturnPercent")}</p>
-                <p
-                  className={`font-medium ${
-                    summary.totalReturnPercent >= 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {summary.totalReturnPercent.toFixed(2)}%
-                </p>
               </div>
             </div>
           </div>
