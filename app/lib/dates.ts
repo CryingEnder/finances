@@ -59,7 +59,11 @@ export function toIsoDateOnly(iso: string): string {
 }
 
 export function combineDateOnlyWithCurrentTime(dateOnly: string): string {
-  const [year, month, day] = dateOnly.split("-").map(Number);
+  const [year, month, day] = dateOnly.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
   const now = new Date();
 
   return new Date(
@@ -77,7 +81,11 @@ export function combineDateOnlyWithTimeFrom(
   dateOnly: string,
   timeSourceIso: string,
 ): string {
-  const [year, month, day] = dateOnly.split("-").map(Number);
+  const [year, month, day] = dateOnly.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
   const timeSource = parseIsoDateTime(timeSourceIso);
 
   return new Date(
