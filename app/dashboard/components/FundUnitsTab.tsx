@@ -27,11 +27,15 @@ import { TAB_BUTTON_CLASS } from "../../lib/tab-colors";
 import { numberFormatLocale } from "../../lib/number-locale";
 import { InfoTooltip } from "../../components/ui/info-tooltip";
 import { useApiErrorMessage } from "../../lib/hooks/use-api-error-message";
-import { todayIsoDate, toIsoDateOnly, formatDisplayDate } from "../../lib/dates";
 import {
   NoticeDialog,
   ConfirmDialog,
 } from "../../components/ui/confirm-dialog";
+import {
+  todayIsoDate,
+  toIsoDateOnly,
+  formatDisplayDate,
+} from "../../lib/dates";
 import {
   Select,
   SelectItem,
@@ -156,7 +160,8 @@ export default function FundUnitsTab() {
   );
   const [fundUnitForm, setFundUnitForm] =
     useState<FundUnitFormState>(EMPTY_FUND_UNIT_FORM);
-  const [statusForm, setStatusForm] = useState<StatusFormState>(EMPTY_STATUS_FORM);
+  const [statusForm, setStatusForm] =
+    useState<StatusFormState>(EMPTY_STATUS_FORM);
   const [fundUnitFormError, setFundUnitFormError] = useState("");
   const [statusFormError, setStatusFormError] = useState("");
   const [expandedFundUnitIds, setExpandedFundUnitIds] = useState<
@@ -550,8 +555,10 @@ export default function FundUnitsTab() {
                       )}
                     </span>
                   </td>
-                  <td className="py-3 pl-1 pr-6 align-middle max-w-md min-w-[14rem]">
-                    <div className="font-semibold text-white">{fundUnit.name}</div>
+                  <td className="py-3 pl-1 pr-6 align-middle max-w-md min-w-56">
+                    <div className="font-semibold text-white">
+                      {fundUnit.name}
+                    </div>
                     <div className="text-xs text-zinc-400 mt-0.5 space-y-0.5 whitespace-normal">
                       {fundUnit.openedDate ? (
                         <div>
@@ -693,7 +700,10 @@ export default function FundUnitsTab() {
           }}
         >
           <DialogTrigger asChild>
-            <Button onClick={beginAddFundUnit} className={TAB_BUTTON_CLASS.fundUnits}>
+            <Button
+              onClick={beginAddFundUnit}
+              className={TAB_BUTTON_CLASS.fundUnits}
+            >
               <Plus className="w-4 h-4 mr-2" />
               {t("addFundUnit")}
             </Button>
@@ -733,7 +743,9 @@ export default function FundUnitsTab() {
                       }));
                     }}
                   />
-                  <p className="text-xs text-zinc-400 mt-1">{t("nameUnique")}</p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {t("nameUnique")}
+                  </p>
                 </div>
               )}
               <div>

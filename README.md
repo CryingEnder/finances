@@ -4,6 +4,8 @@ Personal finance tracker for portfolios spanning stocks, ETFs, fund units, term 
 
 Built with **Next.js**, **MongoDB**, and **TypeScript**. Auth is JWT-based; UI is bilingual (EN/RO). Multi-currency positions use BNR exchange rates for RON conversion.
 
+![Finance Manager dashboard](assets/images/readme-img.webp)
+
 ## Features
 
 - **Stock portfolio** — positions with purchase vs. current value and profit/loss
