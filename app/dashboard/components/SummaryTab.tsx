@@ -389,7 +389,16 @@ function SummaryExchangeRates({
   const sourceLabel = apiFailed
     ? t("fxRatesApiFailed")
     : rateDate
-      ? t("fxRatesBnrAsOf", { date: rateDate })
+      ? t("fxRatesBnrAsOf", {
+          date:
+            "ro" === locale
+              ? new Intl.DateTimeFormat("ro-RO", {
+                  day: "numeric",
+                  month: "numeric",
+                  year: "numeric",
+                }).format(new Date(`${rateDate}T00:00:00`))
+              : rateDate,
+        })
       : null;
 
   return (
